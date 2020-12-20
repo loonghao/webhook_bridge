@@ -45,5 +45,7 @@ curl -X POST "http://localhost:5001/api/plugin/sentry" -H  "accept: application/
 ```
 If everything is set up properly, you will see that the plugin is executed normally.
 
+<img src="https://i.imgur.com/QnVVdor.gif" alt="logo"></a>
+
 local docs power by fastapi
 `http://localhost:5001/docs`
