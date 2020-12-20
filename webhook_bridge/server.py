@@ -14,7 +14,7 @@ APP = FastAPI(debug=True,
               title="Webhook bridge server")
 
 
-@APP.router.post("/plugin/{plugin_name}")
+@APP.router.post("/api/plugin/{plugin_name}")
 async def plugin_integrated(plugin_name: str,
                             data: Dict):
     plugins = paths.get_plugins()
@@ -33,7 +33,7 @@ async def plugin_integrated(plugin_name: str,
 
 def start_server():
     port = 5001
-    uvicorn.run("server:APP",
+    uvicorn.run("webhook_bridge.server:APP",
                 host="localhost",
                 port=port,
                 reload=True,
