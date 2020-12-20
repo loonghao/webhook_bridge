@@ -1,0 +1,6 @@
+setuptools~=51.0.0
+uvicorn~=0.13.1
+fastapi~=0.62.0
+pytest~=6.2.1
+pydantic~=1.7.3
+addict~=2.4.0
