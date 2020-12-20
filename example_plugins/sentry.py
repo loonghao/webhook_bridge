@@ -1,10 +1,16 @@
+# Import built-in modules
 import json
+import os
+from tempfile import mkdtemp
 
+# Import local modules
 from webhook_bridge.plugin import BasePlugin
 
 
 class Plugin(BasePlugin):
 
     def run(self):
-        with open("d:/test.json", "w") as f:
-            json.dump(self.data.event.tags, f, indent=2)
+        root = mkdtemp("webhook-bridge")
+        with open(os.path.join(root, "info.json"), "w") as f:
+            json.dump(self.data, f, indent=2)
+        os.startfile(root)
