@@ -1,6 +1,6 @@
 setuptools==65.0.2
 uvicorn==0.13.4
-fastapi==0.65.2
+fastapi==0.79.0
 pytest==6.2.5
 pydantic==1.7.4
 addict==2.4.0
