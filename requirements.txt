@@ -1,4 +1,4 @@
-setuptools==65.2.0
+setuptools==65.5.1
 uvicorn==0.13.4
 fastapi==0.79.1
 pytest==6.2.5
