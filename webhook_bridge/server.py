@@ -34,7 +34,7 @@ async def plugin_integrated(plugin_name: str,
 def start_server():
     port = 5001
     uvicorn.run("webhook_bridge.server:APP",
-                host="localhost",
+                host="0.0.0.0",
                 port=port,
                 reload=True,
                 log_level="info")
