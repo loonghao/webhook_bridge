@@ -10,44 +10,34 @@ Like:
 [WeChat](https://www.wechat.com/en/),
 [POPO](http://popo.netease.com/)
 
+[![Python Version](https://img.shields.io/pypi/pyversions/webhook-bridge)](https://img.shields.io/pypi/pyversions/webhook-bridge)
+[![Nox](https://img.shields.io/badge/%F0%9F%A6%8A-Nox-D85E00.svg)](https://github.com/wntrblm/nox)
+[![PyPI Version](https://img.shields.io/pypi/v/webhook-bridge?color=green)](https://pypi.org/project/webhook-bridge/)
+[![Downloads](https://static.pepy.tech/badge/webhook-bridge)](https://pepy.tech/project/webhook-bridge)
+[![Downloads](https://static.pepy.tech/badge/webhook-bridge/month)](https://pepy.tech/project/webhook-bridge)
+[![Downloads](https://static.pepy.tech/badge/webhook-bridge/week)](https://pepy.tech/project/webhook-bridge)
+[![License](https://img.shields.io/pypi/l/webhook-bridge)](https://pypi.org/project/webhook-bridge/)
+[![PyPI Format](https://img.shields.io/pypi/format/webhook-bridge)](https://pypi.org/project/webhook-bridge/)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/loonghao/webhook-bridge/graphs/commit-activity)
+
 
 <p align="center">
 <img src="https://i.imgur.com/31RO4xN.png" alt="logo"></a>
 </p>
 
 
-Setup Dev Environment
---------------------
+# Setup Dev Environment
 
 ```shell
 pip install -r requirements-dev.txt
 ```
 
-
-Installing
-----------
-You can install via pip.
-
-```cmd
-pip install webhook_bridge
-```
-or through clone from Github.
-```git exclude
-git clone https://github.com/loonghao/webhook_bridge.git
-```
-Install package.
-```cmd
-python setup.py install
+## Test in local
+This command line will auto load example plugins.
+```shell
+nox -s local-test
 ```
 
-QuickStart
-----------
-# Launch server.
-```shell script
-# Load example plugin for test.
-set WEBHOOK_BRIDGE_SERVER_PLUGINS=C:\Users\hao.long\webhook_bridge_server\example_plugins
-webhook-bridge
-```
 Test post data to the webhook bridge
 ```shell script
 curl -X POST "http://localhost:5001/api/plugin/sentry" -H  "accept: application/json" -H  "Content-Type: application/json" -d "[[\"browser\",\"Chrome 28.0.1500\"],[\"browser.name\",\"Chrome\"],[\"client_os\",\"Windows 8\"],[\"client_os.name\",\"Windows\"],[\"environment\",\"prod\"],[\"level\",\"error\"],[\"sentry:user\",\"id:1\"],[\"server_name\",\"web01.example.org\"],[\"url\",\"http://example.com/foo\"]]"
@@ -56,5 +46,11 @@ If everything is set up properly, you will see that the plugin is executed norma
 
 <img src="https://i.imgur.com/QnVVdor.gif" alt="logo"></a>
 
-local docs power by fastapi
-`http://localhost:5001/docs`
+
+# Installing
+
+You can install via pip.
+
+```cmd
+pip install webhook-bridge
+```
