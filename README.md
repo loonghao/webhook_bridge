@@ -5,15 +5,24 @@
 webhook-bridge
 ==============
 Bridge Webhook into your tool or internal integration.
-Like: 
+Like:
 [Sentry](https://sentry.io)
-[WeChat](https://www.wechat.com/en/), 
+[WeChat](https://www.wechat.com/en/),
 [POPO](http://popo.netease.com/)
 
 
 <p align="center">
 <img src="https://i.imgur.com/31RO4xN.png" alt="logo"></a>
 </p>
+
+
+Setup Dev Environment
+--------------------
+
+```shell
+pip install -r requirements-dev.txt
+```
+
 
 Installing
 ----------

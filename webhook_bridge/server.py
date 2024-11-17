@@ -1,44 +1,32 @@
 # Import built-in modules
-from typing import Dict
 
 # Import third-party modules
-import uvicorn
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-
-# Import local modules
-from webhook_bridge import paths
-from webhook_bridge.plugin import load_plugin
-
-APP = FastAPI(debug=True,
-              title="Webhook bridge server")
+from fastapi.responses import HTMLResponse
+from markdown import markdown  # You may need to install this package
+from webhook_bridge.api import setup_api
 
 
-@APP.router.post("/api/plugin/{plugin_name}")
-async def plugin_integrated(plugin_name: str,
-                            data: Dict):
-    plugins = paths.get_plugins()
-    plugin_src_file = plugins.get(plugin_name)
-    if not plugin_src_file:
-        mgs = (f"Plugin {plugin_name} not found. "
-               f"The currently available plugins are {list(plugins.keys())}")
-        return JSONResponse(status_code=404, content={"message": mgs})
-    else:
-        plugin = load_plugin(plugin_src_file)
-        plugin_instance = plugin(data)
-        plugin_instance.run()
-        content = f"{plugin_name}: executed successfully."
-        return JSONResponse(status_code=200, content={"message": content})
+APP = FastAPI(debug=True, title="Webhook Bridge Server")
 
+# Markdown content for the homepage
+markdown_content = """
+# Welcome to the Webhook Bridge Server
 
-def start_server():
-    port = 5001
-    uvicorn.run("webhook_bridge.server:APP",
-                host="0.0.0.0",
-                port=port,
-                reload=True,
-                log_level="info")
+This server allows you to integrate various plugins.
 
+You can find the source code on [GitHub](https://github.com/loonghao/webhook_bridge).
 
-if __name__ == "__main__":
-    start_server()
+## Available Plugins
+- Plugin1
+- Plugin2
+- Plugin3
+"""
+
+@APP.get("/", response_class=HTMLResponse) # type: ignore
+async def read_root() -> HTMLResponse:
+    html_content = markdown(markdown_content)
+    return HTMLResponse(content=html_content)
+
+# Setup API.
+APP = setup_api(APP)
