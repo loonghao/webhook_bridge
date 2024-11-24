@@ -3,7 +3,7 @@ import json
 import os
 from tempfile import mkdtemp
 
-# Import third-party modules
+# Import local modules
 from webhook_bridge.plugin import BasePlugin
 
 
@@ -18,6 +18,6 @@ class Plugin(BasePlugin):
         result = {
             "message": "Plugin executed successfully",
             "input_data": self.data,
-            "additional_info": "This is some additional information."
+            "additional_info": "This is some additional information.",
         }
         return result

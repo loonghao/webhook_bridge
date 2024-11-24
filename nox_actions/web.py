@@ -1,15 +1,55 @@
+"""NOX actions for web-related tasks.
+
+This module provides NOX sessions for running and testing the web server.
+"""
+# Import future modules
+from __future__ import annotations
+
 # Import built-in modules
-import os
+from pathlib import Path
 import webbrowser
 
 # Import third-party modules
 import nox
-from nox_actions.utils import THIS_ROOT
 
 
-def local_test(session: nox.Session) -> None:
-    print( os.path.join(THIS_ROOT, "example_plugins"))
-    os.environ["WEBHOOK_BRIDGE_SERVER_PLUGINS"] = os.path.join(THIS_ROOT, "example_plugins")
-    port = "54002"
-    webbrowser.open_new_tab(f"http://127.0.0.1:{port}/api/v1/docs")
-    session.run("uvicorn", "webhook_bridge.server:APP", "--reload", "--host", "127.0.0.1", "--port", port)
+@nox.session
+def start_server(session: nox.Session) -> None:
+    """Start the webhook bridge server for development."""
+    # Install dependencies
+    session.install("uvicorn")
+    session.install("-e", ".")
+
+    # Create plugin directory if it doesn't exist
+    plugin_dir = Path("example_plugins")
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create a test plugin
+    test_plugin = plugin_dir / "test_plugin.py"
+    test_plugin.write_text('''
+from webhook_bridge.plugin import BasePlugin
+
+class Plugin(BasePlugin):
+    def run(self) -> dict:
+        return {"status": "success", "message": "Test plugin executed"}
+    ''')
+
+    # Open API documentation in browser
+    host = "127.0.0.1"
+    port = "54012"
+    webbrowser.open_new_tab(f"http://{host}:{port}")
+
+    # Start server
+    session.run(
+        "python",
+        "-m",
+        "webhook_bridge.cli",
+        "--host",
+        host,
+        "--port",
+        port,
+        "--plugin-dir",
+        str(plugin_dir),
+        "--log-level",
+        "DEBUG",
+    )

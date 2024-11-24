@@ -24,3 +24,5 @@ result/
 # Docs
 docs/_build/
 /run_pycharm.bat
+/coverage.xml
+/plugins/

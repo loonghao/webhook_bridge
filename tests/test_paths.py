@@ -1,7 +1,7 @@
 # Import built-in modules
 import os
 
-# Import third-party modules
+# Import local modules
 from webhook_bridge.filesystem import get_default_plugin_path
 from webhook_bridge.filesystem import get_plugins
 

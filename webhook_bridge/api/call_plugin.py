@@ -1,60 +1,167 @@
-# Import built-in modules
+"""API endpoint for executing webhook plugins."""
+# Import future modules
+from __future__ import annotations
 
 # Import built-in modules
+import logging
 import traceback
 from typing import Any
-from typing import Dict
-from typing import Type
 
 # Import third-party modules
 from fastapi import FastAPI
+from fastapi import Request
+from fastapi import status
+from fastapi.routing import APIRouter
 from fastapi_versioning import version
+
+# Import local modules
 from webhook_bridge.filesystem import get_plugins
-from webhook_bridge.models import PluginResponse
+from webhook_bridge.models import WebhookResponse
+from webhook_bridge.models import WebhookResponseData
 from webhook_bridge.plugin import BasePlugin
 from webhook_bridge.plugin import load_plugin
 
 
 def api(app: FastAPI) -> None:
-    @app.post("/plugin/{plugin_name}", response_model=PluginResponse)  # type: ignore
-    @version(1)  # type: ignore
-    async def plugin_integrated(plugin_name: str, data: Dict[str, Any]) -> PluginResponse:
-        plugins = get_plugins()
+    """Register the plugin execution endpoint with the FastAPI application.
+
+    Args:
+        app: The FastAPI application instance to register the endpoint with
+    """
+    router = APIRouter()
+
+    @router.post(
+        "/plugin/{plugin_name}",
+        response_model=WebhookResponseData,
+        summary="Execute a plugin",
+        description="Execute a specific webhook plugin with the provided data",
+        status_code=status.HTTP_200_OK,
+        responses={
+            200: {
+                "description": "Plugin executed successfully",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "status_code": 200,
+                            "message": "success",
+                            "data": {
+                                "plugin": "example",
+                                "src_data": {"key": "value"},
+                                "result": {
+                                    "status": "success",
+                                    "data": {"key": "value"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            404: {
+                "description": "Plugin not found",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "status_code": 404,
+                            "message": "Plugin not found",
+                            "data": {
+                                "error": "Plugin not found",
+                            },
+                        },
+                    },
+                },
+            },
+            500: {
+                "description": "Plugin execution failed",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "status_code": 500,
+                            "message": "Plugin execution failed",
+                            "data": {
+                                "details": "Error message",
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    )
+    @version(1)
+    async def execute_plugin(
+        request: Request,
+        plugin_name: str,
+        data: dict[str, Any],
+    ) -> WebhookResponse:
+        """Execute a specific webhook plugin.
+
+        Args:
+            request: FastAPI request object
+            plugin_name: Name of the plugin to execute
+            data: Data to pass to the plugin
+
+        Returns:
+            WebhookResponse: Response containing the plugin execution results
+        """
+        logger = logging.getLogger(__name__)
+        logger.info("Executing plugin %r with data: %s", plugin_name, data)
+
+        # Get plugin directory from app state
+        plugin_dir = app.state.plugin_dir
+        if plugin_dir is None:
+            return WebhookResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Plugin execution failed",
+                data={
+                    "error": "Plugin directory not configured",
+                    "details": "Plugin directory not set in application state",
+                },
+            )
+
+        # Get available plugins
+        plugins = get_plugins(plugin_dir)
         plugin_src_file = plugins.get(plugin_name)
 
         if not plugin_src_file:
-            msg = (f"Plugin {plugin_name} not found. "
-                   f"The currently available plugins are {list(plugins.keys())}")
-            return PluginResponse(status_code=404, message=msg, data={
-                "plugin_name": plugin_name, "src_data": data
-            })
-        else:
-            try:
-                plugin_class: Type[BasePlugin] = load_plugin(plugin_src_file)
-                plugin_instance = plugin_class(data)
-                result = plugin_instance.run()
-            except Exception as err:
-                result = {
-                    "error": str(err), "traceback": traceback.format_exc()
-                }
-                return PluginResponse(status_code=500, message="Plugin did not return a dictionary.",
-                                      data={
-                                          "plugin_name": plugin_name, "src_data": data,
-                                          "result": result
-                                      }
-                                      )
-            # Ensure the result is a dictionary
-            if not isinstance(result, dict):
-                return PluginResponse(status_code=500, message="Plugin did not return a dictionary.",
-                                      data={
-                                          "plugin_name": plugin_name, "src_data": data,
-                                          "result": result
-                                      }
-                                      )
+            logger.error("Plugin %r not found in directory: %s", plugin_name, plugin_dir)
+            return WebhookResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Plugin not found",
+                data={
+                    "error": "Plugin not found",
+                },
+            )
 
-            content: Dict[str, Any] = {
-                "plugin_name": plugin_name,
-                "src_data": data,
-                "result": result
-            }
-            return PluginResponse(data=content, message="Plugin executed successfully")
+        try:
+            # Load and execute plugin
+            plugin_class: type[BasePlugin] = load_plugin(plugin_src_file)
+            plugin_instance = plugin_class(data)
+            result = plugin_instance.execute()
+
+            logger.info("Successfully executed plugin %r", plugin_name)
+            return WebhookResponse(
+                status_code=status.HTTP_200_OK,
+                message="success",
+                data={
+                    "plugin": plugin_name,
+                    "plugin_data": result,
+                },
+            )
+        except Exception as e:
+            logger.error(f"Error executing plugin: {e}")
+            logger.debug(traceback.format_exc())
+            error_msg = str(e)
+            logger.error(
+                "Failed to execute plugin %r: %s\n%s",
+                plugin_name,
+                error_msg,
+                traceback.format_exc(),
+            )
+            return WebhookResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Plugin execution failed",
+                data={
+                    "details": error_msg,
+                },
+            )
+
+    app.include_router(router)
