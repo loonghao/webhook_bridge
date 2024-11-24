@@ -42,4 +42,4 @@ def build_exe(session: nox.Session) -> None:
                         zip_obj.write(os.path.join(root, file),
                                       os.path.relpath(os.path.join(root, file),
                                                       os.path.join(platform_dir, ".")))
-            print("Saving to {zipfile}".format(zipfile=zip_file))
+            print(f"Saving to {zip_file}")
