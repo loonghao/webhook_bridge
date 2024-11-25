@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "webhook-bridge"
-version = "0.2.0"
+version = "0.3.0"
 description = "A flexible webhook integration platform."
 authors = ["hal.long <hal.long@outlook.com>"]
 license = "MIT"
@@ -33,7 +33,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.2.0"
+version = "0.3.0"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml:version",
