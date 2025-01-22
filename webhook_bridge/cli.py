@@ -77,6 +77,11 @@ def create_parser() -> argparse.ArgumentParser:
         default="A flexible webhook integration platform",
         help="API description (default: A flexible webhook integration platform)",
     )
+    parser.add_argument(
+        "--disable-docs",
+        action="store_true",
+        help="Disable the API documentation endpoints (/docs and /redoc)",
+    )
 
     # Plugin configuration
     parser.add_argument(
@@ -94,6 +99,8 @@ def run_server(
     port: int,
     plugin_dir: Path,
     log_level: str,
+    *,
+    disable_docs: bool = False,
     **kwargs: Any,
 ) -> None:
     """Run the webhook bridge server.
@@ -103,6 +110,7 @@ def run_server(
         port: Port to bind the server to
         plugin_dir: Directory containing webhook plugins
         log_level: Logging level
+        disable_docs: Whether to disable API documentation
         **kwargs: Additional arguments to pass to FastAPI
     """
     # Configure logging
@@ -110,6 +118,8 @@ def run_server(
         level=getattr(logging, log_level.upper()),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+
+    kwargs["enable_docs"] = not disable_docs
 
     # Create FastAPI app
     app = create_app(plugin_dir=str(plugin_dir), **kwargs)
@@ -140,6 +150,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             log_level=args.log_level,
             title=args.title,
             description=args.description,
+            disable_docs=args.disable_docs,
         )
         sys.exit(0)
     except Exception as e:
