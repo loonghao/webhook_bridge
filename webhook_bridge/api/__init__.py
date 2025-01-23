@@ -49,6 +49,9 @@ def setup_api(app: FastAPI) -> FastAPI:
         version_format="{major}",
         prefix_format="/api/v{major}",
         enable_latest=True,
+        docs_url=app.docs_url,
+        redoc_url=app.redoc_url,
+        openapi_url=app.openapi_url,
     )
 
     return versioned_app
