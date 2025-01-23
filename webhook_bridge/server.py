@@ -51,6 +51,7 @@ def create_app(
     description: str = "A flexible webhook integration platform",
     version: str = __version__,
     plugin_dir: str | None = None,
+    enable_docs: bool = True,
     **kwargs: Any,
 ) -> FastAPI:
     """Create and configure the FastAPI application."""
@@ -59,6 +60,9 @@ def create_app(
         title=title,
         description=description,
         version=version,
+        docs_url="/docs" if enable_docs else None,
+        redoc_url="/redoc" if enable_docs else None,
+        openapi_url="/openapi.json" if enable_docs else None,
         **kwargs,
     )
 
