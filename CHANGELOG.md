@@ -1,3 +1,9 @@
+## v0.4.0 (2025-02-07)
+
+### Feat
+
+- disable docs when deploying to internet-accessible machines according to company security policy
+
 ## v0.3.0 (2024-11-25)
 
 ### Feat
