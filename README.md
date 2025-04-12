@@ -24,6 +24,7 @@ A flexible and powerful webhook integration platform that allows you to bridge w
 
 - 🚀 **API Versioning**: Support for versioned API endpoints (`/v1`, `/latest`)
 - 🔌 **Plugin System**: Dynamic plugin loading and execution
+- 🌐 **RESTful API**: Support for GET, POST, PUT, DELETE HTTP methods
 - 🛠️ **Flexible Configuration**: Extensive CLI and programmatic configuration options
 - 📝 **Rich Documentation**: Interactive API documentation with Swagger UI and ReDoc
 - 🔒 **Secure**: Built-in security features and error handling
@@ -102,33 +103,49 @@ from webhook_bridge.plugin import BasePlugin
 class MyPlugin(BasePlugin):
     """Custom webhook plugin."""
 
-    def run(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process webhook data.
-
-        Args:
-            data: Input data from webhook
+    def handle(self) -> Dict[str, Any]:
+        """Generic handler for all HTTP methods.
 
         Returns:
             Dict[str, Any]: Processed result
-
-            Example:
-            {
-                "status": "success",
-                "data": {"key": "processed_value"}
-            }
         """
         # Process your webhook data here
         result = {
             "status": "success",
-            "data": {"message": f"Processed: {data}"}
+            "data": {"message": f"Processed: {self.data}"}
         }
         return result
+
+    def get(self) -> Dict[str, Any]:
+        """Handle GET requests.
+
+        Returns:
+            Dict[str, Any]: Processed result
+        """
+        # Process GET request
+        return {
+            "status": "success",
+            "data": {"message": "GET request processed"}
+        }
+
+    def post(self) -> Dict[str, Any]:
+        """Handle POST requests.
+
+        Returns:
+            Dict[str, Any]: Processed result
+        """
+        # Process POST request
+        return {
+            "status": "success",
+            "data": {"message": "POST request processed"}
+        }
 ```
 
 The plugin must:
 1. Inherit from `BasePlugin`
-2. Implement the `run` method
-3. Return a dictionary containing at least:
+2. Implement at least the `handle` method (generic handler)
+3. Optionally implement method-specific handlers: `get`, `post`, `put`, `delete`
+4. Return a dictionary containing at least:
    - `status`: String indicating success or failure
    - `data`: Dictionary containing the processed result
 
@@ -193,10 +210,28 @@ webhook_bridge/
     ```
 
 #### Execute Plugin
-- `POST api/v1/plugin/{plugin_name}`: Execute a specific webhook plugin
+- `GET api/v1/plugin/{plugin_name}`: Execute a specific webhook plugin with GET method
+  - Parameters:
+    - `plugin_name`: Name of the plugin to execute
+    - Query parameters: Data to be processed by the plugin
+  - Response 200: Standard response format
+
+- `POST api/v1/plugin/{plugin_name}`: Execute a specific webhook plugin with POST method
   - Parameters:
     - `plugin_name`: Name of the plugin to execute
     - Request body: JSON data to be processed by the plugin
+  - Response 200: Standard response format
+
+- `PUT api/v1/plugin/{plugin_name}`: Execute a specific webhook plugin with PUT method
+  - Parameters:
+    - `plugin_name`: Name of the plugin to execute
+    - Request body: JSON data to be processed by the plugin
+  - Response 200: Standard response format
+
+- `DELETE api/v1/plugin/{plugin_name}`: Execute a specific webhook plugin with DELETE method
+  - Parameters:
+    - `plugin_name`: Name of the plugin to execute
+    - Query parameters: Data to be processed by the plugin
   - Response 200:
     ```json
     {

@@ -87,7 +87,7 @@ def api(app: FastAPI) -> None:
 
     # Helper function to execute a plugin
     async def _execute_plugin(
-        request: Request,
+        _: Request,  # request parameter not used but required by FastAPI
         plugin_name: str,
         data: dict[str, Any],
         http_method: str,
@@ -95,7 +95,7 @@ def api(app: FastAPI) -> None:
         """Execute a specific webhook plugin.
 
         Args:
-            request: FastAPI request object
+            _: FastAPI request object (not used but required by FastAPI)
             plugin_name: Name of the plugin to execute
             data: Data to pass to the plugin
             http_method: HTTP method used to call the plugin
@@ -176,6 +176,7 @@ def api(app: FastAPI) -> None:
         responses=plugin_responses,
     )
     @version(1)
+    # Function is used by FastAPI framework, ignore unused warning
     async def execute_plugin_post(
         request: Request,
         plugin_name: str,
@@ -206,6 +207,7 @@ def api(app: FastAPI) -> None:
         responses=plugin_responses,
     )
     @version(1)
+    # Function is used by FastAPI framework, ignore unused warning
     async def execute_plugin_get(
         request: Request,
         plugin_name: str,
@@ -233,6 +235,7 @@ def api(app: FastAPI) -> None:
         responses=plugin_responses,
     )
     @version(1)
+    # Function is used by FastAPI framework, ignore unused warning
     async def execute_plugin_put(
         request: Request,
         plugin_name: str,
@@ -260,6 +263,7 @@ def api(app: FastAPI) -> None:
         responses=plugin_responses,
     )
     @version(1)
+    # Function is used by FastAPI framework, ignore unused warning
     async def execute_plugin_delete(
         request: Request,
         plugin_name: str,

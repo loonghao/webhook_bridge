@@ -75,7 +75,7 @@ class BasePlugin(ABC):
         self.logger.warning(
             "The 'run' method is deprecated and will be removed in a future version. "
             "Please implement the 'handle' method instead, or method-specific handlers "
-            "('get', 'post', 'put', 'delete') for more control."
+            "('get', 'post', 'put', 'delete') for more control.",
         )
 
         # If the plugin has implemented the run method, use it
@@ -108,7 +108,11 @@ class BasePlugin(ABC):
         # We need to use super().__class__ to get the parent class method
         # and avoid infinite recursion
         method = super().__getattribute__("run")
-        return method()
+        result = method()
+        # Ensure we return a dict[str, Any]
+        if not isinstance(result, dict):
+            return {"result": result}
+        return result
 
     @abstractmethod
     def handle(self) -> dict[str, Any]:
