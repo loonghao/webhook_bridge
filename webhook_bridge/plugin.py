@@ -33,32 +33,86 @@ class BasePlugin(ABC):
 
     This class defines the interface that all webhook bridge plugins must implement.
     Each plugin must provide a `run` method that processes the input data and
-    returns a result.
+    returns a result. Additionally, plugins can implement method-specific handlers
+    for different HTTP methods (get, post, put, delete).
 
     Attributes:
         data: Dictionary containing the plugin's input data
         logger: Logger instance for the plugin
+        http_method: The HTTP method used to call the plugin (GET, POST, PUT, DELETE)
     """
 
     def __init__(
         self,
         data: dict[str, Any],
         logger: logging.Logger | None = None,
+        http_method: str = "POST",
     ) -> None:
         """Initialize the plugin with data and logger.
 
         Args:
             data: Dictionary containing the plugin's input data
             logger: Optional logger instance. If None, a new logger will be created
+            http_method: The HTTP method used to call the plugin (GET, POST, PUT, DELETE)
         """
         self.data = data
         if logger is None:
             logger = logging.getLogger(self.__class__.__name__)
         self.logger = logger
+        self.http_method = http_method.upper()
 
-    @abstractmethod
     def run(self) -> dict[str, Any]:
         """Execute the plugin's main functionality.
+
+        This method is deprecated and will be removed in a future version.
+        Please implement the `handle` method instead, or method-specific handlers
+        (`get`, `post`, `put`, `delete`) for more control.
+
+        Returns:
+            dict: Dictionary containing the plugin's results
+        """
+        # Log a deprecation warning
+        self.logger.warning(
+            "The 'run' method is deprecated and will be removed in a future version. "
+            "Please implement the 'handle' method instead, or method-specific handlers "
+            "('get', 'post', 'put', 'delete') for more control."
+        )
+
+        # If the plugin has implemented the run method, use it
+        if hasattr(self.__class__, "run") and self.__class__.run is not BasePlugin.run:
+            return self._legacy_run()
+
+        # Otherwise, dispatch to the appropriate method handler
+        if self.http_method == "GET" and hasattr(self, "get"):
+            return self.get()
+        elif self.http_method == "POST" and hasattr(self, "post"):
+            return self.post()
+        elif self.http_method == "PUT" and hasattr(self, "put"):
+            return self.put()
+        elif self.http_method == "DELETE" and hasattr(self, "delete"):
+            return self.delete()
+        else:
+            # Fall back to the generic handler
+            return self.handle()
+
+    def _legacy_run(self) -> dict[str, Any]:
+        """Legacy implementation for plugins that override the run method.
+
+        This is a compatibility method for plugins that still override the run method.
+        It will be removed in a future version.
+
+        Returns:
+            dict: Dictionary containing the plugin's results
+        """
+        # Call the subclass implementation of run
+        # We need to use super().__class__ to get the parent class method
+        # and avoid infinite recursion
+        method = super().__getattribute__("run")
+        return method()
+
+    @abstractmethod
+    def handle(self) -> dict[str, Any]:
+        """Generic handler for the plugin's functionality.
 
         This method must be implemented by all plugin classes. It should process
         the plugin's input data (stored in self.data) and return a dictionary
@@ -67,13 +121,65 @@ class BasePlugin(ABC):
         Returns:
             dict: Dictionary containing the plugin's results
         """
-        raise NotImplementedError("Plugin must implement run() method")
+        raise NotImplementedError("Plugin must implement handle() method")
+
+    def get(self) -> dict[str, Any]:
+        """Handle GET requests.
+
+        By default, this method calls the generic handler. Override this method
+        to provide GET-specific functionality.
+
+        Returns:
+            dict: Dictionary containing the plugin's results
+        """
+        return self.handle()
+
+    def post(self) -> dict[str, Any]:
+        """Handle POST requests.
+
+        By default, this method calls the generic handler. Override this method
+        to provide POST-specific functionality.
+
+        Returns:
+            dict: Dictionary containing the plugin's results
+        """
+        return self.handle()
+
+    def put(self) -> dict[str, Any]:
+        """Handle PUT requests.
+
+        By default, this method calls the generic handler. Override this method
+        to provide PUT-specific functionality.
+
+        Returns:
+            dict: Dictionary containing the plugin's results
+        """
+        return self.handle()
+
+    def delete(self) -> dict[str, Any]:
+        """Handle DELETE requests.
+
+        By default, this method calls the generic handler. Override this method
+        to provide DELETE-specific functionality.
+
+        Returns:
+            dict: Dictionary containing the plugin's results
+        """
+        return self.handle()
 
     def execute(self) -> dict[str, Any]:
+        """Execute the plugin and format the results.
+
+        This method calls the run method and formats the results in a standard format.
+
+        Returns:
+            dict: Dictionary containing the formatted plugin results
+        """
         data = self.run() or {}
         result = {
             "input_data": self.data,
             "additional_info": "This is some additional information.",
+            "http_method": self.http_method,
             "result": data,
         }
         return result

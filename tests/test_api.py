@@ -59,8 +59,20 @@ def test_plugin_dir(tmp_path: Path) -> str:
 from webhook_bridge.plugin import BasePlugin
 
 class Plugin(BasePlugin):
-    def run(self):
+    def handle(self):
         return {"input_data": self.data}
+
+    def get(self):
+        return {"method": "GET", "input_data": self.data}
+
+    def post(self):
+        return {"method": "POST", "input_data": self.data}
+
+    def put(self):
+        return {"method": "PUT", "input_data": self.data}
+
+    def delete(self):
+        return {"method": "DELETE", "input_data": self.data}
     ''')
 
     return str(plugin_dir)
@@ -123,12 +135,12 @@ def test_execute_plugin_not_found(client: TestClient) -> None:
     assert "not found" in data["message"].lower()
 
 
-def test_execute_plugin_success(
+def test_execute_plugin_post(
     client: TestClient,
     app: FastAPI,
     test_plugin_dir: str,
 ) -> None:
-    """Test successful plugin execution.
+    """Test successful plugin execution with POST method.
 
     Args:
         client: The test client
@@ -149,3 +161,89 @@ def test_execute_plugin_success(
     assert data["message"] == "success"
     assert data["data"]["plugin"] == "test_plugin"
     assert data["data"]["plugin_data"]["input_data"] == test_data
+    assert data["data"]["plugin_data"]["http_method"] == "POST"
+    assert data["data"]["plugin_data"]["result"]["method"] == "POST"
+
+
+def test_execute_plugin_get(
+    client: TestClient,
+    app: FastAPI,
+    test_plugin_dir: str,
+) -> None:
+    """Test successful plugin execution with GET method.
+
+    Args:
+        client: The test client
+        app: The FastAPI application
+        test_plugin_dir: Path to test plugin directory
+    """
+    app.state.plugin_dir = test_plugin_dir
+
+    response = client.get(
+        "/plugin/test_plugin?test=data",
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert data["status_code"] == status.HTTP_200_OK
+    assert data["message"] == "success"
+    assert data["data"]["plugin"] == "test_plugin"
+    assert data["data"]["plugin_data"]["http_method"] == "GET"
+    assert data["data"]["plugin_data"]["result"]["method"] == "GET"
+
+
+def test_execute_plugin_put(
+    client: TestClient,
+    app: FastAPI,
+    test_plugin_dir: str,
+) -> None:
+    """Test successful plugin execution with PUT method.
+
+    Args:
+        client: The test client
+        app: The FastAPI application
+        test_plugin_dir: Path to test plugin directory
+    """
+    app.state.plugin_dir = test_plugin_dir
+    test_data = {"test": "data"}
+
+    response = client.put(
+        "/plugin/test_plugin",
+        json=test_data,
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert data["status_code"] == status.HTTP_200_OK
+    assert data["message"] == "success"
+    assert data["data"]["plugin"] == "test_plugin"
+    assert data["data"]["plugin_data"]["input_data"] == test_data
+    assert data["data"]["plugin_data"]["http_method"] == "PUT"
+    assert data["data"]["plugin_data"]["result"]["method"] == "PUT"
+
+
+def test_execute_plugin_delete(
+    client: TestClient,
+    app: FastAPI,
+    test_plugin_dir: str,
+) -> None:
+    """Test successful plugin execution with DELETE method.
+
+    Args:
+        client: The test client
+        app: The FastAPI application
+        test_plugin_dir: Path to test plugin directory
+    """
+    app.state.plugin_dir = test_plugin_dir
+
+    response = client.delete(
+        "/plugin/test_plugin",
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert data["status_code"] == status.HTTP_200_OK
+    assert data["message"] == "success"
+    assert data["data"]["plugin"] == "test_plugin"
+    assert data["data"]["plugin_data"]["http_method"] == "DELETE"
+    assert data["data"]["plugin_data"]["result"]["method"] == "DELETE"
