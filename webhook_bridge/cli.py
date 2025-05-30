@@ -4,6 +4,8 @@ from __future__ import annotations
 
 # Import built-in modules
 import argparse
+from dataclasses import dataclass
+from dataclasses import field
 import logging
 import os
 from pathlib import Path
@@ -185,109 +187,111 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run_server(
-    host: str,
-    port: int,
-    plugin_dir: Path,
-    log_level: str,
-    *,
-    disable_docs: bool = False,
-    workers: int = 1,
-    worker_class: str = "uvicorn.workers.UvicornWorker",
-    reload: bool = False,
-    reload_dirs: list[str] | None = None,
-    access_log: bool = True,
-    no_access_log: bool = False,
-    use_colors: bool = True,
-    no_use_colors: bool = False,
-    ssl_keyfile: Path | None = None,
-    ssl_certfile: Path | None = None,
-    ssl_ca_certs: Path | None = None,
-    limit_concurrency: int | None = None,
-    limit_max_requests: int | None = None,
-    timeout_keep_alive: int = 5,
-    **kwargs: Any,
-) -> None:
-    """Run the webhook bridge server.
+@dataclass
+class ServerConfig:
+    """Configuration class for server options."""
 
-    Args:
-        host: Host to bind the server to
-        port: Port to bind the server to
-        plugin_dir: Directory containing webhook plugins
-        log_level: Logging level
-        disable_docs: Whether to disable API documentation
-        workers: Number of worker processes
-        worker_class: Worker class to use
-        reload: Enable auto-reload for development
-        reload_dirs: Directories to watch for reload
-        access_log: Enable access log
-        no_access_log: Disable access log (overrides access_log)
-        use_colors: Use colors in log output
-        no_use_colors: Disable colors in log output (overrides use_colors)
-        ssl_keyfile: SSL key file path
-        ssl_certfile: SSL certificate file path
-        ssl_ca_certs: SSL CA certificates file path
-        limit_concurrency: Maximum number of concurrent connections
-        limit_max_requests: Maximum number of requests before restarting worker
-        timeout_keep_alive: Keep-alive timeout in seconds
-        **kwargs: Additional arguments to pass to FastAPI
-    """
-    # Configure logging
+    host: str
+    port: int
+    plugin_dir: Path
+    log_level: str
+    disable_docs: bool = False
+    workers: int = 1
+    worker_class: str = "uvicorn.workers.UvicornWorker"
+    reload: bool = False
+    reload_dirs: list[str] | None = None
+    access_log: bool = True
+    no_access_log: bool = False
+    use_colors: bool = True
+    no_use_colors: bool = False
+    ssl_keyfile: Path | None = None
+    ssl_certfile: Path | None = None
+    ssl_ca_certs: Path | None = None
+    limit_concurrency: int | None = None
+    limit_max_requests: int | None = None
+    timeout_keep_alive: int = 5
+    kwargs: dict[str, Any] = field(default_factory=dict)
+
+
+def _configure_logging(log_level: str) -> None:
+    """Configure logging for the server."""
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    kwargs["enable_docs"] = not disable_docs
 
-    # Create FastAPI app
-    app = create_app(plugin_dir=str(plugin_dir), **kwargs)
-
-    # Prepare uvicorn configuration
+def _build_uvicorn_config(config: ServerConfig) -> dict[str, Any]:
+    """Build uvicorn configuration from server config."""
     uvicorn_config = {
-        "app": app,
-        "host": host,
-        "port": port,
-        "log_level": log_level.lower(),
-        "workers": workers,
-        "reload": reload,
-        "access_log": not no_access_log if no_access_log else access_log,
-        "use_colors": not no_use_colors if no_use_colors else use_colors,
-        "timeout_keep_alive": timeout_keep_alive,
+        "host": config.host,
+        "port": config.port,
+        "log_level": config.log_level.lower(),
+        "workers": config.workers,
+        "reload": config.reload,
+        "access_log": not config.no_access_log if config.no_access_log else config.access_log,
+        "use_colors": not config.no_use_colors if config.no_use_colors else config.use_colors,
+        "timeout_keep_alive": config.timeout_keep_alive,
     }
 
     # Add optional configurations
-    if reload_dirs:
-        uvicorn_config["reload_dirs"] = reload_dirs
+    if config.reload_dirs:
+        uvicorn_config["reload_dirs"] = config.reload_dirs
 
-    if ssl_keyfile:
-        uvicorn_config["ssl_keyfile"] = str(ssl_keyfile)
+    if config.ssl_keyfile:
+        uvicorn_config["ssl_keyfile"] = str(config.ssl_keyfile)
 
-    if ssl_certfile:
-        uvicorn_config["ssl_certfile"] = str(ssl_certfile)
+    if config.ssl_certfile:
+        uvicorn_config["ssl_certfile"] = str(config.ssl_certfile)
 
-    if ssl_ca_certs:
-        uvicorn_config["ssl_ca_certs"] = str(ssl_ca_certs)
+    if config.ssl_ca_certs:
+        uvicorn_config["ssl_ca_certs"] = str(config.ssl_ca_certs)
 
-    if limit_concurrency is not None:
-        uvicorn_config["limit_concurrency"] = limit_concurrency
+    if config.limit_concurrency is not None:
+        uvicorn_config["limit_concurrency"] = config.limit_concurrency
 
-    if limit_max_requests is not None:
-        uvicorn_config["limit_max_requests"] = limit_max_requests
+    if config.limit_max_requests is not None:
+        uvicorn_config["limit_max_requests"] = config.limit_max_requests
+
+    return uvicorn_config
+
+
+def _setup_multi_worker_env(config: ServerConfig) -> None:
+    """Set up environment variables for multi-worker mode."""
+    os.environ["WEBHOOK_BRIDGE_PLUGIN_DIR"] = str(config.plugin_dir)
+    if "title" in config.kwargs:
+        os.environ["WEBHOOK_BRIDGE_TITLE"] = config.kwargs["title"]
+    if "description" in config.kwargs:
+        os.environ["WEBHOOK_BRIDGE_DESCRIPTION"] = config.kwargs["description"]
+    if "enable_docs" in config.kwargs:
+        os.environ["WEBHOOK_BRIDGE_ENABLE_DOCS"] = str(config.kwargs["enable_docs"])
+
+
+def run_server(config: ServerConfig) -> None:
+    """Run the webhook bridge server.
+
+    Args:
+        config: Server configuration object
+    """
+    # Configure logging
+    _configure_logging(config.log_level)
+
+    # Prepare kwargs for FastAPI
+    kwargs = config.kwargs.copy()
+    kwargs["enable_docs"] = not config.disable_docs
+
+    # Build uvicorn configuration
+    uvicorn_config = _build_uvicorn_config(config)
 
     # For multiple workers, we need to use a different approach
-    if workers > 1:
-        # When using multiple workers, we can't pass the app instance directly
-        # Set environment variables for the app factory
-        os.environ["WEBHOOK_BRIDGE_PLUGIN_DIR"] = str(plugin_dir)
-        if "title" in kwargs:
-            os.environ["WEBHOOK_BRIDGE_TITLE"] = kwargs["title"]
-        if "description" in kwargs:
-            os.environ["WEBHOOK_BRIDGE_DESCRIPTION"] = kwargs["description"]
-        if "enable_docs" in kwargs:
-            os.environ["WEBHOOK_BRIDGE_ENABLE_DOCS"] = str(kwargs["enable_docs"])
-
+    if config.workers > 1:
+        # Set up environment variables for the app factory
+        _setup_multi_worker_env(config)
         uvicorn_config["app"] = "webhook_bridge.cli:get_app"
+    else:
+        # Create FastAPI app for single worker
+        app = create_app(plugin_dir=str(config.plugin_dir), **kwargs)
+        uvicorn_config["app"] = app
 
     # Run server
     uvicorn.run(**uvicorn_config)
@@ -325,13 +329,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     try:
-        run_server(
+        config = ServerConfig(
             host=args.host,
             port=args.port,
             plugin_dir=args.plugin_dir,
             log_level=args.log_level,
-            title=args.title,
-            description=args.description,
             disable_docs=args.disable_docs,
             workers=args.workers,
             worker_class=args.worker_class,
@@ -347,7 +349,12 @@ def main(argv: Sequence[str] | None = None) -> None:
             limit_concurrency=args.limit_concurrency,
             limit_max_requests=args.limit_max_requests,
             timeout_keep_alive=args.timeout_keep_alive,
+            kwargs={
+                "title": args.title,
+                "description": args.description,
+            },
         )
+        run_server(config)
         sys.exit(0)
     except Exception as e:
         logging.error("Error running server: %s", e)
