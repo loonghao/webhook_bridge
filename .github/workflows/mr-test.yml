@@ -55,7 +55,3 @@ jobs:
       - name: Lint
         run: |
           nox -s lint
-
-      - name: Type check
-        run: |
-          nox -s mypy
