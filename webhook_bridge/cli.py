@@ -3,214 +3,56 @@
 from __future__ import annotations
 
 # Import built-in modules
-import argparse
-from dataclasses import dataclass
-from dataclasses import field
 import logging
 import os
 from pathlib import Path
 import sys
 from typing import Any
-from typing import Sequence
 
 # Import third-party modules
+import click
+from pydantic import BaseModel
+from pydantic import Field
 import uvicorn
 
 # Import local modules
 from webhook_bridge.server import create_app
 
 
-def validate_url_path(value: str) -> str:
-    """Validate URL path.
+class ServerConfig(BaseModel):
+    """Server configuration using Pydantic."""
 
-    Args:
-        value: URL path to validate
-
-    Returns:
-        str: Validated URL path
-
-    Raises:
-        argparse.ArgumentTypeError: If URL path is invalid
-    """
-    if not value:
-        raise argparse.ArgumentTypeError("URL path cannot be empty")
-    if not value.startswith("/"):
-        raise argparse.ArgumentTypeError("URL path must start with /")
-    return value
-
-
-def create_parser() -> argparse.ArgumentParser:
-    """Create the argument parser.
-
-    Returns:
-        argparse.ArgumentParser: The configured argument parser
-    """
-    parser = argparse.ArgumentParser(
-        description="Start the webhook bridge server.",
-    )
-
-    # Server configuration
-    parser.add_argument(
-        "--host",
-        default=os.environ.get("WEBHOOK_BRIDGE_HOST", "0.0.0.0"),
-        help="Host to bind the server to (default: 0.0.0.0)",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(os.environ.get("WEBHOOK_BRIDGE_PORT", "8000")),
-        help="Port to bind the server to (default: 8000)",
-    )
-    parser.add_argument(
-        "--log-level",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default=os.environ.get("WEBHOOK_BRIDGE_LOG_LEVEL", "INFO"),
-        help="Logging level (default: INFO)",
-    )
+    host: str = Field(default="0.0.0.0", description="Host to bind the server to")
+    port: int = Field(default=8000, description="Port to bind the server to")
+    plugin_dir: Path = Field(default_factory=lambda: Path.cwd() / "plugins", description="Plugin directory")
+    log_level: str = Field(default="INFO", description="Logging level")
 
     # Worker configuration
-    parser.add_argument(
-        "--workers",
-        type=int,
-        default=int(os.environ.get("WEBHOOK_BRIDGE_WORKERS", "1")),
-        help="Number of worker processes (default: 1)",
-    )
-    parser.add_argument(
-        "--worker-class",
-        default=os.environ.get("WEBHOOK_BRIDGE_WORKER_CLASS", "uvicorn.workers.UvicornWorker"),
-        help="Worker class to use (default: uvicorn.workers.UvicornWorker)",
-    )
+    workers: int = Field(default=1, description="Number of worker processes")
+    worker_class: str = Field(default="uvicorn.workers.UvicornWorker", description="Worker class")
 
-    # Development and debugging
-    parser.add_argument(
-        "--reload",
-        action="store_true",
-        default=os.environ.get("WEBHOOK_BRIDGE_RELOAD", "").lower() in ("true", "1", "yes"),
-        help="Enable auto-reload for development",
-    )
-    parser.add_argument(
-        "--reload-dirs",
-        nargs="*",
-        default=None,
-        help="Directories to watch for reload (space-separated)",
-    )
+    # Development options
+    reload: bool = Field(default=False, description="Enable auto-reload")
+    reload_dirs: list[str] | None = Field(default=None, description="Directories to watch for reload")
 
-    # Logging configuration
-    parser.add_argument(
-        "--access-log",
-        action="store_true",
-        default=True,
-        help="Enable access log (default: enabled)",
-    )
-    parser.add_argument(
-        "--no-access-log",
-        action="store_true",
-        help="Disable access log",
-    )
-    parser.add_argument(
-        "--use-colors",
-        action="store_true",
-        default=True,
-        help="Use colors in log output (default: enabled)",
-    )
-    parser.add_argument(
-        "--no-use-colors",
-        action="store_true",
-        help="Disable colors in log output",
-    )
+    # Logging options
+    access_log: bool = Field(default=True, description="Enable access log")
+    use_colors: bool = Field(default=True, description="Use colors in log output")
 
-    # SSL/TLS configuration
-    parser.add_argument(
-        "--ssl-keyfile",
-        type=Path,
-        default=None,
-        help="SSL key file path",
-    )
-    parser.add_argument(
-        "--ssl-certfile",
-        type=Path,
-        default=None,
-        help="SSL certificate file path",
-    )
-    parser.add_argument(
-        "--ssl-ca-certs",
-        type=Path,
-        default=None,
-        help="SSL CA certificates file path",
-    )
+    # SSL/TLS options
+    ssl_keyfile: Path | None = Field(default=None, description="SSL key file path")
+    ssl_certfile: Path | None = Field(default=None, description="SSL certificate file path")
+    ssl_ca_certs: Path | None = Field(default=None, description="SSL CA certificates file path")
 
-    # Performance configuration
-    parser.add_argument(
-        "--limit-concurrency",
-        type=int,
-        default=None,
-        help="Maximum number of concurrent connections",
-    )
-    parser.add_argument(
-        "--limit-max-requests",
-        type=int,
-        default=None,
-        help="Maximum number of requests before restarting worker",
-    )
-    parser.add_argument(
-        "--timeout-keep-alive",
-        type=int,
-        default=5,
-        help="Keep-alive timeout in seconds (default: 5)",
-    )
+    # Performance options
+    limit_concurrency: int | None = Field(default=None, description="Maximum concurrent connections")
+    limit_max_requests: int | None = Field(default=None, description="Maximum requests before restart")
+    timeout_keep_alive: int = Field(default=5, description="Keep-alive timeout in seconds")
 
-    # API configuration
-    parser.add_argument(
-        "--title",
-        default="Webhook Bridge API",
-        help="API title (default: Webhook Bridge API)",
-    )
-    parser.add_argument(
-        "--description",
-        default="A flexible webhook integration platform",
-        help="API description (default: A flexible webhook integration platform)",
-    )
-    parser.add_argument(
-        "--disable-docs",
-        action="store_true",
-        help="Disable the API documentation endpoints (/docs and /redoc)",
-    )
-
-    # Plugin configuration
-    parser.add_argument(
-        "--plugin-dir",
-        type=Path,
-        default=Path.cwd() / "plugins",
-        help="Directory containing webhook plugins (default: ./plugins)",
-    )
-
-    return parser
-
-
-@dataclass
-class ServerConfig:
-    """Configuration class for server options."""
-
-    host: str
-    port: int
-    plugin_dir: Path
-    log_level: str
-    disable_docs: bool = False
-    workers: int = 1
-    worker_class: str = "uvicorn.workers.UvicornWorker"
-    reload: bool = False
-    reload_dirs: list[str] | None = None
-    access_log: bool = True
-    no_access_log: bool = False
-    use_colors: bool = True
-    no_use_colors: bool = False
-    ssl_keyfile: Path | None = None
-    ssl_certfile: Path | None = None
-    ssl_ca_certs: Path | None = None
-    limit_concurrency: int | None = None
-    limit_max_requests: int | None = None
-    timeout_keep_alive: int = 5
-    kwargs: dict[str, Any] = field(default_factory=dict)
+    # API options
+    title: str = Field(default="Webhook Bridge API", description="API title")
+    description: str = Field(default="A flexible webhook integration platform", description="API description")
+    disable_docs: bool = Field(default=False, description="Disable API documentation")
 
 
 def _configure_logging(log_level: str) -> None:
@@ -229,8 +71,8 @@ def _build_uvicorn_config(config: ServerConfig) -> dict[str, Any]:
         "log_level": config.log_level.lower(),
         "workers": config.workers,
         "reload": config.reload,
-        "access_log": not config.no_access_log if config.no_access_log else config.access_log,
-        "use_colors": not config.no_use_colors if config.no_use_colors else config.use_colors,
+        "access_log": config.access_log,
+        "use_colors": config.use_colors,
         "timeout_keep_alive": config.timeout_keep_alive,
     }
 
@@ -259,12 +101,9 @@ def _build_uvicorn_config(config: ServerConfig) -> dict[str, Any]:
 def _setup_multi_worker_env(config: ServerConfig) -> None:
     """Set up environment variables for multi-worker mode."""
     os.environ["WEBHOOK_BRIDGE_PLUGIN_DIR"] = str(config.plugin_dir)
-    if "title" in config.kwargs:
-        os.environ["WEBHOOK_BRIDGE_TITLE"] = config.kwargs["title"]
-    if "description" in config.kwargs:
-        os.environ["WEBHOOK_BRIDGE_DESCRIPTION"] = config.kwargs["description"]
-    if "enable_docs" in config.kwargs:
-        os.environ["WEBHOOK_BRIDGE_ENABLE_DOCS"] = str(config.kwargs["enable_docs"])
+    os.environ["WEBHOOK_BRIDGE_TITLE"] = config.title
+    os.environ["WEBHOOK_BRIDGE_DESCRIPTION"] = config.description
+    os.environ["WEBHOOK_BRIDGE_ENABLE_DOCS"] = str(not config.disable_docs)
 
 
 def run_server(config: ServerConfig) -> None:
@@ -276,10 +115,6 @@ def run_server(config: ServerConfig) -> None:
     # Configure logging
     _configure_logging(config.log_level)
 
-    # Prepare kwargs for FastAPI
-    kwargs = config.kwargs.copy()
-    kwargs["enable_docs"] = not config.disable_docs
-
     # Build uvicorn configuration
     uvicorn_config = _build_uvicorn_config(config)
 
@@ -290,7 +125,12 @@ def run_server(config: ServerConfig) -> None:
         uvicorn_config["app"] = "webhook_bridge.cli:get_app"
     else:
         # Create FastAPI app for single worker
-        app = create_app(plugin_dir=str(config.plugin_dir), **kwargs)
+        app = create_app(
+            plugin_dir=str(config.plugin_dir),
+            title=config.title,
+            description=config.description,
+            enable_docs=not config.disable_docs,
+        )
         uvicorn_config["app"] = app
 
     # Run server
@@ -319,45 +159,77 @@ def get_app() -> Any:
     )
 
 
-def main(argv: Sequence[str] | None = None) -> None:
-    """Main entry point.
-
-    Args:
-        argv: Command-line arguments
-    """
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
+# Click CLI implementation
+@click.command()
+@click.option("--host", default="0.0.0.0", envvar="WEBHOOK_BRIDGE_HOST", help="Host to bind the server to")
+@click.option("--port", default=8000, envvar="WEBHOOK_BRIDGE_PORT", help="Port to bind the server to")
+@click.option("--plugin-dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+              default=Path.cwd() / "plugins", help="Directory containing webhook plugins")
+@click.option("--log-level", type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+              default="INFO", envvar="WEBHOOK_BRIDGE_LOG_LEVEL", help="Logging level")
+@click.option("--workers", default=1, envvar="WEBHOOK_BRIDGE_WORKERS", help="Number of worker processes")
+@click.option("--worker-class", default="uvicorn.workers.UvicornWorker", envvar="WEBHOOK_BRIDGE_WORKER_CLASS",
+              help="Worker class to use")
+@click.option("--reload", is_flag=True, envvar="WEBHOOK_BRIDGE_RELOAD", help="Enable auto-reload for development")
+@click.option("--reload-dirs", multiple=True, help="Directories to watch for reload")
+@click.option("--access-log/--no-access-log", default=True, help="Enable/disable access log")
+@click.option("--use-colors/--no-use-colors", default=True, help="Enable/disable colors in log output")
+@click.option("--ssl-keyfile", type=click.Path(path_type=Path), help="SSL key file path")
+@click.option("--ssl-certfile", type=click.Path(path_type=Path), help="SSL certificate file path")
+@click.option("--ssl-ca-certs", type=click.Path(path_type=Path), help="SSL CA certificates file path")
+@click.option("--limit-concurrency", type=int, help="Maximum number of concurrent connections")
+@click.option("--limit-max-requests", type=int, help="Maximum number of requests before restarting worker")
+@click.option("--timeout-keep-alive", default=5, help="Keep-alive timeout in seconds")
+@click.option("--title", default="Webhook Bridge API", help="API title")
+@click.option("--description", default="A flexible webhook integration platform", help="API description")
+@click.option("--disable-docs", is_flag=True, help="Disable the API documentation endpoints")
+def main(
+    host: str,
+    port: int,
+    plugin_dir: Path,
+    log_level: str,
+    workers: int,
+    worker_class: str,
+    reload: bool,
+    reload_dirs: tuple[str, ...],
+    access_log: bool,
+    use_colors: bool,
+    ssl_keyfile: Path | None,
+    ssl_certfile: Path | None,
+    ssl_ca_certs: Path | None,
+    limit_concurrency: int | None,
+    limit_max_requests: int | None,
+    timeout_keep_alive: int,
+    title: str,
+    description: str,
+    disable_docs: bool,
+) -> None:
+    """Start the webhook bridge server."""
     try:
         config = ServerConfig(
-            host=args.host,
-            port=args.port,
-            plugin_dir=args.plugin_dir,
-            log_level=args.log_level,
-            disable_docs=args.disable_docs,
-            workers=args.workers,
-            worker_class=args.worker_class,
-            reload=args.reload,
-            reload_dirs=args.reload_dirs,
-            access_log=args.access_log,
-            no_access_log=args.no_access_log,
-            use_colors=args.use_colors,
-            no_use_colors=args.no_use_colors,
-            ssl_keyfile=args.ssl_keyfile,
-            ssl_certfile=args.ssl_certfile,
-            ssl_ca_certs=args.ssl_ca_certs,
-            limit_concurrency=args.limit_concurrency,
-            limit_max_requests=args.limit_max_requests,
-            timeout_keep_alive=args.timeout_keep_alive,
-            kwargs={
-                "title": args.title,
-                "description": args.description,
-            },
+            host=host,
+            port=port,
+            plugin_dir=plugin_dir,
+            log_level=log_level,
+            workers=workers,
+            worker_class=worker_class,
+            reload=reload,
+            reload_dirs=list(reload_dirs) if reload_dirs else None,
+            access_log=access_log,
+            use_colors=use_colors,
+            ssl_keyfile=ssl_keyfile,
+            ssl_certfile=ssl_certfile,
+            ssl_ca_certs=ssl_ca_certs,
+            limit_concurrency=limit_concurrency,
+            limit_max_requests=limit_max_requests,
+            timeout_keep_alive=timeout_keep_alive,
+            title=title,
+            description=description,
+            disable_docs=disable_docs,
         )
         run_server(config)
-        sys.exit(0)
     except Exception as e:
-        logging.error("Error running server: %s", e)
+        click.echo(f"Error running server: {e}", err=True)
         sys.exit(1)
 
 

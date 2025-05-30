@@ -155,6 +155,25 @@ webhook-bridge --reload --reload-dirs webhook_bridge --log-level DEBUG
 webhook-bridge --no-access-log --no-use-colors
 ```
 
+### Modern CLI Features
+
+The webhook bridge now uses **Click** for a modern CLI experience with:
+
+- **Rich help system**: `webhook-bridge --help`
+- **Environment variable support**: All options can be set via `WEBHOOK_BRIDGE_*` environment variables
+- **Type validation**: Automatic validation of paths, integers, and choices
+- **Boolean flags**: Use `--flag/--no-flag` syntax for boolean options
+- **Multiple values**: Use `--reload-dirs dir1 --reload-dirs dir2` for multiple directories
+
+### Configuration with Pydantic
+
+Server configuration is now managed with **Pydantic** for:
+
+- **Type safety**: Automatic type validation and conversion
+- **Default values**: Sensible defaults for all configuration options
+- **Documentation**: Built-in field descriptions and validation
+- **Serialization**: Easy conversion to/from JSON and other formats
+
 ## Plugin Development
 
 Create a Python file in your plugin directory:

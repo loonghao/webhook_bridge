@@ -22,6 +22,7 @@ pydantic = "^2.4.2"
 httpx = "^0.24.0"
 markdown2 = "^2.4.0"
 jinja2 = "^3.1.4"
+click = "^8.1.0"
 
 [tool.poetry.scripts]
 webhook-bridge = "webhook_bridge.cli:main"
@@ -148,6 +149,8 @@ ignore = [
     "S606",    # Starting a process without a shell
     "BLE001",  # Do not catch blind exception
     "PLR2004", # Magic value used in comparison
+    "PLR0913", # Too many arguments in function definition (Click CLI functions)
+    "FBT001",  # Boolean-typed positional argument (Click CLI functions)
     "PTH110",  # os.path.exists() should be replaced by Path.exists()
     "PTH112",  # os.path.isdir() should be replaced by Path.is_dir()
     "PTH118",  # os.path.join() should be replaced by Path with / operator
