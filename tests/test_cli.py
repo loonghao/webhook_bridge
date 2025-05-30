@@ -8,47 +8,70 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 # Import third-party modules
-import pytest
+from click.testing import CliRunner
 
 # Import local modules
 from webhook_bridge.cli import ServerConfig
-from webhook_bridge.cli import create_parser
 from webhook_bridge.cli import main
 from webhook_bridge.cli import run_server
 
 
-def test_create_parser() -> None:
-    """Test argument parser creation."""
-    parser = create_parser()
-    args = parser.parse_args([])
+def test_cli_default_values() -> None:
+    """Test CLI with default values."""
+    runner = CliRunner()
+    with patch("webhook_bridge.cli.run_server") as mock_run_server:
+        result = runner.invoke(main, [])
+        assert result.exit_code == 0
+        mock_run_server.assert_called_once()
 
-    assert args.host == "0.0.0.0"
-    assert args.port == 8000
-    assert str(args.plugin_dir) == str(Path("plugins").absolute())
-    assert args.log_level == "INFO"
-    assert args.title == "Webhook Bridge API"
-    assert args.description == "A flexible webhook integration platform"
+        # Check the config passed to run_server
+        config = mock_run_server.call_args[0][0]
+        assert config.host == "0.0.0.0"
+        assert config.port == 8000
+        assert config.log_level == "INFO"
+        assert config.title == "Webhook Bridge API"
+        assert config.description == "A flexible webhook integration platform"
 
 
-def test_create_parser_custom_values() -> None:
-    """Test argument parser with custom values."""
-    parser = create_parser()
-    plugin_dir = str(Path("/plugins").absolute())
-    args = parser.parse_args([
-        "--host", "localhost",
-        "--port", "9000",
-        "--plugin-dir", plugin_dir,
-        "--log-level", "DEBUG",
-        "--title", "Custom API",
-        "--description", "Custom Description",
-    ])
+def test_cli_custom_values() -> None:
+    """Test CLI with custom values."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        # Create a temporary plugin directory
+        plugin_dir = Path("test_plugins")
+        plugin_dir.mkdir()
 
-    assert args.host == "localhost"
-    assert args.port == 9000
-    assert str(args.plugin_dir) == plugin_dir
-    assert args.log_level == "DEBUG"
-    assert args.title == "Custom API"
-    assert args.description == "Custom Description"
+        with patch("webhook_bridge.cli.run_server") as mock_run_server:
+            result = runner.invoke(main, [
+                "--host", "localhost",
+                "--port", "9000",
+                "--plugin-dir", str(plugin_dir),
+                "--log-level", "DEBUG",
+                "--title", "Custom API",
+                "--description", "Custom Description",
+                "--workers", "2",
+                "--worker-class", "uvicorn.workers.UvicornH11Worker",
+                "--reload",
+                "--no-access-log",
+                "--no-use-colors",
+                "--timeout-keep-alive", "10",
+            ])
+            assert result.exit_code == 0
+            mock_run_server.assert_called_once()
+
+            # Check the config passed to run_server
+            config = mock_run_server.call_args[0][0]
+            assert config.host == "localhost"
+            assert config.port == 9000
+            assert config.log_level == "DEBUG"
+            assert config.title == "Custom API"
+            assert config.description == "Custom Description"
+            assert config.workers == 2
+            assert config.worker_class == "uvicorn.workers.UvicornH11Worker"
+            assert config.reload is True
+            assert config.access_log is False
+            assert config.use_colors is False
+            assert config.timeout_keep_alive == 10
 
 
 @patch("webhook_bridge.cli.uvicorn.run")
@@ -60,39 +83,12 @@ def test_run_server_with_api_config(mock_run: MagicMock) -> None:
         port=9000,
         plugin_dir=plugin_dir,
         log_level="DEBUG",
-        kwargs={
-            "title": "Custom API",
-            "description": "Custom Description",
-        },
+        title="Custom API",
+        description="Custom Description",
     )
     run_server(config)
 
     mock_run.assert_called_once()
-
-
-@patch("webhook_bridge.cli.uvicorn.run")
-def test_main_with_all_options(mock_run: MagicMock) -> None:
-    """Test main function with all options."""
-    plugin_dir = str(Path("/plugins").absolute())
-    test_args = [
-        "--host", "localhost",
-        "--port", "9000",
-        "--plugin-dir", plugin_dir,
-        "--log-level", "DEBUG",
-        "--title", "Custom API",
-        "--description", "Custom Description",
-        "--workers", "2",
-        "--worker-class", "uvicorn.workers.UvicornH11Worker",
-        "--reload",
-        "--no-access-log",
-        "--no-use-colors",
-        "--timeout-keep-alive", "10",
-    ]
-
-    with patch("sys.argv", ["webhook-bridge"] + test_args):
-        with pytest.raises(SystemExit) as exc_info:
-            main()
-        assert exc_info.value.code == 0
 
 
 @patch("webhook_bridge.cli.uvicorn.run")
@@ -108,9 +104,7 @@ def test_run_server_with_workers(mock_run: MagicMock) -> None:
         worker_class="uvicorn.workers.UvicornH11Worker",
         reload=False,
         access_log=False,
-        no_access_log=True,
         use_colors=False,
-        no_use_colors=True,
         timeout_keep_alive=10,
     )
     run_server(config)
@@ -166,10 +160,24 @@ def test_run_server_with_performance_limits(mock_run: MagicMock) -> None:
     assert call_args["limit_max_requests"] == 1000
 
 
-@patch("webhook_bridge.cli.uvicorn.run")
-def test_main_default_values(mock_run: MagicMock) -> None:
-    """Test main function with default values."""
-    with patch("sys.argv", ["webhook-bridge"]):
-        with pytest.raises(SystemExit) as exc_info:
-            main()
-        assert exc_info.value.code == 0
+def test_server_config_validation() -> None:
+    """Test ServerConfig Pydantic validation."""
+    # Test valid config
+    config = ServerConfig(
+        host="localhost",
+        port=8080,
+        plugin_dir=Path.cwd() / "test_plugins",
+        log_level="DEBUG",
+    )
+    assert config.host == "localhost"
+    assert config.port == 8080
+    assert config.log_level == "DEBUG"
+
+    # Test default values
+    config_defaults = ServerConfig()
+    assert config_defaults.host == "0.0.0.0"
+    assert config_defaults.port == 8000
+    assert config_defaults.log_level == "INFO"
+    assert config_defaults.workers == 1
+    assert config_defaults.access_log is True
+    assert config_defaults.use_colors is True

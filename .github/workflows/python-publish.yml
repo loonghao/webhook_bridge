@@ -26,11 +26,26 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.x'
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pypoetry
+          ~/.cache/pip
+        key: ${{ runner.os }}-poetry-3.12-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-poetry-3.12-
+          ${{ runner.os }}-poetry-
+
     - name: Install dependencies
       run: |
+        python -m pip install --upgrade pip
         python -m pip install -r requirements-dev.txt
         poetry --version
+        poetry install
         poetry build
     # Note that we don't need credentials.
     # We rely on https://docs.pypi.org/trusted-publishers/.
