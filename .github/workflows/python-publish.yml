@@ -45,6 +45,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -r requirements-dev.txt
         poetry --version
+        poetry lock --no-update
         poetry install
         poetry build
     # Note that we don't need credentials.
