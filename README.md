@@ -174,6 +174,16 @@ Server configuration is now managed with **Pydantic** for:
 - **Documentation**: Built-in field descriptions and validation
 - **Serialization**: Easy conversion to/from JSON and other formats
 
+### CI/CD Improvements
+
+The project now features an upgraded CI/CD pipeline with:
+
+- **macOS-14 runners**: Upgraded from macOS-12 for better resource availability
+- **Apple Silicon support**: Native ARM64 testing on macOS
+- **Multi-Python testing**: Python 3.10, 3.11, and 3.12 support
+- **Dependency caching**: Faster builds with Poetry and pip caching
+- **Optimized matrix**: Reduced resource usage with strategic test combinations
+
 ## Plugin Development
 
 Create a Python file in your plugin directory:
