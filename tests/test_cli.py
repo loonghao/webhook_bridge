@@ -11,6 +11,7 @@ from unittest.mock import patch
 import pytest
 
 # Import local modules
+from webhook_bridge.cli import ServerConfig
 from webhook_bridge.cli import create_parser
 from webhook_bridge.cli import main
 from webhook_bridge.cli import run_server
@@ -53,15 +54,18 @@ def test_create_parser_custom_values() -> None:
 @patch("webhook_bridge.cli.uvicorn.run")
 def test_run_server_with_api_config(mock_run: MagicMock) -> None:
     """Test server running with API configuration."""
-    plugin_dir = str(Path("/plugins").absolute())
-    run_server(
+    plugin_dir = Path("/plugins").absolute()
+    config = ServerConfig(
         host="localhost",
         port=9000,
         plugin_dir=plugin_dir,
         log_level="DEBUG",
-        title="Custom API",
-        description="Custom Description",
+        kwargs={
+            "title": "Custom API",
+            "description": "Custom Description",
+        },
     )
+    run_server(config)
 
     mock_run.assert_called_once()
 
@@ -94,8 +98,8 @@ def test_main_with_all_options(mock_run: MagicMock) -> None:
 @patch("webhook_bridge.cli.uvicorn.run")
 def test_run_server_with_workers(mock_run: MagicMock) -> None:
     """Test server running with multiple workers."""
-    plugin_dir = str(Path("/plugins").absolute())
-    run_server(
+    plugin_dir = Path("/plugins").absolute()
+    config = ServerConfig(
         host="localhost",
         port=9000,
         plugin_dir=plugin_dir,
@@ -109,6 +113,7 @@ def test_run_server_with_workers(mock_run: MagicMock) -> None:
         no_use_colors=True,
         timeout_keep_alive=10,
     )
+    run_server(config)
 
     mock_run.assert_called_once()
     call_args = mock_run.call_args[1]
@@ -121,11 +126,11 @@ def test_run_server_with_workers(mock_run: MagicMock) -> None:
 @patch("webhook_bridge.cli.uvicorn.run")
 def test_run_server_with_ssl(mock_run: MagicMock) -> None:
     """Test server running with SSL configuration."""
-    plugin_dir = str(Path("/plugins").absolute())
+    plugin_dir = Path("/plugins").absolute()
     ssl_keyfile = Path("/path/to/key.pem")
     ssl_certfile = Path("/path/to/cert.pem")
 
-    run_server(
+    config = ServerConfig(
         host="localhost",
         port=9000,
         plugin_dir=plugin_dir,
@@ -133,6 +138,7 @@ def test_run_server_with_ssl(mock_run: MagicMock) -> None:
         ssl_keyfile=ssl_keyfile,
         ssl_certfile=ssl_certfile,
     )
+    run_server(config)
 
     mock_run.assert_called_once()
     call_args = mock_run.call_args[1]
@@ -143,9 +149,8 @@ def test_run_server_with_ssl(mock_run: MagicMock) -> None:
 @patch("webhook_bridge.cli.uvicorn.run")
 def test_run_server_with_performance_limits(mock_run: MagicMock) -> None:
     """Test server running with performance limits."""
-    plugin_dir = str(Path("/plugins").absolute())
-
-    run_server(
+    plugin_dir = Path("/plugins").absolute()
+    config = ServerConfig(
         host="localhost",
         port=9000,
         plugin_dir=plugin_dir,
@@ -153,6 +158,7 @@ def test_run_server_with_performance_limits(mock_run: MagicMock) -> None:
         limit_concurrency=100,
         limit_max_requests=1000,
     )
+    run_server(config)
 
     mock_run.assert_called_once()
     call_args = mock_run.call_args[1]
