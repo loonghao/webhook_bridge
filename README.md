@@ -79,18 +79,81 @@ webhook-bridge --help
 - `--port`: Port to bind the server to (default: 8000)
 - `--log-level`: Logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
 
+#### Worker Configuration
+- `--workers`: Number of worker processes (default: 1)
+- `--worker-class`: Worker class to use (default: uvicorn.workers.UvicornWorker)
+
+#### Development and Debugging
+- `--reload`: Enable auto-reload for development
+- `--reload-dirs`: Directories to watch for reload (space-separated)
+
+#### Logging Configuration
+- `--access-log`: Enable access log (default: enabled)
+- `--no-access-log`: Disable access log
+- `--use-colors`: Use colors in log output (default: enabled)
+- `--no-use-colors`: Disable colors in log output
+
+#### SSL/TLS Configuration
+- `--ssl-keyfile`: SSL key file path
+- `--ssl-certfile`: SSL certificate file path
+- `--ssl-ca-certs`: SSL CA certificates file path
+
+#### Performance Configuration
+- `--limit-concurrency`: Maximum number of concurrent connections
+- `--limit-max-requests`: Maximum number of requests before restarting worker
+- `--timeout-keep-alive`: Keep-alive timeout in seconds (default: 5)
+
 #### API Configuration
 - `--title`: API title
 - `--description`: API description
-- `--docs-url`: URL for API documentation
-- `--redoc-url`: URL for ReDoc documentation
-- `--openapi-url`: URL for OpenAPI schema
+- `--disable-docs`: Disable the API documentation endpoints (/docs and /redoc)
 
 #### Plugin Configuration
 - `--plugin-dir`: Directory containing webhook plugins
 
 ### Environment Variables
+
+All command-line options can also be set via environment variables:
+
+- `WEBHOOK_BRIDGE_HOST`: Host to bind the server to
+- `WEBHOOK_BRIDGE_PORT`: Port to bind the server to
+- `WEBHOOK_BRIDGE_LOG_LEVEL`: Logging level
+- `WEBHOOK_BRIDGE_WORKERS`: Number of worker processes
+- `WEBHOOK_BRIDGE_WORKER_CLASS`: Worker class to use
+- `WEBHOOK_BRIDGE_RELOAD`: Enable auto-reload (true/false)
 - `WEBHOOK_BRIDGE_SERVER_PLUGINS`: Additional plugin directories (separated by system path separator)
+
+### Usage Examples
+
+#### Basic Usage
+```bash
+# Start server with default settings
+webhook-bridge
+
+# Start server on specific host and port
+webhook-bridge --host 127.0.0.1 --port 9000
+```
+
+#### Production Deployment
+```bash
+# Start with multiple workers for production
+webhook-bridge --workers 4 --host 0.0.0.0 --port 8000
+
+# Start with SSL/TLS support
+webhook-bridge --ssl-keyfile /path/to/key.pem --ssl-certfile /path/to/cert.pem
+
+# Start with performance limits
+webhook-bridge --limit-concurrency 1000 --limit-max-requests 10000
+```
+
+#### Development Mode
+```bash
+# Start with auto-reload for development
+webhook-bridge --reload --reload-dirs webhook_bridge --log-level DEBUG
+
+# Start without access logs and colors for cleaner output
+webhook-bridge --no-access-log --no-use-colors
+```
 
 ## Plugin Development
 
