@@ -87,10 +87,14 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// Setup routes
 	srv.SetupRoutes(router)
 
-	// Create HTTP server
+	// Create HTTP server with security timeouts
 	httpServer := &http.Server{
-		Addr:    cfg.GetServerAddress(),
-		Handler: router,
+		Addr:              cfg.GetServerAddress(),
+		Handler:           router,
+		ReadHeaderTimeout: 30 * time.Second, // Prevent Slowloris attacks
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Start server in a goroutine

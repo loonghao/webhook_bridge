@@ -549,8 +549,12 @@ type HTTPServer struct {
 // Start starts the HTTP server
 func (hs *HTTPServer) Start(ctx context.Context) error {
 	hs.server = &http.Server{
-		Addr:    hs.Config.GetServerAddress(),
-		Handler: hs.Router,
+		Addr:              hs.Config.GetServerAddress(),
+		Handler:           hs.Router,
+		ReadHeaderTimeout: 30 * time.Second, // Prevent Slowloris attacks
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Start server in a goroutine

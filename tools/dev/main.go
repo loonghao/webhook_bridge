@@ -116,8 +116,8 @@ EXAMPLES:
 func generateProto() {
 	fmt.Println("🔧 Generating protobuf files...")
 
-	// Ensure api/proto directory exists
-	if err := os.MkdirAll("api/proto", 0755); err != nil {
+	// Ensure api/proto directory exists with secure permissions
+	if err := os.MkdirAll("api/proto", 0750); err != nil {
 		fmt.Printf("Error creating directory: %v\n", err)
 		os.Exit(1)
 	}

@@ -189,7 +189,7 @@ directories:
   data_dir: "data"       # Data directory relative to working dir
 `
 
-	if err := os.WriteFile(configPath, []byte(yamlContent), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(yamlContent), 0600); err != nil {
 		return fmt.Errorf("failed to save default config: %w", err)
 	}
 
@@ -238,7 +238,7 @@ func (cm *ConfigManager) ValidateWorkingDirectory() error {
 
 	// Check if we can write to the working directory
 	testFile := filepath.Join(cm.workingDir, ".webhook_bridge_test")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		return fmt.Errorf("cannot write to working directory: %s", cm.workingDir)
 	}
 	os.Remove(testFile) // Clean up

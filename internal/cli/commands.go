@@ -136,7 +136,9 @@ func runClean(cmd *cobra.Command, args []string) error {
 	if verbose {
 		fmt.Println("  Cleaning Go cache...")
 	}
-	exec.Command("go", "clean", "-cache").Run()
+	if err := exec.Command("go", "clean", "-cache").Run(); err != nil && verbose {
+		fmt.Printf("  ⚠️  Warning: Failed to clean Go cache: %v\n", err)
+	}
 
 	fmt.Println("✅ Clean completed")
 	return nil
@@ -202,8 +204,11 @@ func runTest(cmd *cobra.Command, args []string) error {
 
 		// Generate coverage report
 		if coverage {
-			exec.Command("go", "tool", "cover", "-html=coverage.out", "-o", "coverage.html").Run()
-			if verbose {
+			if err := exec.Command("go", "tool", "cover", "-html=coverage.out", "-o", "coverage.html").Run(); err != nil {
+				if verbose {
+					fmt.Printf("  ⚠️  Warning: Failed to generate coverage report: %v\n", err)
+				}
+			} else if verbose {
 				fmt.Println("  📊 Coverage report generated: coverage.html")
 			}
 		}
