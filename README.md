@@ -100,55 +100,70 @@ docker-compose up
 
 ## 🚀 Quick Start
 
-### **1. Install and Start Server**
+### **1. Simple Start (Recommended)**
 
 ```bash
-# Using uvx (recommended)
-uvx webhook-bridge install
-uvx webhook-bridge run
+# Download and extract release package
+# Then run the unified CLI tool
 
-# Or using pip
-pip install webhook-bridge
-webhook-bridge install
-webhook-bridge run --port 8000
+# Most simple way - standalone server
+./webhook-bridge serve
+
+# Full development mode with Python plugins
+./webhook-bridge start
+
+# Open web dashboard
+./webhook-bridge dashboard
 ```
 
 ### **2. Access the Modern Dashboard**
 
 Open your browser and navigate to:
-- **Dashboard**: `http://localhost:8000/` - Modern web interface
-- **API Documentation**: `http://localhost:8000/api` - API reference
+- **🎛️ Dashboard**: `http://localhost:8000/dashboard` - Beautiful web interface
+- **📖 API Documentation**: `http://localhost:8000/api` - Interactive API reference
+- **❤️ Health Check**: `http://localhost:8000/health` - Service status
 
 ### **3. Test with Sample Request**
 
 ```bash
 # Test webhook endpoint
-curl -X POST "http://localhost:8000/v1/webhook/example" \
+curl -X POST "http://localhost:8000/api/v1/webhook/example" \
      -H "Content-Type: application/json" \
      -d '{"message": "Hello, World!"}'
 
 # Check server status
 curl "http://localhost:8000/health"
+
+# List available plugins
+curl "http://localhost:8000/api/v1/plugins"
 ```
 
-### **4. CLI Commands**
+### **4. CLI Commands Overview**
 
 ```bash
-# Check installation status
-webhook-bridge status
+# Core commands
+webhook-bridge serve          # Start standalone server (recommended)
+webhook-bridge start          # Start full development environment
+webhook-bridge dashboard      # Open web management interface
 
-# Update to latest version
-webhook-bridge update
+# Development commands
+webhook-bridge build          # Build project components
+webhook-bridge test           # Run tests with coverage
+webhook-bridge clean          # Clean build artifacts
 
-# Stop the server
-webhook-bridge stop
+# Management commands
+webhook-bridge status         # Check service status
+webhook-bridge stop           # Stop running services
+webhook-bridge config         # Configuration management
 
-# View configuration
-webhook-bridge config show
-
-# Initialize configuration file
-webhook-bridge config init
+# Get help
+webhook-bridge --help         # Show all commands
+webhook-bridge serve --help   # Command-specific help
 ```
+
+📖 **详细CLI使用指南**:
+- [完整CLI使用文档](docs/CLI_USAGE.md) - 包含所有命令详解、故障排除、最佳实践
+- [CLI快速参考](docs/CLI_QUICK_REFERENCE.md) - 常用命令速查表
 
 ## Configuration
 

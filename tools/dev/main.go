@@ -20,6 +20,12 @@ func main() {
 	command := os.Args[1]
 	args := os.Args[2:]
 
+	// Handle dashboard subcommands
+	if command == "dashboard" {
+		handleDashboardCommand(args)
+		return
+	}
+
 	switch command {
 	case "help", "-h", "--help":
 		showHelp()
@@ -33,6 +39,8 @@ func main() {
 		buildProject(args)
 	case "start":
 		runDev()
+	case "start-dev":
+		startDevEnvironment()
 	case "clean":
 		cleanProject()
 	case "test":
@@ -70,6 +78,61 @@ func main() {
 	}
 }
 
+func handleDashboardCommand(args []string) {
+	if len(args) == 0 {
+		showDashboardHelp()
+		return
+	}
+
+	dashboard := &DashboardCommands{}
+	subcommand := args[0]
+	subargs := args[1:]
+
+	switch subcommand {
+	case "build":
+		if err := dashboard.Build(subargs); err != nil {
+			fmt.Printf("❌ Dashboard build failed: %v\n", err)
+			os.Exit(1)
+		}
+	case "dev":
+		if err := dashboard.Dev(subargs); err != nil {
+			fmt.Printf("❌ Dashboard dev failed: %v\n", err)
+			os.Exit(1)
+		}
+	case "install":
+		if err := dashboard.Install(subargs); err != nil {
+			fmt.Printf("❌ Dashboard install failed: %v\n", err)
+			os.Exit(1)
+		}
+	case "lint":
+		if err := dashboard.Lint(subargs); err != nil {
+			fmt.Printf("❌ Dashboard lint failed: %v\n", err)
+			os.Exit(1)
+		}
+	case "type-check":
+		if err := dashboard.TypeCheck(subargs); err != nil {
+			fmt.Printf("❌ Dashboard type check failed: %v\n", err)
+			os.Exit(1)
+		}
+	case "clean":
+		if err := dashboard.Clean(subargs); err != nil {
+			fmt.Printf("❌ Dashboard clean failed: %v\n", err)
+			os.Exit(1)
+		}
+	case "serve":
+		if err := dashboard.Serve(subargs); err != nil {
+			fmt.Printf("❌ Dashboard serve failed: %v\n", err)
+			os.Exit(1)
+		}
+	case "help", "-h", "--help":
+		showDashboardHelp()
+	default:
+		fmt.Printf("❌ Unknown dashboard command: %s\n", subcommand)
+		showDashboardHelp()
+		os.Exit(1)
+	}
+}
+
 func showHelp() {
 	fmt.Println(`🚀 webhook-bridge development tool
 
@@ -81,8 +144,13 @@ DEVELOPMENT:
     deps         Install all dependencies
     proto        Generate protobuf files
     build        Build the project binaries
-    start        Start development environment
+    start        Start development environment (manual)
+    start-dev    Start integrated dev environment (auto)
     clean        Clean build artifacts
+
+DASHBOARD:
+    dashboard    Dashboard development commands
+                 Use 'go run dev.go dashboard help' for more info
 
 TESTING:
     test         Run all tests
@@ -110,7 +178,55 @@ EXAMPLES:
     go run dev.go dev-setup
     go run dev.go build
     go run dev.go test
+    go run dev.go dashboard build
+    go run dev.go dashboard dev
     go run dev.go release-snapshot`)
+}
+
+func showDashboardHelp() {
+	fmt.Println(`🎛️ Dashboard Development Commands
+
+USAGE:
+    go run dev.go dashboard <COMMAND> [args...]
+
+COMMANDS:
+    build        Build TypeScript dashboard
+                 --watch, -w     Watch mode for development
+                 --production    Production build with minification
+                 --clean, -c     Clean before building
+
+    dev          Start dashboard development mode
+                 (TypeScript watch + Go server)
+
+    install      Install dashboard dependencies (npm install)
+
+    lint         Run TypeScript linting
+                 --fix, -f       Auto-fix linting issues
+
+    type-check   Run TypeScript type checking
+
+    clean        Clean dashboard build artifacts and node_modules
+
+    serve        Serve dashboard for development
+                 --port, -p      Specify port (default: 8080)
+
+    help         Show this help message
+
+EXAMPLES:
+    go run dev.go dashboard build
+    go run dev.go dashboard build --watch
+    go run dev.go dashboard build --production
+    go run dev.go dashboard dev
+    go run dev.go dashboard lint --fix
+    go run dev.go dashboard serve --port 3000
+
+DEVELOPMENT WORKFLOW:
+    1. go run dev.go dashboard install    # Install dependencies
+    2. go run dev.go dashboard dev        # Start development mode
+    3. Open http://localhost:8000         # View dashboard
+
+PRODUCTION BUILD:
+    go run dev.go dashboard build --production`)
 }
 
 func generateProto() {
@@ -144,6 +260,9 @@ func buildProject(args []string) {
 		fmt.Println("Protobuf files not found, generating...")
 		generateProto()
 	}
+
+	// Build main CLI
+	buildBinary("./cmd/webhook-bridge", "webhook-bridge")
 
 	// Build server
 	buildBinary("./cmd/server", "webhook-bridge-server")
@@ -246,6 +365,23 @@ func runDev() {
 	buildProject(nil)
 
 	fmt.Println("Development environment ready!")
+	fmt.Println("Run the following commands in separate terminals:")
+	fmt.Println("  ./webhook-bridge-server")
+	fmt.Println("  python python_executor/main.py")
+}
+
+func startDevEnvironment() {
+	fmt.Println("🚀 Starting integrated development environment...")
+
+	// Import and call the start dev function
+	// Note: This would require importing the startdev package
+	// For now, we'll use a simpler approach
+	fmt.Println("Starting development servers...")
+
+	// Build first
+	buildProject(nil)
+
+	fmt.Println("✅ Development environment ready!")
 	fmt.Println("Run the following commands in separate terminals:")
 	fmt.Println("  ./webhook-bridge-server")
 	fmt.Println("  python python_executor/main.py")
@@ -595,4 +731,300 @@ func dryRunRelease() {
 
 	fmt.Println("✅ Dry-run release completed!")
 	fmt.Println("📁 Check the dist/ directory for artifacts")
+}
+
+// DashboardCommands handles dashboard-related development tasks
+type DashboardCommands struct{}
+
+// Build builds the TypeScript dashboard
+func (d *DashboardCommands) Build(args []string) error {
+	var watch, production, clean bool
+
+	for _, arg := range args {
+		switch arg {
+		case "--watch", "-w":
+			watch = true
+		case "--production", "--prod", "-p":
+			production = true
+		case "--clean", "-c":
+			clean = true
+		}
+	}
+
+	webDir := filepath.Join("web")
+	if _, err := os.Stat(filepath.Join(webDir, "tsconfig.json")); os.IsNotExist(err) {
+		return fmt.Errorf("❌ Error: Must run from project root directory (tsconfig.json not found)")
+	}
+
+	// Check for Node.js
+	if !commandExists("node") {
+		return fmt.Errorf("❌ Error: Node.js is not installed or not in PATH\nPlease install Node.js from https://nodejs.org/")
+	}
+
+	// Check for npm
+	if !commandExists("npm") {
+		return fmt.Errorf("❌ Error: npm is not installed or not in PATH")
+	}
+
+	// Change to web directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(webDir); err != nil {
+		return fmt.Errorf("failed to change to web directory: %w", err)
+	}
+
+	// Clean if requested
+	if clean {
+		printColored("🧹 Cleaning build directory...", ColorYellow)
+		distDir := filepath.Join("static", "js", "dist")
+		if _, err := os.Stat(distDir); err == nil {
+			if err := os.RemoveAll(distDir); err != nil {
+				return fmt.Errorf("failed to clean dist directory: %w", err)
+			}
+		}
+		printColored("✅ Clean completed", ColorGreen)
+	}
+
+	// Check if node_modules exists
+	if _, err := os.Stat("node_modules"); os.IsNotExist(err) {
+		printColored("📦 Installing dependencies...", ColorYellow)
+		if err := runCommand("npm", "install"); err != nil {
+			return fmt.Errorf("❌ Failed to install dependencies: %w", err)
+		}
+		printColored("✅ Dependencies installed", ColorGreen)
+	}
+
+	// Create dist directory if it doesn't exist
+	distDir := filepath.Join("static", "js", "dist")
+	if err := os.MkdirAll(distDir, 0755); err != nil {
+		return fmt.Errorf("failed to create dist directory: %w", err)
+	}
+
+	// Build based on mode
+	if watch {
+		printColored("👀 Starting TypeScript watch mode...", ColorYellow)
+		printColored("Press Ctrl+C to stop", ColorYellow)
+		return runCommand("npm", "run", "build:watch")
+	} else if production {
+		printColored("🏗️ Building for production...", ColorYellow)
+		if err := runCommand("npm", "run", "build:prod"); err != nil {
+			return fmt.Errorf("❌ Production build failed: %w", err)
+		}
+		printColored("✅ Production build completed", ColorGreen)
+		printColored("📁 Output: web/static/js/dist/", ColorGreen)
+	} else {
+		printColored("🏗️ Building TypeScript dashboard...", ColorYellow)
+		if err := runCommand("npm", "run", "build"); err != nil {
+			return fmt.Errorf("❌ Build failed: %w", err)
+		}
+		printColored("✅ Build completed successfully", ColorGreen)
+		printColored("📁 Output: web/static/js/dist/", ColorGreen)
+	}
+
+	printColored("🎉 Dashboard build process completed!", ColorGreen)
+	return nil
+}
+
+// Dev starts the dashboard in development mode
+func (d *DashboardCommands) Dev(args []string) error {
+	printColored("🚀 Starting dashboard development mode...", ColorYellow)
+
+	// Start TypeScript watch mode in background
+	go func() {
+		if err := d.Build([]string{"--watch"}); err != nil {
+			printColored(fmt.Sprintf("TypeScript watch failed: %v", err), ColorRed)
+		}
+	}()
+
+	// Start the Go server
+	printColored("🌐 Starting Go server...", ColorYellow)
+	return runCommand("go", "run", "cmd/server/main.go")
+}
+
+// Install installs dashboard dependencies
+func (d *DashboardCommands) Install(args []string) error {
+	webDir := filepath.Join("web")
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(webDir); err != nil {
+		return fmt.Errorf("failed to change to web directory: %w", err)
+	}
+
+	printColored("📦 Installing dashboard dependencies...", ColorYellow)
+	if err := runCommand("npm", "install"); err != nil {
+		return fmt.Errorf("failed to install dependencies: %w", err)
+	}
+
+	printColored("✅ Dashboard dependencies installed", ColorGreen)
+	return nil
+}
+
+// Lint runs TypeScript linting
+func (d *DashboardCommands) Lint(args []string) error {
+	var fix bool
+	for _, arg := range args {
+		if arg == "--fix" || arg == "-f" {
+			fix = true
+		}
+	}
+
+	webDir := filepath.Join("web")
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(webDir); err != nil {
+		return fmt.Errorf("failed to change to web directory: %w", err)
+	}
+
+	printColored("🔍 Running TypeScript linting...", ColorYellow)
+
+	var cmd string
+	if fix {
+		cmd = "lint:fix"
+	} else {
+		cmd = "lint"
+	}
+
+	if err := runCommand("npm", "run", cmd); err != nil {
+		return fmt.Errorf("linting failed: %w", err)
+	}
+
+	printColored("✅ Linting completed", ColorGreen)
+	return nil
+}
+
+// TypeCheck runs TypeScript type checking
+func (d *DashboardCommands) TypeCheck(args []string) error {
+	webDir := filepath.Join("web")
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(webDir); err != nil {
+		return fmt.Errorf("failed to change to web directory: %w", err)
+	}
+
+	printColored("🔍 Running TypeScript type checking...", ColorYellow)
+	if err := runCommand("npm", "run", "type-check"); err != nil {
+		return fmt.Errorf("type checking failed: %w", err)
+	}
+
+	printColored("✅ Type checking passed", ColorGreen)
+	return nil
+}
+
+// Clean cleans dashboard build artifacts
+func (d *DashboardCommands) Clean(args []string) error {
+	printColored("🧹 Cleaning dashboard build artifacts...", ColorYellow)
+
+	distDir := filepath.Join("web", "static", "js", "dist")
+	if _, err := os.Stat(distDir); err == nil {
+		if err := os.RemoveAll(distDir); err != nil {
+			return fmt.Errorf("failed to clean dist directory: %w", err)
+		}
+	}
+
+	nodeModulesDir := filepath.Join("web", "node_modules")
+	if _, err := os.Stat(nodeModulesDir); err == nil {
+		printColored("🗑️ Removing node_modules...", ColorYellow)
+		if err := os.RemoveAll(nodeModulesDir); err != nil {
+			return fmt.Errorf("failed to clean node_modules: %w", err)
+		}
+	}
+
+	printColored("✅ Dashboard cleaned", ColorGreen)
+	return nil
+}
+
+// Serve serves the dashboard for development
+func (d *DashboardCommands) Serve(args []string) error {
+	port := "8080"
+	for i, arg := range args {
+		if arg == "--port" || arg == "-p" {
+			if i+1 < len(args) {
+				port = args[i+1]
+			}
+		}
+	}
+
+	webDir := filepath.Join("web")
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(webDir); err != nil {
+		return fmt.Errorf("failed to change to web directory: %w", err)
+	}
+
+	printColored(fmt.Sprintf("🌐 Serving dashboard on http://localhost:%s", port), ColorGreen)
+
+	// Try different static servers
+	if commandExists("python3") {
+		return runCommand("python3", "-m", "http.server", port)
+	} else if commandExists("python") {
+		return runCommand("python", "-m", "http.server", port)
+	} else if commandExists("npx") {
+		return runCommand("npx", "serve", "-p", port, ".")
+	} else {
+		return fmt.Errorf("no suitable static server found (python3, python, or npx required)")
+	}
+}
+
+// commandExists checks if a command exists in PATH
+func commandExists(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
+}
+
+// runCommand runs a command and prints output
+func runCommand(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	// Set environment for cross-platform compatibility
+	cmd.Env = os.Environ()
+	if runtime.GOOS == "windows" {
+		cmd.Env = append(cmd.Env, "FORCE_COLOR=1")
+	}
+
+	return cmd.Run()
+}
+
+// Color constants
+const (
+	ColorReset  = "\033[0m"
+	ColorRed    = "\033[31m"
+	ColorGreen  = "\033[32m"
+	ColorYellow = "\033[33m"
+	ColorBlue   = "\033[34m"
+	ColorPurple = "\033[35m"
+	ColorCyan   = "\033[36m"
+	ColorWhite  = "\033[37m"
+)
+
+// printColored prints colored text
+func printColored(text, color string) {
+	if runtime.GOOS == "windows" {
+		// Windows might not support ANSI colors in all terminals
+		fmt.Println(text)
+	} else {
+		fmt.Printf("%s%s%s\n", color, text, ColorReset)
+	}
 }

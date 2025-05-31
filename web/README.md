@@ -1,86 +1,133 @@
-# Modern Dashboard - Simplified Version
+# Webhook Bridge Dashboard
 
-This directory contains the simplified modern dashboard implementation for the Webhook Bridge project.
+A modern, responsive dashboard built with React, TypeScript, and shadcn/ui for the Webhook Bridge service.
 
-## Structure
+## 🚀 Features
 
-```
-web/
-├── templates/
-│   ├── dashboard.html          # Original Bootstrap-based template
-│   └── modern-dashboard.html   # New simplified modern template
-├── static/
-│   ├── css/
-│   │   └── modern-dashboard.css # Simplified shadcn/ui inspired styles
-│   ├── js/
-│   │   ├── dashboard.js        # Original JavaScript
-│   │   └── modern-dashboard.js # New simplified JavaScript
-│   └── favicon.ico             # Favicon placeholder
-└── README.md                   # This file
-```
-
-## Key Improvements
-
-### 1. **Separation of Concerns**
-- **HTML**: Clean template files without inline styles/scripts
-- **CSS**: Dedicated stylesheet with modern design system
-- **JavaScript**: Modular, class-based approach
-- **Go**: Simplified backend with template rendering
-
-### 2. **Modern Design System**
-- **Tailwind CSS**: Utility-first CSS framework
-- **shadcn/ui inspired**: Modern color scheme and components
-- **Lucide Icons**: Clean, consistent iconography
+- **Modern UI**: Built with shadcn/ui components and Tailwind CSS
+- **Real-time Data**: Connects to Go backend APIs for live dashboard updates
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Dark Theme**: Professional dark mode interface
+- **Type Safety**: Full TypeScript support for better development experience
+- **Auto Refresh**: Automatic data refresh with manual refresh option
 
-### 3. **Simplified Architecture**
-- **Template-based**: Uses Go's html/template package
-- **Fallback Support**: Embedded template for reliability
-- **Clean API**: RESTful endpoints for data
-- **Modular JavaScript**: Object-oriented dashboard class
+## 🛠️ Tech Stack
 
-### 4. **Reduced Complexity**
-- **From 888 lines to 327 lines** in dashboard.go (63% reduction)
-- **Removed inline HTML/CSS/JS** from Go code
-- **Cleaner file organization**
-- **Better maintainability**
+- **React 18** - Modern React with hooks
+- **TypeScript** - Type-safe development
+- **Vite** - Fast build tool and dev server
+- **shadcn/ui** - High-quality, accessible UI components
+- **Tailwind CSS** - Utility-first CSS framework
+- **Radix UI** - Unstyled, accessible UI primitives
+- **Lucide React** - Beautiful, customizable icons
+- **React Router** - Client-side routing
 
-## Usage
+## 📦 Installation
 
-The modern dashboard is served through the `ModernDashboardHandler` which:
+```bash
+# Install dependencies
+npm install
 
-1. **Loads templates** from `web/templates/modern-dashboard.html`
-2. **Falls back** to embedded template if file not found
-3. **Serves static assets** from `web/static/`
-4. **Provides API endpoints** for dynamic data
+# Start development server
+npm run dev
 
-## API Endpoints
+# Build for production
+npm run build
 
-- `GET /` - Main dashboard page
-- `GET /api/v1/status` - System status
-- `GET /api/v1/metrics` - Performance metrics
-- `GET /api/v1/plugins` - Plugin information
-- `GET /api/v1/logs` - Recent logs
-- `GET /api/v1/config` - Configuration data
-- `GET /api/v1/workers` - Worker pool status
-- `POST /api/v1/workers/jobs` - Submit new job
+# Preview production build
+npm run preview
+```
 
-## Features
+## 🔧 Development
 
-- **Real-time updates** every 30 seconds
-- **Responsive design** for mobile and desktop
-- **Interactive navigation** between sections
-- **Error handling** with graceful fallbacks
-- **Loading states** for better UX
-- **Accessibility** with proper focus management
+### Project Structure
 
-## Development
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # shadcn/ui components
+│   ├── Header.tsx      # Top navigation bar
+│   ├── Sidebar.tsx     # Side navigation
+│   └── Layout.tsx      # Main layout wrapper
+├── pages/              # Page components
+│   └── Dashboard.tsx   # Main dashboard page
+├── hooks/              # Custom React hooks
+│   └── useDashboard.ts # Dashboard data management
+├── services/           # API services
+│   └── api.ts          # API client and utilities
+├── types/              # TypeScript type definitions
+│   └── api.ts          # API response types
+├── lib/                # Utility functions
+│   └── utils.ts        # Common utilities
+├── App.tsx             # Main app component
+├── main.tsx            # App entry point
+└── index.css           # Global styles and CSS variables
+```
 
-To extend the dashboard:
+### API Integration
 
-1. **Add new sections** in the HTML template
-2. **Update JavaScript** to handle new data loading
-3. **Add API endpoints** in the Go handler
-4. **Style with CSS** using the design system
+The dashboard connects to the Go backend through the `/api/dashboard` endpoints:
 
-The modular architecture makes it easy to add new features without affecting existing functionality.
+- `GET /api/dashboard/status` - System status
+- `GET /api/dashboard/stats` - Dashboard statistics
+- `GET /api/dashboard/plugins` - Plugin information
+- `GET /api/dashboard/workers` - Worker pool status
+- `GET /api/dashboard/logs` - System logs
+
+### Adding New Components
+
+To add new shadcn/ui components:
+
+```bash
+# Example: Add a new component (if using shadcn CLI)
+npx shadcn-ui@latest add dialog
+```
+
+### Customizing Theme
+
+Edit `src/index.css` to customize the color scheme and design tokens.
+
+## 🌐 Deployment
+
+The dashboard builds to static files in the `dist/` directory and can be served by the Go backend or any static file server.
+
+### Integration with Go Backend
+
+The Go backend should serve the built files from the `dist/` directory and proxy API requests to the appropriate handlers.
+
+## 📱 Features Overview
+
+### Dashboard Page
+- **System Statistics**: Real-time metrics and KPIs
+- **Recent Activity**: Latest webhook events and system activities
+- **System Status**: Health checks for all services
+- **Auto Refresh**: Configurable automatic data updates
+
+### Responsive Design
+- **Mobile-first**: Optimized for mobile devices
+- **Adaptive Layout**: Adjusts to different screen sizes
+- **Touch-friendly**: Large touch targets for mobile interaction
+
+### Error Handling
+- **Graceful Degradation**: Shows fallback content when APIs fail
+- **Retry Logic**: Automatic retry for failed requests
+- **User Feedback**: Clear error messages and loading states
+
+## 🔄 Data Flow
+
+1. **useDashboard Hook**: Manages all dashboard data and state
+2. **API Client**: Handles HTTP requests with retry logic
+3. **Type Safety**: TypeScript ensures data consistency
+4. **Real-time Updates**: Automatic refresh every 30 seconds
+5. **Error Recovery**: Graceful handling of network issues
+
+## 🎨 Design System
+
+The dashboard follows the shadcn/ui design system with:
+
+- **Consistent Spacing**: Using Tailwind's spacing scale
+- **Color Palette**: Professional dark theme with accent colors
+- **Typography**: Clear hierarchy with appropriate font weights
+- **Interactive States**: Hover, focus, and active states for all interactive elements
+
+This modern dashboard provides a professional, user-friendly interface for managing and monitoring the Webhook Bridge service.
