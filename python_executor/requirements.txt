@@ -1,0 +1,12 @@
+# gRPC dependencies
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+protobuf>=4.25.0
+
+# Core dependencies
+pyyaml>=6.0
+requests>=2.31.0
+
+# Development dependencies (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
