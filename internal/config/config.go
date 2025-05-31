@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -167,12 +168,70 @@ func (c *Config) setDefaults() {
 
 // loadFromFile loads configuration from YAML file
 func (c *Config) loadFromFile(path string) error {
+	// Validate file path to prevent directory traversal attacks
+	if err := validateConfigPath(path); err != nil {
+		return fmt.Errorf("invalid config path: %w", err)
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 
 	return yaml.Unmarshal(data, c)
+}
+
+// validateConfigPath validates that the config file path is safe
+func validateConfigPath(path string) error {
+	// Clean the path to resolve any .. or . components
+	cleanPath := filepath.Clean(path)
+
+	// Check for directory traversal attempts
+	if strings.Contains(cleanPath, "..") {
+		return fmt.Errorf("directory traversal not allowed")
+	}
+
+	// Only allow specific file extensions
+	ext := strings.ToLower(filepath.Ext(cleanPath))
+	if ext != ".yaml" && ext != ".yml" {
+		return fmt.Errorf("only .yaml and .yml files are allowed")
+	}
+
+	// Get absolute path for further validation
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	// Get current working directory
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Allow files in current directory or user config directory
+	wdAbs, _ := filepath.Abs(wd)
+	if strings.HasPrefix(absPath, wdAbs) {
+		return nil
+	}
+
+	// Allow files in user config directory
+	if configDir, err := os.UserConfigDir(); err == nil {
+		configDirAbs, _ := filepath.Abs(configDir)
+		if strings.HasPrefix(absPath, configDirAbs) {
+			return nil
+		}
+	}
+
+	// Allow files in system temp directory (for testing)
+	if tempDir := os.TempDir(); tempDir != "" {
+		tempDirAbs, _ := filepath.Abs(tempDir)
+		if strings.HasPrefix(absPath, tempDirAbs) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("config file must be in current directory, user config directory, or temp directory")
 }
 
 // loadFromEnv loads configuration from environment variables

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -330,12 +331,51 @@ func startGoServer(ctx context.Context, serverPort, executorPort string, verbose
 }
 
 func copyFile(src, dst string) error {
+	// Validate source and destination paths to prevent directory traversal
+	if err := validateFilePath(src, "source"); err != nil {
+		return fmt.Errorf("invalid source path: %w", err)
+	}
+	if err := validateFilePath(dst, "destination"); err != nil {
+		return fmt.Errorf("invalid destination path: %w", err)
+	}
+
 	sourceFile, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
 
 	return os.WriteFile(dst, sourceFile, 0600)
+}
+
+// validateFilePath validates that a file path is safe for operations
+func validateFilePath(path, pathType string) error {
+	// Clean the path to resolve any .. or . components
+	cleanPath := filepath.Clean(path)
+
+	// Check for directory traversal attempts
+	if strings.Contains(cleanPath, "..") {
+		return fmt.Errorf("directory traversal not allowed in %s path", pathType)
+	}
+
+	// Get absolute path for further validation
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for %s: %w", pathType, err)
+	}
+
+	// Get current working directory
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Only allow files within current working directory or its subdirectories
+	wdAbs, _ := filepath.Abs(wd)
+	if !strings.HasPrefix(absPath, wdAbs) {
+		return fmt.Errorf("%s file must be within current working directory", pathType)
+	}
+
+	return nil
 }
 
 // parsePort parses a port string to integer
