@@ -4,10 +4,12 @@ This module provides utilities for discovering and managing webhook plugins
 in the filesystem.
 """
 
-import os
+# Import built-in modules
 import glob
+import os
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 
 def get_plugins(plugin_dirs: List[str] = None) -> Dict[str, str]:
@@ -43,7 +45,7 @@ def get_plugins(plugin_dirs: List[str] = None) -> Dict[str, str]:
                 continue
                 
             # Extract plugin name from filename
-            plugin_name = os.path.splitext(os.path.basename(plugin_file))[0]
+            plugin_name = Path(plugin_file).stem
             plugins[plugin_name] = plugin_file
     
     return plugins
@@ -56,19 +58,16 @@ def get_plugin_directories() -> List[str]:
     Returns:
         List of directory paths that contain plugins.
     """
-    directories = []
-    
     default_dirs = [
         "plugins",
         "example_plugins",
         "webhook_plugins",
     ]
-    
-    for directory in default_dirs:
-        if os.path.exists(directory) and os.path.isdir(directory):
-            directories.append(directory)
-    
-    return directories
+
+    return [
+        directory for directory in default_dirs
+        if os.path.exists(directory) and os.path.isdir(directory)
+    ]
 
 
 def validate_plugin_file(plugin_path: str) -> bool:
@@ -82,9 +81,10 @@ def validate_plugin_file(plugin_path: str) -> bool:
         True if the plugin file is valid, False otherwise.
     """
     try:
+        path = Path(plugin_path)
         return (
-            os.path.exists(plugin_path) and
-            os.path.isfile(plugin_path) and
+            path.exists() and
+            path.is_file() and
             os.access(plugin_path, os.R_OK) and
             plugin_path.endswith('.py')
         )
