@@ -1,3 +1,25 @@
+## v2.0.0 (2025-05-31)
+
+### BREAKING CHANGE
+
+- Complete rewrite with Go HTTP server and Python CLI tool
+
+### Feat
+
+- optimize CI for Go-first architecture and clean up project
+- release v1.0.0 with hybrid Go/Python architecture
+
+### Fix
+
+- resolve golangci-lint errcheck issues
+- add path validation to prevent directory traversal attacks (G304)
+- resolve security vulnerabilities identified by gosec
+- resolve port range conflicts in CI environment
+- resolve CI PowerShell compatibility issues
+- replace deprecated gosec GitHub Action with direct installation
+- optimize Python lint configuration for CI compatibility
+- modernize golangci-lint configuration for CI compatibility
+
 ## v0.6.0 (2025-05-30)
 
 ### Feat
