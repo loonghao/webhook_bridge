@@ -13,12 +13,12 @@ import (
 
 // DetectedInterpreter contains information about a detected Python interpreter
 type DetectedInterpreter struct {
-	Path        string
-	Version     string
-	IsVirtual   bool
-	VenvPath    string
-	UVManaged   bool
-	Executable  bool
+	Path       string
+	Version    string
+	IsVirtual  bool
+	VenvPath   string
+	UVManaged  bool
+	Executable bool
 }
 
 // DetectionResult contains the result of Python interpreter detection
@@ -42,13 +42,13 @@ func DetectPythonInterpreter(cfg *config.PythonConfig, verbose bool) (*Detection
 		if verbose {
 			fmt.Printf("📍 Using configured Python path: %s\n", cfg.Interpreter)
 		}
-		
+
 		interpreter, err := validatePythonPath(cfg.Interpreter, verbose)
 		if err != nil {
 			result.Error = fmt.Errorf("configured Python path invalid: %w", err)
 			return result, result.Error
 		}
-		
+
 		result.Interpreter = interpreter
 		return result, nil
 	}
@@ -58,7 +58,7 @@ func DetectPythonInterpreter(cfg *config.PythonConfig, verbose bool) (*Detection
 	if !filepath.IsAbs(venvPath) {
 		venvPath = filepath.Join(".", venvPath)
 	}
-	
+
 	if venvInterpreter := checkVirtualEnvironment(venvPath, verbose); venvInterpreter != nil {
 		if verbose {
 			fmt.Printf("✅ Found existing virtual environment: %s\n", venvPath)
@@ -85,14 +85,14 @@ func DetectPythonInterpreter(cfg *config.PythonConfig, verbose bool) (*Detection
 		if verbose {
 			fmt.Printf("✅ UV is available, will use UV-managed Python\n")
 		}
-		
+
 		// Try to create virtual environment with UV
 		interpreter, err := createUVEnvironment(venvPath, cfg, verbose)
 		if err != nil {
 			result.Error = fmt.Errorf("failed to create UV environment: %w", err)
 			return result, result.Error
 		}
-		
+
 		result.Interpreter = interpreter
 		result.VenvExists = true
 		return result, nil
@@ -103,19 +103,19 @@ func DetectPythonInterpreter(cfg *config.PythonConfig, verbose bool) (*Detection
 		if verbose {
 			fmt.Printf("📥 UV not found, attempting to download and install...\n")
 		}
-		
+
 		if err := downloadAndInstallUV(verbose); err != nil {
 			result.Error = fmt.Errorf("failed to download UV: %w", err)
 			return result, result.Error
 		}
-		
+
 		// Retry with UV
 		interpreter, err := createUVEnvironment(venvPath, cfg, verbose)
 		if err != nil {
 			result.Error = fmt.Errorf("failed to create UV environment after installation: %w", err)
 			return result, result.Error
 		}
-		
+
 		result.Interpreter = interpreter
 		result.UVAvailable = true
 		result.VenvExists = true
@@ -282,7 +282,7 @@ func createUVEnvironment(venvPath string, cfg *config.PythonConfig, verbose bool
 		if verbose {
 			fmt.Printf("📦 Installing required packages...\n")
 		}
-		
+
 		if err := installPackagesWithUV(venvPath, cfg.RequiredPackages, verbose); err != nil {
 			if verbose {
 				fmt.Printf("⚠️  Warning: Failed to install packages: %v\n", err)
@@ -300,7 +300,7 @@ func downloadAndInstallUV(verbose bool) error {
 	}
 
 	var cmd *exec.Cmd
-	
+
 	switch runtime.GOOS {
 	case "windows":
 		// Use PowerShell to download and install UV on Windows

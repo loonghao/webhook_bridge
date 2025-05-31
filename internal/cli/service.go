@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/loonghao/webhook_bridge/internal/service"
 	"github.com/spf13/cobra"
+
+	"github.com/loonghao/webhook_bridge/internal/service"
 )
 
 // NewServiceCommand creates the service management command

@@ -153,8 +153,8 @@ func (lm *LogManager) GetLogStats() map[string]interface{} {
 	defer lm.mutex.RUnlock()
 
 	stats := map[string]interface{}{
-		"total": len(lm.logs),
-		"levels": make(map[string]int),
+		"total":   len(lm.logs),
+		"levels":  make(map[string]int),
 		"sources": make(map[string]int),
 	}
 

@@ -56,7 +56,7 @@ func (s *Server) cacheMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Set cache headers for static endpoints
 		path := c.Request.URL.Path
-		
+
 		if path == "/health" || path == "/metrics" {
 			// Don't cache dynamic endpoints
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -82,7 +82,7 @@ func (s *Server) securityMiddleware() gin.HandlerFunc {
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-		
+
 		// Only add HSTS in production with HTTPS
 		if s.config.Server.Mode == "release" && c.Request.TLS != nil {
 			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
@@ -109,7 +109,7 @@ func (s *Server) timeoutMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Add timeout context based on endpoint
 		path := c.Request.URL.Path
-		
+
 		var timeoutHeader string
 		if strings.Contains(path, "/webhook/") {
 			// Longer timeout for plugin execution
@@ -118,7 +118,7 @@ func (s *Server) timeoutMiddleware() gin.HandlerFunc {
 			// Standard timeout for other endpoints
 			timeoutHeader = "30"
 		}
-		
+
 		c.Header("X-Timeout-Seconds", timeoutHeader)
 		c.Next()
 	}
@@ -130,10 +130,10 @@ func (s *Server) performanceHeaders() gin.HandlerFunc {
 		// Add performance hints
 		c.Header("X-DNS-Prefetch-Control", "on")
 		c.Header("X-Permitted-Cross-Domain-Policies", "none")
-		
+
 		// Add server information
 		c.Header("Server", "webhook-bridge/2.0")
-		
+
 		c.Next()
 	}
 }

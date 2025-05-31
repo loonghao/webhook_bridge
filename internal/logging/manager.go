@@ -8,17 +8,18 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/loonghao/webhook_bridge/internal/config"
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	"github.com/loonghao/webhook_bridge/internal/config"
 )
 
 // Manager manages application logging
 type Manager struct {
-	config    *config.LoggingConfig
-	dirMgr    *config.DirectoryManager
-	logger    *log.Logger
-	logFile   *lumberjack.Logger
-	verbose   bool
+	config  *config.LoggingConfig
+	dirMgr  *config.DirectoryManager
+	logger  *log.Logger
+	logFile *lumberjack.Logger
+	verbose bool
 }
 
 // NewManager creates a new logging manager
@@ -46,7 +47,7 @@ func (lm *Manager) Initialize() error {
 	// Add file logging if configured
 	if lm.config.File != "" {
 		logPath := lm.dirMgr.GetLogFilePath(lm.config.File)
-		
+
 		if lm.verbose {
 			fmt.Printf("📝 Log file: %s\n", logPath)
 		}
@@ -59,11 +60,11 @@ func (lm *Manager) Initialize() error {
 
 		// Setup rotating log file
 		lm.logFile = &lumberjack.Logger{
-			Filename:   logPath,
-			MaxSize:    lm.config.MaxSize, // MB
-			MaxAge:     lm.config.MaxAge,  // days
-			Compress:   lm.config.Compress,
-			LocalTime:  true,
+			Filename:  logPath,
+			MaxSize:   lm.config.MaxSize, // MB
+			MaxAge:    lm.config.MaxAge,  // days
+			Compress:  lm.config.Compress,
+			LocalTime: true,
 		}
 
 		writers = append(writers, lm.logFile)
@@ -106,7 +107,7 @@ func (lm *Manager) Log(level, message string, args ...interface{}) {
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	
+
 	if lm.config.Format == "json" {
 		lm.logJSON(level, message, timestamp, args...)
 	} else {
@@ -159,17 +160,17 @@ func (lm *Manager) shouldLog(level string) bool {
 // logJSON logs a message in JSON format
 func (lm *Manager) logJSON(level, message, timestamp string, args ...interface{}) {
 	formattedMessage := fmt.Sprintf(message, args...)
-	
+
 	jsonLog := fmt.Sprintf(`{"timestamp":"%s","level":"%s","message":"%s","service":"webhook-bridge"}`,
 		timestamp, level, formattedMessage)
-	
+
 	lm.logger.Println(jsonLog)
 }
 
 // logText logs a message in text format
 func (lm *Manager) logText(level, message, timestamp string, args ...interface{}) {
 	formattedMessage := fmt.Sprintf(message, args...)
-	
+
 	levelUpper := ""
 	switch level {
 	case "debug":
@@ -183,7 +184,7 @@ func (lm *Manager) logText(level, message, timestamp string, args ...interface{}
 	default:
 		levelUpper = "INFO"
 	}
-	
+
 	textLog := fmt.Sprintf("[%s] %s: %s", levelUpper, timestamp, formattedMessage)
 	lm.logger.Println(textLog)
 }

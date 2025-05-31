@@ -9,9 +9,11 @@ from nox_actions.utils import THIS_ROOT
 
 def pytest(session: nox.Session) -> None:
     session.install(".")
-    session.install("pytest", "pytest_cov", "pytest_mock", "httpx", "hypothesis")
+    session.install("pytest", "pytest-cov", "pytest-mock", "httpx", "hypothesis",
+                    "fastapi", "click", "pyfakefs")
     test_root = os.path.join(THIS_ROOT, "tests")
     session.run("pytest", f"--cov={PACKAGE_NAME}",
                 "--cov-report=xml:coverage.xml",
-                f"--rootdir={test_root}",
-                env={"PYTHONPATH": THIS_ROOT.as_posix()})
+                "--cov-report=term-missing",
+                test_root,
+                env={"PYTHONPATH": str(THIS_ROOT)})

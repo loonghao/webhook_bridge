@@ -48,16 +48,16 @@ func ParsePort(portStr string) (int, error) {
 	if portStr == "" {
 		return 0, fmt.Errorf("port cannot be empty")
 	}
-	
+
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return 0, fmt.Errorf("invalid port number: %s", portStr)
 	}
-	
+
 	if port < 1 || port > 65535 {
 		return 0, fmt.Errorf("port must be between 1 and 65535, got %d", port)
 	}
-	
+
 	return port, nil
 }
 
@@ -66,7 +66,7 @@ func GetPortWithFallback(preferredPort int) (int, error) {
 	if preferredPort > 0 && IsPortFree(preferredPort) {
 		return preferredPort, nil
 	}
-	
+
 	// If preferred port is not available, find a free one
 	return GetFreePort()
 }
@@ -74,7 +74,7 @@ func GetPortWithFallback(preferredPort int) (int, error) {
 // GetPortsWithFallback gets multiple ports with fallback logic
 func GetPortsWithFallback(preferredPorts []int) ([]int, error) {
 	var ports []int
-	
+
 	for _, preferred := range preferredPorts {
 		port, err := GetPortWithFallback(preferred)
 		if err != nil {
@@ -82,6 +82,6 @@ func GetPortsWithFallback(preferredPorts []int) ([]int, error) {
 		}
 		ports = append(ports, port)
 	}
-	
+
 	return ports, nil
 }

@@ -62,13 +62,6 @@ linters-settings:
       - octalLiteral
       - whyNoLint
       - wrapperFunc
-      - unnecessaryBlock
-      - appendCombine
-      - hugeParam
-      - fieldalignment
-      - unnamedResult
-      - emptyStringTest
-      - sprintfQuotedString
 
   funlen:
     lines: 150  # Increased

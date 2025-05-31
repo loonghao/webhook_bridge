@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+
 	"github.com/loonghao/webhook_bridge/internal/utils"
 )
 
@@ -21,8 +22,8 @@ type Config struct {
 // ServerConfig represents HTTP server configuration
 type ServerConfig struct {
 	Host     string `yaml:"host" default:"0.0.0.0"`
-	Port     int    `yaml:"port" default:"0"`        // 0 means auto-assign
-	Mode     string `yaml:"mode" default:"debug"`    // debug, release
+	Port     int    `yaml:"port" default:"0"`         // 0 means auto-assign
+	Mode     string `yaml:"mode" default:"debug"`     // debug, release
 	AutoPort bool   `yaml:"auto_port" default:"true"` // Enable automatic port assignment
 }
 
@@ -81,37 +82,37 @@ type ValidationConfig struct {
 // ExecutorConfig represents Python executor service configuration
 type ExecutorConfig struct {
 	Host     string `yaml:"host" default:"localhost"`
-	Port     int    `yaml:"port" default:"0"`        // 0 means auto-assign
-	Timeout  int    `yaml:"timeout" default:"30"`    // seconds
+	Port     int    `yaml:"port" default:"0"`         // 0 means auto-assign
+	Timeout  int    `yaml:"timeout" default:"30"`     // seconds
 	AutoPort bool   `yaml:"auto_port" default:"true"` // Enable automatic port assignment
 }
 
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
-	Level    string `yaml:"level" default:"info"`     // debug, info, warn, error
-	Format   string `yaml:"format" default:"text"`    // text, json
-	File     string `yaml:"file" default:""`          // Log file path (empty = stdout only)
-	MaxSize  int    `yaml:"max_size" default:"100"`   // Max log file size in MB
-	MaxAge   int    `yaml:"max_age" default:"30"`     // Max age in days
-	Compress bool   `yaml:"compress" default:"true"`  // Compress old log files
+	Level    string `yaml:"level" default:"info"`    // debug, info, warn, error
+	Format   string `yaml:"format" default:"text"`   // text, json
+	File     string `yaml:"file" default:""`         // Log file path (empty = stdout only)
+	MaxSize  int    `yaml:"max_size" default:"100"`  // Max log file size in MB
+	MaxAge   int    `yaml:"max_age" default:"30"`    // Max age in days
+	Compress bool   `yaml:"compress" default:"true"` // Compress old log files
 }
 
 // DirectoriesConfig represents directory configuration
 type DirectoriesConfig struct {
-	WorkingDir string `yaml:"working_dir" default:""`     // Working directory (empty = current dir)
-	LogDir     string `yaml:"log_dir" default:"logs"`     // Log directory relative to working dir
-	ConfigDir  string `yaml:"config_dir" default:""`      // Config directory (empty = working dir)
+	WorkingDir string `yaml:"working_dir" default:""`       // Working directory (empty = current dir)
+	LogDir     string `yaml:"log_dir" default:"logs"`       // Log directory relative to working dir
+	ConfigDir  string `yaml:"config_dir" default:""`        // Config directory (empty = working dir)
 	PluginDir  string `yaml:"plugin_dir" default:"plugins"` // Plugin directory relative to working dir
-	DataDir    string `yaml:"data_dir" default:"data"`    // Data directory relative to working dir
+	DataDir    string `yaml:"data_dir" default:"data"`      // Data directory relative to working dir
 }
 
 // Load loads configuration from file or environment variables
 func Load() (*Config, error) {
 	cfg := &Config{}
-	
+
 	// Set defaults
 	cfg.setDefaults()
-	
+
 	// Try to load from config file
 	configPath := getConfigPath()
 	if configPath != "" {
@@ -119,10 +120,10 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("failed to load config from file %s: %w", configPath, err)
 		}
 	}
-	
+
 	// Override with environment variables
 	cfg.loadFromEnv()
-	
+
 	return cfg, nil
 }
 
@@ -170,7 +171,7 @@ func (c *Config) loadFromFile(path string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return yaml.Unmarshal(data, c)
 }
 
@@ -211,13 +212,13 @@ func getConfigPath() string {
 		"webhook_bridge.yaml",
 		"webhook_bridge.yml",
 	}
-	
+
 	for _, path := range paths {
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}
 	}
-	
+
 	// Check in user config directory
 	if configDir, err := os.UserConfigDir(); err == nil {
 		userConfigPath := filepath.Join(configDir, "webhook_bridge", "config.yaml")
@@ -225,7 +226,7 @@ func getConfigPath() string {
 			return userConfigPath
 		}
 	}
-	
+
 	return ""
 }
 

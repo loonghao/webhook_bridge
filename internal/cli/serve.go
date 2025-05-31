@@ -12,9 +12,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cobra"
+
 	"github.com/loonghao/webhook_bridge/internal/config"
 	"github.com/loonghao/webhook_bridge/internal/server"
-	"github.com/spf13/cobra"
 )
 
 // NewServeCommand creates the serve command for standalone operation
@@ -98,7 +99,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		fmt.Printf("🌐 Dashboard: http://localhost:%s/dashboard\n", port)
 		fmt.Printf("📊 API: http://localhost:%s/api/v1\n", port)
 		fmt.Printf("❤️  Health: http://localhost:%s/health\n", port)
-		
+
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
@@ -108,7 +109,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	
+
 	if verbose {
 		fmt.Println("\n🛑 Shutting down server...")
 	}

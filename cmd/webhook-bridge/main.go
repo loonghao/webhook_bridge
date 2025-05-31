@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
+
 	"github.com/loonghao/webhook_bridge/internal/cli"
 )
 
@@ -31,10 +32,10 @@ and manage your webhook bridge service.`,
 
 	// Add subcommands
 	rootCmd.AddCommand(
-		cli.NewServeCommand(),    // Standalone server (no dependencies)
-		cli.NewServiceCommand(),  // System service management
+		cli.NewServeCommand(),   // Standalone server (no dependencies)
+		cli.NewServiceCommand(), // System service management
 		cli.NewBuildCommand(),
-		cli.NewStartCommand(),    // Full development mode
+		cli.NewStartCommand(), // Full development mode
 		cli.NewStopCommand(),
 		cli.NewStatusCommand(),
 		cli.NewDashboardCommand(),

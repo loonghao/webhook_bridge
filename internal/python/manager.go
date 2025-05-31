@@ -27,9 +27,9 @@ type InterpreterInfo struct {
 
 // Manager handles Python interpreter discovery and management
 type Manager struct {
-	config           *config.PythonConfig
+	config            *config.PythonConfig
 	cachedInterpreter *InterpreterInfo
-	logger           *log.Logger
+	logger            *log.Logger
 }
 
 // NewManager creates a new Python manager
@@ -239,21 +239,21 @@ func (m *Manager) discoverFromPATH() (string, error) {
 	if runtime.GOOS == "windows" {
 		pythonNames = []string{"python.exe", "python3.exe"}
 	}
-	
+
 	for _, name := range pythonNames {
 		path, err := exec.LookPath(name)
 		if err != nil {
 			continue
 		}
-		
+
 		// Test if it's a valid Python interpreter
 		if err := m.testInterpreter(path); err != nil {
 			continue
 		}
-		
+
 		return path, nil
 	}
-	
+
 	return "", fmt.Errorf("no valid Python interpreter found in PATH")
 }
 
@@ -267,19 +267,19 @@ func (m *Manager) autoDiscover() (string, error) {
 			return path, nil
 		}
 	}
-	
+
 	// 2. Try UV if enabled
 	if m.config.UV.Enabled {
 		if path, err := m.discoverUVInterpreter(); err == nil {
 			return path, nil
 		}
 	}
-	
+
 	// 3. Try PATH as fallback
 	if path, err := m.discoverFromPATH(); err == nil {
 		return path, nil
 	}
-	
+
 	return "", fmt.Errorf("failed to discover Python interpreter using auto strategy")
 }
 
@@ -290,12 +290,12 @@ func (m *Manager) testInterpreter(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to execute Python interpreter: %w", err)
 	}
-	
+
 	version := strings.TrimSpace(string(output))
 	if !strings.Contains(version, "(3,") {
 		return fmt.Errorf("Python 3.x required, found: %s", version)
 	}
-	
+
 	return nil
 }
 
@@ -304,7 +304,7 @@ func (m *Manager) GetPluginDirs() []string {
 	if len(m.config.PluginDirs) > 0 {
 		return m.config.PluginDirs
 	}
-	
+
 	// Default plugin directories
 	return []string{
 		"./plugins",
@@ -316,7 +316,7 @@ func (m *Manager) GetPluginDirs() []string {
 // PrepareEnvironment prepares the Python environment for plugin execution
 func (m *Manager) PrepareEnvironment(interpreterPath string) (map[string]string, error) {
 	env := make(map[string]string)
-	
+
 	// Copy current environment
 	for _, envVar := range os.Environ() {
 		parts := strings.SplitN(envVar, "=", 2)
@@ -324,7 +324,7 @@ func (m *Manager) PrepareEnvironment(interpreterPath string) (map[string]string,
 			env[parts[0]] = parts[1]
 		}
 	}
-	
+
 	// Set Python path
 	pythonDir := filepath.Dir(interpreterPath)
 	if currentPath, exists := env["PATH"]; exists {
@@ -332,7 +332,7 @@ func (m *Manager) PrepareEnvironment(interpreterPath string) (map[string]string,
 	} else {
 		env["PATH"] = pythonDir
 	}
-	
+
 	// Add plugin directories to PYTHONPATH
 	pluginDirs := m.GetPluginDirs()
 	if len(pluginDirs) > 0 {
@@ -343,7 +343,7 @@ func (m *Manager) PrepareEnvironment(interpreterPath string) (map[string]string,
 			env["PYTHONPATH"] = pythonPath
 		}
 	}
-	
+
 	return env, nil
 }
 
@@ -361,7 +361,7 @@ func (m *Manager) getPythonVersion(interpreterPath string) (string, error) {
 func (m *Manager) checkVirtualEnvironment(interpreterPath string) (bool, string) {
 	// Check for common virtual environment indicators
 	venvPaths := []string{
-		filepath.Join(filepath.Dir(interpreterPath), ".."),  // Standard venv structure
+		filepath.Join(filepath.Dir(interpreterPath), ".."),       // Standard venv structure
 		filepath.Join(filepath.Dir(interpreterPath), "..", ".."), // Some venv structures
 	}
 
@@ -409,11 +409,11 @@ func (m *Manager) testCapabilities(interpreterPath string) map[string]bool {
 
 	// Test specific features
 	features := map[string]string{
-		"async_support":    "import asyncio",
-		"type_hints":       "from typing import Dict, List",
-		"pathlib":          "from pathlib import Path",
-		"dataclasses":      "from dataclasses import dataclass",
-		"f_strings":        "x = 1; f'{x}'",
+		"async_support": "import asyncio",
+		"type_hints":    "from typing import Dict, List",
+		"pathlib":       "from pathlib import Path",
+		"dataclasses":   "from dataclasses import dataclass",
+		"f_strings":     "x = 1; f'{x}'",
 	}
 
 	for feature, testCode := range features {
