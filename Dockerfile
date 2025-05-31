@@ -30,7 +30,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o webhook-bridge-server ./cmd/server
 
 # Stage 2: Python environment
-FROM python:3.11-slim AS python-base
+FROM python:3.13-slim AS python-base
 
 WORKDIR /app
 
@@ -52,7 +52,7 @@ RUN uv venv /opt/venv && \
     /opt/venv/bin/pip install -r requirements.txt
 
 # Stage 3: Final runtime image
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
