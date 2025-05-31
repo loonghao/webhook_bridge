@@ -66,7 +66,8 @@ version = "2.0.0"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml:version",
-    "webhook_bridge/__version__.py"
+    "webhook_bridge/__version__.py",
+    "pkg/version/version.go:Version = \"$version\""
 ]
 
 [tool.black]
@@ -165,7 +166,7 @@ unfixable = []
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-# 禁用特定规则 - 为CI兼容性优化
+# Disable rules 
 ignore = [
     # Type annotations (too strict for current codebase)
     "ANN001",  # Missing type annotation for function argument
