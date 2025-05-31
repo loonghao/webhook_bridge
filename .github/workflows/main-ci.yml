@@ -126,6 +126,7 @@ jobs:
         cache: true
 
     - name: Install Protocol Buffers compiler
+      shell: bash
       run: |
         if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
           sudo apt-get update && sudo apt-get install -y protobuf-compiler
@@ -134,9 +135,9 @@ jobs:
         elif [ "${{ matrix.os }}" = "windows-latest" ]; then
           choco install protoc
         fi
-      shell: bash
 
     - name: Setup development environment
+      shell: bash
       run: go run dev.go dev-setup
         
     - name: Build binary
@@ -144,15 +145,16 @@ jobs:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
         CGO_ENABLED: 0
+      shell: bash
       run: |
         VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
         BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
         GIT_COMMIT=$(git rev-parse --short HEAD)
-        
+
         LDFLAGS="-X github.com/loonghao/webhook_bridge/pkg/version.Version=${VERSION}"
         LDFLAGS="${LDFLAGS} -X github.com/loonghao/webhook_bridge/pkg/version.GitCommit=${GIT_COMMIT}"
         LDFLAGS="${LDFLAGS} -X github.com/loonghao/webhook_bridge/pkg/version.BuildDate=${BUILD_TIME}"
-        
+
         go build -ldflags "${LDFLAGS}" -o webhook-bridge-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} ./cmd/server
         
     - name: Upload artifacts
