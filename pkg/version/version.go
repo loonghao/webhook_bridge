@@ -9,7 +9,7 @@ import (
 var (
 	// Version is the current version of the application
 	// This should match the version in pyproject.toml
-	Version = "1.0.0"
+	Version = "2.0.0"
 
 	// GitCommit is the git commit hash
 	GitCommit = "unknown"
