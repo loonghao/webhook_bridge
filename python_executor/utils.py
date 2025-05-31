@@ -1,5 +1,6 @@
 """Utility functions for Python executor."""
 
+# Import built-in modules
 import socket
 from typing import Optional
 
@@ -35,7 +36,7 @@ def get_port_with_fallback(preferred_port: int) -> int:
     """Try to use the specified port, fall back to a free port if occupied."""
     if preferred_port > 0 and is_port_free(preferred_port):
         return preferred_port
-    
+
     # If preferred port is not available, find a free one
     return get_free_port()
 
@@ -44,13 +45,13 @@ def parse_port(port_str: str) -> int:
     """Parse a port string and validate it."""
     if not port_str:
         raise ValueError("Port cannot be empty")
-    
+
     try:
         port = int(port_str)
     except ValueError:
         raise ValueError(f"Invalid port number: {port_str}")
-    
+
     if port < 1 or port > 65535:
         raise ValueError(f"Port must be between 1 and 65535, got {port}")
-    
+
     return port

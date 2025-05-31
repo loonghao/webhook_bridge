@@ -10,25 +10,25 @@ from __future__ import annotations
 # Import built-in modules
 import argparse
 import asyncio
+from concurrent import futures
 import logging
+from pathlib import Path
 import signal
 import sys
-from concurrent import futures
 
 # Import third-party modules
 import grpc
 
-# Import local modules
-import sys
-from pathlib import Path
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from python_executor.server import WebhookExecutorServicer
-from python_executor.utils import get_port_with_fallback, is_port_free
+# Import third-party modules
 from api.proto import webhook_pb2_grpc
+from python_executor.server import WebhookExecutorServicer
+from python_executor.utils import get_port_with_fallback
+from python_executor.utils import is_port_free
 
 
 def setup_logging(level: str = "INFO") -> None:
@@ -125,8 +125,9 @@ def main() -> None:
     plugin_dirs = args.plugin_dirs or []
     if args.config:
         try:
+            # Import third-party modules
             import yaml
-            with open(args.config, 'r') as f:
+            with open(args.config) as f:
                 config_data = yaml.safe_load(f)
                 if 'python' in config_data and 'plugin_dirs' in config_data['python']:
                     plugin_dirs.extend(config_data['python']['plugin_dirs'])

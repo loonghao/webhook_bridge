@@ -5,9 +5,10 @@ This CLI tool manages the Go-based webhook bridge server, including downloading,
 installing, and running the appropriate binary for the current platform.
 """
 
+# Import built-in modules
 import argparse
-import sys
 from pathlib import Path
+import sys
 
 from .manager import WebhookBridgeManager
 
@@ -165,6 +166,7 @@ def main() -> int:
     except Exception as e:
         print(f"❌ Error: {e}")
         if args.verbose:
+            # Import built-in modules
             import traceback
             traceback.print_exc()
         return 1

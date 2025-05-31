@@ -13,4 +13,5 @@ __description__ = "A flexible webhook integration platform with hybrid Go/Python
 from .cli import main
 from .manager import WebhookBridgeManager
 
-__all__ = ["main", "WebhookBridgeManager"]
+
+__all__ = ["WebhookBridgeManager", "main"]
