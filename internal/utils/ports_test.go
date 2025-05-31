@@ -167,8 +167,8 @@ func TestGetPortWithFallback(t *testing.T) {
 
 func TestGetFreePortInRange(t *testing.T) {
 	// Test with a reasonable range
-	start := 50000
-	end := 50010
+	start := 60000
+	end := 60010
 
 	port, err := GetFreePortInRange(start, end)
 	if err != nil {
@@ -186,8 +186,8 @@ func TestGetFreePortInRange(t *testing.T) {
 
 func TestGetFreePortInRange_NoFreePort(t *testing.T) {
 	// Create a very small range and occupy all ports
-	start := 50020
-	end := 50022
+	start := 60020
+	end := 60022
 
 	var listeners []net.Listener
 	defer func() {
@@ -220,7 +220,7 @@ func TestGetFreePortInRange_NoFreePort(t *testing.T) {
 }
 
 func TestGetPortsWithFallback(t *testing.T) {
-	preferredPorts := []int{50030, 50031, 50032}
+	preferredPorts := []int{60030, 60031, 60032}
 
 	ports, err := GetPortsWithFallback(preferredPorts)
 	if err != nil {
