@@ -12,24 +12,47 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/loonghao/webhook_bridge/internal/config"
+	"github.com/loonghao/webhook_bridge/internal/logging"
 	"github.com/loonghao/webhook_bridge/internal/server"
 )
 
 func main() {
+	// Get current working directory
+	workingDir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Failed to get working directory: %v", err)
+	}
+
+	// Create configuration manager
+	configManager := config.NewConfigManager(workingDir, "", true) // verbose=true for server
+
+	// Validate working directory
+	if err := configManager.ValidateWorkingDirectory(); err != nil {
+		log.Fatalf("Working directory validation failed: %v", err)
+	}
+
 	// Load configuration
-	cfg, err := config.Load()
+	cfg, err := configManager.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Assign ports automatically if needed
-	if err := cfg.AssignPorts(); err != nil {
-		log.Fatalf("Failed to assign ports: %v", err)
+	// Setup configuration environment (creates directories, logs, etc.)
+	if err := configManager.SetupConfigEnvironment(cfg); err != nil {
+		log.Fatalf("Failed to setup configuration environment: %v", err)
 	}
 
-	// Validate configuration
-	if err := cfg.Validate(); err != nil {
-		log.Fatalf("Invalid configuration: %v", err)
+	// Setup logging system
+	dirManager := configManager.GetDirectoryManager()
+	if dirManager != nil {
+		logManager := logging.NewManager(&cfg.Logging, dirManager, true)
+		if err := logManager.SetupLoggingEnvironment(); err != nil {
+			log.Printf("Warning: Failed to setup logging: %v", err)
+		} else {
+			// Log startup information
+			logManager.LogStartup("2.0.0-hybrid", time.Now().Format(time.RFC3339))
+		}
+		defer logManager.Close()
 	}
 
 	// Log the assigned ports

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -52,9 +53,26 @@ func (h *ModernDashboardHandler) RegisterRoutes(router *gin.Engine) {
 		api.POST("/workers/jobs", h.submitJob)
 	}
 
-	// Static assets
-	router.Static("/static", "./web/static")
-	router.StaticFile("/favicon.ico", "./web/static/favicon.ico")
+	// Static assets - check if files exist before serving
+	staticDir := "./web/static"
+	if _, err := os.Stat(staticDir); err == nil {
+		router.Static("/static", staticDir)
+	} else {
+		// Fallback to embedded static content or current directory
+		if _, err := os.Stat("web/static"); err == nil {
+			router.Static("/static", "web/static")
+		} else if _, err := os.Stat("static"); err == nil {
+			router.Static("/static", "static")
+		}
+	}
+
+	// Favicon
+	faviconPath := "./web/static/favicon.ico"
+	if _, err := os.Stat(faviconPath); err == nil {
+		router.StaticFile("/favicon.ico", faviconPath)
+	} else if _, err := os.Stat("web/static/favicon.ico"); err == nil {
+		router.StaticFile("/favicon.ico", "web/static/favicon.ico")
+	}
 }
 
 // dashboard serves the main dashboard page
