@@ -26,9 +26,9 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Override strategy if provided
+	// Override interpreter if provided
 	if *strategy != "" {
-		cfg.Python.Strategy = *strategy
+		cfg.Python.Interpreter = *strategy
 	}
 
 	// Create Python manager
@@ -36,11 +36,11 @@ func main() {
 
 	if *verbose {
 		fmt.Printf("Using Python configuration:\n")
-		fmt.Printf("  Strategy: %s\n", cfg.Python.Strategy)
+		fmt.Printf("  Interpreter: %s\n", cfg.Python.Interpreter)
 		fmt.Printf("  UV Enabled: %v\n", cfg.Python.UV.Enabled)
 		fmt.Printf("  UV Project Path: %s\n", cfg.Python.UV.ProjectPath)
 		fmt.Printf("  UV Venv Name: %s\n", cfg.Python.UV.VenvName)
-		fmt.Printf("  Custom Path: %s\n", cfg.Python.InterpreterPath)
+		fmt.Printf("  Venv Path: %s\n", cfg.Python.VenvPath)
 		fmt.Printf("  Plugin Dirs: %v\n", cfg.Python.PluginDirs)
 		fmt.Println()
 	}
@@ -97,7 +97,7 @@ func main() {
 		}
 
 		fmt.Printf("✅ Python interpreter found: %s\n", interpreterPath)
-		fmt.Printf("📋 Strategy used: %s\n", cfg.Python.Strategy)
+		fmt.Printf("📋 Interpreter used: %s\n", cfg.Python.Interpreter)
 
 		// Get basic info
 		if interpreterInfo, err := manager.GetInterpreterInfo(); err == nil {

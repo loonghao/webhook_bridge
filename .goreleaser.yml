@@ -1,0 +1,209 @@
+# GoReleaser configuration for webhook-bridge
+# Based on Lazydocker's best practices with modern enhancements
+
+env:
+  - CGO_ENABLED=0
+  - GO111MODULE=on
+
+# Global hooks
+before:
+  hooks:
+    # Generate protobuf files before building
+    - go run dev.go proto
+
+builds:
+  # Main server binary
+  - id: webhook-bridge-server
+    main: ./cmd/server
+    binary: webhook-bridge-server
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
+    ignore:
+      # Skip ARM builds for Windows and macOS for now
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+      - goos: darwin
+        goarch: arm
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.buildSource=goreleaser
+      - -X github.com/loonghao/webhook_bridge/pkg/version.Version={{.Version}}
+      - -X github.com/loonghao/webhook_bridge/pkg/version.GitCommit={{.Commit}}
+      - -X github.com/loonghao/webhook_bridge/pkg/version.BuildDate={{.Date}}
+
+  # Python manager binary
+  - id: python-manager
+    main: ./cmd/python-manager
+    binary: python-manager
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+      - goos: darwin
+        goarch: arm
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.buildSource=goreleaser
+
+archives:
+  - id: webhook-bridge
+    builds:
+      - webhook-bridge-server
+      - python-manager
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}x86
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+      - config.example.yaml
+      - example_plugins/**/*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "^bump"
+      - "merge conflict"
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+# GitHub release
+release:
+  github:
+    owner: loonghao
+    name: webhook_bridge
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## 🚀 webhook-bridge {{.Tag}}
+    
+    Welcome to this new release of webhook-bridge! 
+    
+    ### 📦 Installation
+    
+    #### Using Go
+    ```bash
+    go install github.com/loonghao/webhook_bridge/cmd/server@{{.Tag}}
+    ```
+    
+    #### Download Binary
+    Download the appropriate binary for your platform from the assets below.
+    
+    #### Using our development tool
+    ```bash
+    go run dev.go version
+    ```
+  footer: |
+    ## 🙏 Thanks
+    
+    Thanks to all contributors who made this release possible!
+    
+    **Full Changelog**: https://github.com/loonghao/webhook_bridge/compare/{{.PreviousTag}}...{{.Tag}}
+
+# Homebrew tap (for macOS users)
+brews:
+  - repository:
+      owner: loonghao
+      name: homebrew-tap
+    homepage: "https://github.com/loonghao/webhook_bridge"
+    description: "A hybrid Go/Python webhook bridge for flexible automation"
+    license: "Apache-2.0"
+    test: |
+      system "#{bin}/webhook-bridge-server --version"
+    install: |
+      bin.install "webhook-bridge-server"
+      bin.install "python-manager"
+
+# Scoop bucket (for Windows users)
+scoops:
+  - repository:
+      owner: loonghao
+      name: scoop-bucket
+    homepage: "https://github.com/loonghao/webhook_bridge"
+    description: "A hybrid Go/Python webhook bridge for flexible automation"
+    license: "Apache-2.0"
+
+# Docker images (disabled for now - requires Docker to be installed)
+# dockers:
+#   - image_templates:
+#       - "ghcr.io/loonghao/webhook-bridge:{{ .Tag }}"
+#       - "ghcr.io/loonghao/webhook-bridge:v{{ .Major }}"
+#       - "ghcr.io/loonghao/webhook-bridge:v{{ .Major }}.{{ .Minor }}"
+#       - "ghcr.io/loonghao/webhook-bridge:latest"
+#     dockerfile: Dockerfile
+#     build_flag_templates:
+#       - "--pull"
+#       - "--label=org.opencontainers.image.created={{.Date}}"
+#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
+#       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+#       - "--label=org.opencontainers.image.version={{.Version}}"
+#       - "--platform=linux/amd64"
+
+# Announce to Discord (optional)
+# announces:
+#   discord:
+#     enabled: true
+#     message_template: 'webhook-bridge {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'

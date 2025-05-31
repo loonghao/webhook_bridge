@@ -37,12 +37,22 @@ help:
 	@echo "  restart      - Restart services"
 	@echo "  status       - Show service status"
 	@echo ""
+	@echo "$(GREEN)Building:$(NC)"
+	@echo "  build        - Build Go binaries"
+	@echo "  build-race   - Build with race detection"
+	@echo "  build-all    - Build for all platforms"
+	@echo "  build-linux  - Build for Linux"
+	@echo "  build-windows - Build for Windows"
+	@echo "  build-darwin - Build for macOS"
+	@echo ""
 	@echo "$(GREEN)Testing:$(NC)"
 	@echo "  test         - Run all tests"
 	@echo "  test-go      - Run Go tests"
+	@echo "  test-go-race - Run Go tests with race detection"
 	@echo "  test-python  - Run Python tests"
 	@echo "  test-integration - Run integration tests"
 	@echo "  test-coverage - Run tests with coverage"
+	@echo "  verify       - Run all verification checks"
 	@echo ""
 	@echo "$(GREEN)Code Quality:$(NC)"
 	@echo "  lint         - Run linters"
@@ -55,6 +65,8 @@ help:
 	@echo "  docker-build - Build Docker image"
 	@echo "  docker-run   - Run Docker container"
 	@echo "  release      - Create release package"
+	@echo "  release-snapshot - Create snapshot release"
+	@echo "  release-goreleaser - Release with GoReleaser"
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
 	@echo "  clean        - Clean build artifacts"
@@ -64,7 +76,7 @@ help:
 deps: install-deps
 
 # Install dependencies
-install-deps: install-go-deps install-python-deps
+install-deps: install-go-deps install-python-deps install-tools
 
 install-go-deps:
 	@echo "Installing Go dependencies..."
@@ -82,6 +94,18 @@ install-python-deps:
 		pip install -r requirements-dev.txt; \
 	fi
 
+install-tools:
+	@echo "Installing development tools..."
+	@echo "Installing protobuf tools..."
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@echo "Installing linting tools..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@echo "Installing release tools..."
+	go install github.com/goreleaser/goreleaser@latest
+	@echo "Installing task runner..."
+	go install github.com/go-task/task/v3/cmd/task@latest
+
 # Development setup
 dev-setup: install-deps proto
 	@echo "Development environment setup complete!"
@@ -97,12 +121,41 @@ proto:
 	.venv/Scripts/python.exe -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. api/proto/webhook.proto
 
 # Build Go binaries
-build:
+build: proto
 	@echo "$(BLUE)Building Go binaries...$(NC)"
 	mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/webhook-bridge-server ./cmd/server
 	go build $(LDFLAGS) -o $(BUILD_DIR)/python-manager ./cmd/python-manager
 	@echo "$(GREEN)Build completed$(NC)"
+
+# Build with race detection (for development)
+build-race: proto
+	@echo "$(BLUE)Building with race detection...$(NC)"
+	mkdir -p $(BUILD_DIR)
+	go build -race $(LDFLAGS) -o $(BUILD_DIR)/webhook-bridge-server-race ./cmd/server
+	go build -race $(LDFLAGS) -o $(BUILD_DIR)/python-manager-race ./cmd/python-manager
+	@echo "$(GREEN)Race detection build completed$(NC)"
+
+# Cross-platform builds (Kubernetes style)
+build-linux: proto
+	@echo "$(BLUE)Building for Linux...$(NC)"
+	mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/webhook-bridge-server-linux-amd64 ./cmd/server
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(BUILD_DIR)/webhook-bridge-server-linux-arm64 ./cmd/server
+
+build-windows: proto
+	@echo "$(BLUE)Building for Windows...$(NC)"
+	mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/webhook-bridge-server-windows-amd64.exe ./cmd/server
+
+build-darwin: proto
+	@echo "$(BLUE)Building for macOS...$(NC)"
+	mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/webhook-bridge-server-darwin-amd64 ./cmd/server
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(BUILD_DIR)/webhook-bridge-server-darwin-arm64 ./cmd/server
+
+build-all: build-linux build-windows build-darwin
+	@echo "$(GREEN)All platform builds completed$(NC)"
 
 # Run Go server
 run: build
@@ -153,6 +206,14 @@ test-go:
 	@echo "Running Go tests..."
 	go test -v ./...
 
+test-go-race:
+	@echo "Running Go tests with race detection..."
+	go test -race -v ./...
+
+test-go-short:
+	@echo "Running Go short tests..."
+	go test -short -v ./...
+
 test-python:
 	@echo "Running Python tests..."
 	.venv/Scripts/python.exe -m pytest tests/
@@ -166,6 +227,39 @@ test-coverage:
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "$(GREEN)Coverage report generated: coverage.html$(NC)"
+
+test-coverage-ci:
+	@echo "$(BLUE)Running tests with coverage for CI...$(NC)"
+	go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+# Verification targets (Kubernetes style)
+verify: verify-gofmt verify-govet verify-golint verify-deps
+
+verify-gofmt:
+	@echo "Verifying gofmt..."
+	@if [ -n "$$(gofmt -l . | grep -v vendor)" ]; then \
+		echo "Files not formatted with gofmt:"; \
+		gofmt -l . | grep -v vendor; \
+		exit 1; \
+	fi
+
+verify-govet:
+	@echo "Verifying go vet..."
+	go vet ./...
+
+verify-golint:
+	@echo "Verifying golangci-lint..."
+	golangci-lint run
+
+verify-deps:
+	@echo "Verifying dependencies..."
+	go mod verify
+	go mod tidy
+	@if [ -n "$$(git status --porcelain go.mod go.sum)" ]; then \
+		echo "go.mod or go.sum is not up to date"; \
+		git diff go.mod go.sum; \
+		exit 1; \
+	fi
 
 # Clean
 clean:
@@ -189,11 +283,33 @@ deploy-prod:
 	@chmod +x $(SCRIPTS_DIR)/deploy.sh
 	$(SCRIPTS_DIR)/deploy.sh -e prod
 
-release: clean build test
+release: clean verify test
 	@echo "$(BLUE)Creating release package...$(NC)"
 	@chmod +x $(SCRIPTS_DIR)/deploy.sh
 	$(SCRIPTS_DIR)/deploy.sh -e prod -s
 	@echo "$(GREEN)Release package created$(NC)"
+
+# GoReleaser targets (Lazydocker style)
+release-snapshot:
+	@echo "$(BLUE)Creating snapshot release...$(NC)"
+	goreleaser release --snapshot --clean
+
+release-dry-run:
+	@echo "$(BLUE)Dry run release...$(NC)"
+	goreleaser release --skip=publish --clean
+
+release-goreleaser:
+	@echo "$(BLUE)Creating release with GoReleaser...$(NC)"
+	goreleaser release --clean
+
+# Check if we can release
+check-release:
+	@echo "Checking release readiness..."
+	@if [ -z "$$(git tag --points-at HEAD)" ]; then \
+		echo "❌ No tag found at HEAD. Please create a tag first."; \
+		exit 1; \
+	fi
+	@echo "✅ Release check passed"
 
 # Docker
 docker-build:

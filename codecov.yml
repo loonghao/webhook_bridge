@@ -1,9 +1,103 @@
+# Codecov configuration for webhook-bridge
+# Primary focus: Go coverage with Python as secondary
+
 coverage:
+  # Coverage precision and rounding
+  precision: 2
+  round: down
+  range: "70...100"
+
+  # Status checks configuration
   status:
-    project: off
+    project:
+      default:
+        target: 75%
+        threshold: 2%
+        base: auto
+        flags:
+          - go
+      go:
+        target: 80%
+        threshold: 1%
+        paths:
+          - "cmd/"
+          - "internal/"
+          - "pkg/"
+        flags:
+          - go
+      python:
+        target: 70%
+        threshold: 3%
+        paths:
+          - "python_executor/"
+          - "webhook_bridge/"
+        flags:
+          - python
+    patch:
+      default:
+        target: 70%
+        threshold: 5%
+      go:
+        target: 75%
+        paths:
+          - "cmd/"
+          - "internal/"
+          - "pkg/"
+        flags:
+          - go
 
+# GitHub integration
 github_checks:
-  annotations: false
+  annotations: true
 
+# Comment configuration
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false
+  require_base: no
+  require_head: yes
+
+# Files and paths to ignore
 ignore:
+  # Build and generated files
+  - "build/"
+  - "dist/"
+  - "*.pb.go"
+  - "*_grpc.pb.go"
+  - "*_pb2.py"
+  - "*_pb2_grpc.py"
+
+  # Development and tooling files
   - "noxfile.py"
+  - "make.bat"
+  - "Makefile"
+  - "scripts/"
+  - "example_plugins/"
+  - "temp_test/"
+
+  # Configuration files
+  - "*.yml"
+  - "*.yaml"
+  - "*.toml"
+  - "*.json"
+  - "Dockerfile"
+  - "docker-compose.yml"
+
+  # Documentation
+  - "*.md"
+  - "docs/"
+
+# Flag configuration for different components
+flags:
+  go:
+    paths:
+      - cmd/
+      - internal/
+      - pkg/
+    carryforward: true
+  python:
+    paths:
+      - python_executor/
+      - webhook_bridge/
+    carryforward: true
