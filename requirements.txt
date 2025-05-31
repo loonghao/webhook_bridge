@@ -19,7 +19,7 @@ pytest==8.3.3
 pydantic==1.10.13
 addict==2.4.0
 Jinja2==3.1.4
-markdown2==2.4.12
+markdown2==2.5.3
 
 # Additional testing dependencies
 pytest-asyncio>=0.21.0
