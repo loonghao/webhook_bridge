@@ -1,0 +1,129 @@
+# Development tasks for webhook-bridge
+# Similar to Cargo.toml [scripts] section
+
+version: '3'
+
+vars:
+  SERVER_BINARY: '{{if eq OS "windows"}}webhook-bridge-server.exe{{else}}webhook-bridge-server{{end}}'
+  MANAGER_BINARY: '{{if eq OS "windows"}}python-manager.exe{{else}}python-manager{{end}}'
+
+tasks:
+  # Generate protobuf files
+  proto:
+    desc: Generate protobuf files
+    cmds:
+      - mkdir -p api/proto
+      - protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative api/proto/webhook.proto
+    sources:
+      - api/proto/webhook.proto
+    generates:
+      - api/proto/webhook.pb.go
+      - api/proto/webhook_grpc.pb.go
+
+  # Install development dependencies
+  install:
+    desc: Install development dependencies
+    cmds:
+      - go mod download
+      - go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+      - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+  # Build project
+  build:
+    desc: Build all binaries
+    deps: [proto]
+    cmds:
+      - go build -o {{.SERVER_BINARY}} ./cmd/server
+      - go build -o {{.MANAGER_BINARY}} ./cmd/python-manager
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - "{{.SERVER_BINARY}}"
+      - "{{.MANAGER_BINARY}}"
+
+  # Build server only
+  build-server:
+    desc: Build server binary
+    deps: [proto]
+    cmds:
+      - go build -o {{.SERVER_BINARY}} ./cmd/server
+
+  # Build manager only  
+  build-manager:
+    desc: Build python manager binary
+    deps: [proto]
+    cmds:
+      - go build -o {{.MANAGER_BINARY}} ./cmd/python-manager
+
+  # Run tests
+  test:
+    desc: Run all tests
+    deps: [proto]
+    cmds:
+      - go test -v ./...
+
+  # Run tests with coverage
+  test-coverage:
+    desc: Run tests with coverage
+    deps: [proto]
+    cmds:
+      - go test -v -race -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+
+  # Run linting
+  lint:
+    desc: Run linters
+    cmds:
+      - golangci-lint run
+
+  # Format code
+  fmt:
+    desc: Format Go code
+    cmds:
+      - go fmt ./...
+
+  # Clean build artifacts
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -f {{.SERVER_BINARY}} {{.MANAGER_BINARY}}
+      - rm -f coverage.out coverage.html
+      - rm -f *.log *.pid
+      - rm -rf build/ dist/
+
+  # Development environment
+  dev:
+    desc: Start development environment
+    deps: [build]
+    cmds:
+      - echo "🚀 Development environment ready!"
+      - echo "Run in separate terminals:"
+      - echo "  ./{{.SERVER_BINARY}}"
+      - echo "  python python_executor/main.py"
+
+  # Quick development cycle
+  quick:
+    desc: Quick development cycle (proto + build + test)
+    cmds:
+      - task proto
+      - task build
+      - task test
+
+  # Check project health
+  check:
+    desc: Check project health
+    cmds:
+      - go mod verify
+      - go vet ./...
+      - task lint
+      - task test
+
+  # Release build
+  release:
+    desc: Build release binaries
+    deps: [clean, proto]
+    cmds:
+      - go build -ldflags="-s -w" -o {{.SERVER_BINARY}} ./cmd/server
+      - go build -ldflags="-s -w" -o {{.MANAGER_BINARY}} ./cmd/python-manager

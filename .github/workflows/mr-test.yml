@@ -1,27 +1,24 @@
-name: MR Checks
-on: [ pull_request ]
+name: Python Cross-Platform Check
+on:
+  pull_request:
+    paths:
+      - 'python_executor/**'
+      - 'webhook_bridge/**'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'noxfile.py'
 
 jobs:
-  python-check:
+  python-cross-platform:
+    # Only run when Python files are changed
     strategy:
-      max-parallel: 6
+      max-parallel: 3
       matrix:
         target:
           - os: 'ubuntu-22.04'
-            triple: 'x86_64-unknown-linux-gnu'
           - os: 'macos-14'
-            triple: 'aarch64-apple-darwin'
           - os: 'windows-2022'
-            triple: 'x86_64-pc-windows-msvc'
-        python-version: ["3.10", "3.11", "3.12"]
-        exclude:
-          # Reduce matrix size by excluding some combinations
-          - target:
-              os: 'windows-2022'
-            python-version: "3.11"
-          - target:
-              os: 'macos-14'
-            python-version: "3.11"
+        python-version: ["3.11"]  # Simplified to single version
       fail-fast: false
     runs-on: ${{ matrix.target.os }}
     steps:
@@ -34,24 +31,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Cache Poetry dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pypoetry
-            ~/.cache/pip
-          key: ${{ runner.os }}-poetry-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-${{ matrix.python-version }}-
-            ${{ runner.os }}-poetry-
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
-          poetry --version
-          poetry install
 
-      - name: Lint
+      - name: Quick Python lint check
         run: |
           nox -s lint
