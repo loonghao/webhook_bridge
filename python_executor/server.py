@@ -9,18 +9,18 @@ from __future__ import annotations
 # Import built-in modules
 import logging
 import os
-import sys
 import time
 import traceback
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 # Import third-party modules
+from api.proto import webhook_pb2
+from api.proto import webhook_pb2_grpc
 import grpc
 
 # Import local modules
-from api.proto import webhook_pb2
-from api.proto import webhook_pb2_grpc
 from webhook_bridge.filesystem import get_plugins
 from webhook_bridge.plugin import BasePlugin
 from webhook_bridge.plugin import load_plugin
@@ -48,7 +48,7 @@ class WebhookExecutorServicer(webhook_pb2_grpc.WebhookExecutorServicer):
         # Setup logging format
         logging.basicConfig(
             level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         )
 
         self.logger.info("WebhookExecutorServicer initialized")
@@ -61,8 +61,10 @@ class WebhookExecutorServicer(webhook_pb2_grpc.WebhookExecutorServicer):
         """Validate the Python environment for plugin execution."""
         try:
             # Check if we can import required modules
+            # Import local modules
             from webhook_bridge.filesystem import get_plugins
-            from webhook_bridge.plugin import BasePlugin, load_plugin
+            from webhook_bridge.plugin import BasePlugin
+            from webhook_bridge.plugin import load_plugin
 
             # Test plugin discovery
             plugins = get_plugins()
@@ -83,6 +85,7 @@ class WebhookExecutorServicer(webhook_pb2_grpc.WebhookExecutorServicer):
         for plugin_dir in self.plugin_dirs:
             try:
                 # Use absolute path
+                # Import built-in modules
                 import os
                 abs_plugin_dir = os.path.abspath(plugin_dir)
                 self.logger.debug(f"Searching for plugins in: {abs_plugin_dir}")
@@ -167,6 +170,7 @@ class WebhookExecutorServicer(webhook_pb2_grpc.WebhookExecutorServicer):
             for key, value in result.items():
                 if isinstance(value, (dict, list)):
                     # Convert complex types to JSON strings
+                    # Import built-in modules
                     import json
                     result_data[key] = json.dumps(value)
                 else:
@@ -316,6 +320,7 @@ class WebhookExecutorServicer(webhook_pb2_grpc.WebhookExecutorServicer):
 
                     # Get file modification time
                     try:
+                        # Import built-in modules
                         import datetime
                         mtime = os.path.getmtime(path)
                         last_modified = datetime.datetime.fromtimestamp(mtime).isoformat()
@@ -417,22 +422,22 @@ class WebhookExecutorServicer(webhook_pb2_grpc.WebhookExecutorServicer):
         """
         plugin_name = request.plugin_name
         self.logger.info(f"Getting info for plugin: {plugin_name}")
-        
+
         try:
             plugins = get_plugins()
-            
+
             if plugin_name not in plugins:
                 return webhook_pb2.GetPluginInfoResponse(found=False)
-            
+
             path = plugins[plugin_name]
-            
+
             try:
                 plugin_class = load_plugin(path)
-                
+
                 description = ""
                 if plugin_class.__doc__:
                     description = plugin_class.__doc__.strip()
-                
+
                 plugin_info = webhook_pb2.PluginInfo(
                     name=plugin_name,
                     path=path,
@@ -440,12 +445,12 @@ class WebhookExecutorServicer(webhook_pb2_grpc.WebhookExecutorServicer):
                     supported_methods=["GET", "POST", "PUT", "DELETE"],
                     is_available=True,
                 )
-                
+
                 return webhook_pb2.GetPluginInfoResponse(
                     plugin=plugin_info,
                     found=True,
                 )
-                
+
             except Exception as e:
                 self.logger.warning(f"Failed to load plugin {plugin_name}: {e}")
                 plugin_info = webhook_pb2.PluginInfo(
@@ -455,12 +460,12 @@ class WebhookExecutorServicer(webhook_pb2_grpc.WebhookExecutorServicer):
                     supported_methods=[],
                     is_available=False,
                 )
-                
+
                 return webhook_pb2.GetPluginInfoResponse(
                     plugin=plugin_info,
                     found=True,
                 )
-                
+
         except Exception as e:
             self.logger.error(f"Error getting plugin info: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
