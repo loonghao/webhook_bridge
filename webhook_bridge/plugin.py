@@ -93,7 +93,7 @@ class BasePlugin(ABC):
                 "http_method": self.http_method,
                 "result": result,
                 "plugin_executed": True,
-                "status": "success"
+                "status": "success",
             }
         except Exception as e:
             return {
@@ -102,7 +102,7 @@ class BasePlugin(ABC):
                 "error": str(e),
                 "traceback": traceback.format_exc(),
                 "http_method": self.http_method,
-                "status": "error"
+                "status": "error",
             }
 
     def get_data(self, key: str, default: Any = None) -> Any:

@@ -12,6 +12,38 @@ before:
     - go run dev.go proto
 
 builds:
+  # Main CLI binary (unified command-line interface)
+  - id: webhook-bridge
+    main: ./cmd/webhook-bridge
+    binary: webhook-bridge
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
+    ignore:
+      # Skip ARM builds for Windows and macOS for now
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+      - goos: darwin
+        goarch: arm
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.buildTime={{.Date}}
+      - -X main.goVersion={{.Env.GOVERSION}}
+      - -X github.com/loonghao/webhook_bridge/pkg/version.Version={{.Version}}
+      - -X github.com/loonghao/webhook_bridge/pkg/version.GitCommit={{.Commit}}
+      - -X github.com/loonghao/webhook_bridge/pkg/version.BuildDate={{.Date}}
+
   # Main server binary
   - id: webhook-bridge-server
     main: ./cmd/server
@@ -77,6 +109,7 @@ builds:
 archives:
   - id: webhook-bridge
     builds:
+      - webhook-bridge
       - webhook-bridge-server
       - python-manager
     name_template: >-
@@ -177,8 +210,9 @@ brews:
     description: "A hybrid Go/Python webhook bridge for flexible automation"
     license: "Apache-2.0"
     test: |
-      system "#{bin}/webhook-bridge-server --version"
+      system "#{bin}/webhook-bridge --version"
     install: |
+      bin.install "webhook-bridge"
       bin.install "webhook-bridge-server"
       bin.install "python-manager"
 

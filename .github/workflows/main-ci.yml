@@ -204,7 +204,14 @@ jobs:
         LDFLAGS="${LDFLAGS} -X github.com/loonghao/webhook_bridge/pkg/version.GitCommit=${GIT_COMMIT}"
         LDFLAGS="${LDFLAGS} -X github.com/loonghao/webhook_bridge/pkg/version.BuildDate=${BUILD_TIME}"
 
-        go build -ldflags "${LDFLAGS}" -o webhook-bridge-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} ./cmd/server
+        # Build main CLI
+        go build -ldflags "${LDFLAGS}" -o webhook-bridge-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} ./cmd/webhook-bridge
+
+        # Build server
+        go build -ldflags "${LDFLAGS}" -o webhook-bridge-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} ./cmd/server
+
+        # Build python manager
+        go build -ldflags "${LDFLAGS}" -o python-manager-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} ./cmd/python-manager
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -212,6 +219,8 @@ jobs:
         name: webhook-bridge-${{ matrix.goos }}-${{ matrix.goarch }}
         path: |
           webhook-bridge-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+          webhook-bridge-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+          python-manager-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
           web/static/js/dist/
         retention-days: 30
 
