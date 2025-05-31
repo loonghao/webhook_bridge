@@ -4,15 +4,18 @@ This module provides the base plugin class and utilities for loading
 and executing webhook plugins. It maintains compatibility with v0.6.0.
 """
 
+# Import built-in modules
+
+# Import built-in modules
 import importlib.util
-import sys
-import traceback
-from abc import ABC
-from typing import Any, Dict, Optional
 from pathlib import Path
+import traceback
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 
-class BasePlugin(ABC):
+class BasePlugin:
     """Abstract base class for all webhook bridge plugins.
 
     This class defines the interface that all webhook bridge plugins must implement.
@@ -28,6 +31,7 @@ class BasePlugin(ABC):
         """Initialize the plugin with data and logger."""
         self.data = data
         if logger is None:
+            # Import built-in modules
             import logging
             logger = logging.getLogger(self.__class__.__name__)
         self.logger = logger
