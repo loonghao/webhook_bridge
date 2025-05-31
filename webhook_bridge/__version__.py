@@ -1,1 +1,3 @@
-__version__ = "0.6.0"
+"""Version information for webhook-bridge."""
+
+__version__ = "1.0.0"

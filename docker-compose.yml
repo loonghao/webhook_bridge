@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  webhook-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-2.0.0-hybrid}
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    ports:
+      - "8000:8000"   # Go HTTP server
+      - "50051:50051" # Python gRPC server
+    environment:
+      - WEBHOOK_BRIDGE_HOST=0.0.0.0
+      - WEBHOOK_BRIDGE_PORT=8000
+      - WEBHOOK_BRIDGE_MODE=release
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./plugins:/app/plugins:ro  # Custom plugins directory
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development services
+  webhook-bridge-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+      - "50051:50051"
+    environment:
+      - WEBHOOK_BRIDGE_HOST=0.0.0.0
+      - WEBHOOK_BRIDGE_PORT=8000
+      - WEBHOOK_BRIDGE_MODE=debug
+    volumes:
+      - .:/app
+      - ./config.yaml:/app/config.yaml
+    profiles:
+      - dev
+    command: >
+      sh -c "
+        python python_executor/main.py --log-level DEBUG &
+        webhook-bridge-server
+      "
+
+  # Separate services for development
+  python-executor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "50051:50051"
+    environment:
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app
+    profiles:
+      - dev-separate
+    command: python python_executor/main.py --host 0.0.0.0 --log-level DEBUG
+
+  go-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - WEBHOOK_BRIDGE_HOST=0.0.0.0
+      - WEBHOOK_BRIDGE_PORT=8000
+      - WEBHOOK_BRIDGE_MODE=debug
+    volumes:
+      - ./config.yaml:/app/config.yaml
+    profiles:
+      - dev-separate
+    depends_on:
+      - python-executor
+    command: webhook-bridge-server

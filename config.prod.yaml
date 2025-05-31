@@ -1,0 +1,100 @@
+# Production Configuration for Webhook Bridge
+# Optimized for production deployment
+
+server:
+  host: "0.0.0.0"
+  port: 8080  # Fixed port for production
+  mode: "release"
+  auto_port: false  # Use fixed port in production
+
+python:
+  strategy: "uv"  # Prefer UV in production
+  uv:
+    enabled: true
+    venv_name: ".venv"
+  plugin_dirs:
+    - "plugins"
+  validation:
+    enabled: true
+    min_python_version: "3.8"
+    strict_mode: true  # Strict validation in production
+    cache_timeout: 30  # Longer cache for performance
+  auto_install: false  # Manual dependency management in production
+
+executor:
+  host: "localhost"
+  port: 50051  # Fixed port for production
+  timeout: 30
+  auto_port: false
+
+logging:
+  level: "info"
+  format: "json"  # Structured logging for production
+  file: "/var/log/webhook_bridge/app.log"
+  rotation:
+    enabled: true
+    max_size: "100MB"
+    max_age: "7d"
+    max_backups: 10
+
+production:
+  enabled: true
+  security:
+    cors:
+      enabled: true
+      allowed_origins: ["https://yourdomain.com"]
+      allowed_methods: ["GET", "POST", "PUT", "DELETE"]
+      allowed_headers: ["Content-Type", "Authorization"]
+    rate_limit:
+      enabled: true
+      requests_per_minute: 1000
+  monitoring:
+    metrics:
+      enabled: true
+      endpoint: "/metrics"
+    health_check:
+      enabled: true
+      endpoint: "/health"
+      interval: "30s"
+
+plugins:
+  timeout: 30
+  limits:
+    max_memory: "512MB"
+    max_cpu_time: "30s"
+  cache:
+    enabled: true
+    ttl: "10m"
+  discovery:
+    scan_interval: "5m"  # Less frequent scanning
+    watch_changes: false  # Disable file watching in production
+
+database:
+  type: "sqlite"
+  connection: "/var/lib/webhook_bridge/data.db"
+  pool:
+    max_open: 25
+    max_idle: 10
+    max_lifetime: "1h"
+
+cache:
+  type: "memory"
+  memory:
+    max_size: "256MB"
+    ttl: "1h"
+
+webhook:
+  defaults:
+    timeout: "30s"
+    retry_count: 3
+    retry_delay: "2s"
+  validation:
+    signature_validation: true
+    allowed_content_types:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+  processing:
+    async: true
+    queue:
+      size: 10000
+      workers: 20

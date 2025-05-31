@@ -1,0 +1,263 @@
+/* Modern Dashboard CSS - Simplified shadcn/ui inspired styles */
+
+/* Tailwind CSS Configuration */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Variables for shadcn/ui color scheme */
+:root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+}
+
+.dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+}
+
+/* Base styles */
+* {
+    border-color: hsl(var(--border));
+}
+
+body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+}
+
+/* Custom utility classes */
+.bg-background {
+    background-color: hsl(var(--background));
+}
+
+.text-foreground {
+    color: hsl(var(--foreground));
+}
+
+.bg-card {
+    background-color: hsl(var(--card));
+}
+
+.text-card-foreground {
+    color: hsl(var(--card-foreground));
+}
+
+.bg-primary {
+    background-color: hsl(var(--primary));
+}
+
+.text-primary-foreground {
+    color: hsl(var(--primary-foreground));
+}
+
+.text-muted-foreground {
+    color: hsl(var(--muted-foreground));
+}
+
+.border-border {
+    border-color: hsl(var(--border));
+}
+
+.bg-accent {
+    background-color: hsl(var(--accent));
+}
+
+.text-accent-foreground {
+    color: hsl(var(--accent-foreground));
+}
+
+.ring-ring {
+    --tw-ring-color: hsl(var(--ring));
+}
+
+.ring-offset-background {
+    --tw-ring-offset-color: hsl(var(--background));
+}
+
+/* Navigation styles */
+.nav-item.active {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+}
+
+/* Section visibility */
+.section.hidden {
+    display: none;
+}
+
+/* Loading states */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+/* Animation utilities */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground));
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent-foreground));
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .w-64 {
+        width: 100%;
+        position: fixed;
+        top: 0;
+        left: -100%;
+        height: 100vh;
+        z-index: 50;
+        transition: left 0.3s ease;
+    }
+    
+    .w-64.mobile-open {
+        left: 0;
+    }
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}
+
+/* Card hover effects */
+.bg-card {
+    transition: all 0.2s ease;
+}
+
+.bg-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Status indicators */
+.status-online {
+    background-color: #22c55e;
+}
+
+.status-offline {
+    background-color: #ef4444;
+}
+
+.status-warning {
+    background-color: #f59e0b;
+}
+
+/* Log entry styles */
+.log-entry {
+    border-left: 4px solid hsl(var(--border));
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: hsl(var(--card));
+    border-radius: 0.5rem;
+}
+
+.log-entry.info {
+    border-left-color: #3b82f6;
+}
+
+.log-entry.warn {
+    border-left-color: #f59e0b;
+}
+
+.log-entry.error {
+    border-left-color: #ef4444;
+}
+
+.log-entry.debug {
+    border-left-color: #6b7280;
+}
+
+/* Plugin card styles */
+.plugin-card {
+    transition: all 0.2s ease;
+}
+
+.plugin-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Worker status indicators */
+.worker-status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.worker-status.active {
+    background-color: #22c55e;
+    animation: pulse 2s infinite;
+}
+
+.worker-status.idle {
+    background-color: #f59e0b;
+}
+
+.worker-status.error {
+    background-color: #ef4444;
+}

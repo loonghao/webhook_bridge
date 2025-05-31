@@ -1,0 +1,63 @@
+# Webhook Bridge Configuration
+# This is the main configuration file for the webhook bridge hybrid architecture
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  mode: "debug"  # debug, release
+
+python:
+  # Python interpreter discovery strategy
+  # Options: auto, uv, path, custom
+  strategy: "auto"
+
+  # Custom Python interpreter path (used when strategy is "custom")
+  interpreter_path: ""
+
+  # UV virtual environment settings
+  uv:
+    enabled: true
+    project_path: "."  # Path to Python project with pyproject.toml
+    venv_name: ".venv"
+
+  # Plugin directories to search for Python plugins
+  plugin_dirs:
+    - "./plugins"
+    - "./webhook_bridge/plugins"
+    - "./example_plugins"
+
+  # Environment validation settings
+  validation:
+    enabled: true
+    min_python_version: "3.8"
+    required_capabilities:
+      - "sys"
+      - "os"
+      - "json"
+    strict_mode: false
+    cache_timeout: 5  # minutes
+
+  # Auto-install missing dependencies
+  auto_install: false
+
+  # Required packages for webhook execution
+  required_packages:
+    - "grpcio"
+    - "grpcio-tools"
+
+executor:
+  # Python executor gRPC service configuration
+  host: "localhost"
+  port: 50051
+  timeout: 30  # seconds
+
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "text"  # text, json
+
+# Environment-specific overrides
+# These can be overridden by environment variables:
+# WEBHOOK_BRIDGE_HOST
+# WEBHOOK_BRIDGE_PORT
+# WEBHOOK_BRIDGE_MODE
+# WEBHOOK_BRIDGE_PYTHON_PATH
