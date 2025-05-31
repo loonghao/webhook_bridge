@@ -15,7 +15,7 @@ PyYAML>=6.0.1
 setuptools==70.0.0
 uvicorn==0.32.0
 fastapi==0.109.1
-pytest==8.3.3
+pytest==8.3.5
 pydantic==1.10.22
 addict==2.4.0
 Jinja2==3.1.4
