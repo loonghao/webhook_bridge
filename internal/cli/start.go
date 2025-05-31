@@ -370,7 +370,10 @@ func validateFilePath(path, pathType string) error {
 	}
 
 	// Only allow files within current working directory or its subdirectories
-	wdAbs, _ := filepath.Abs(wd)
+	wdAbs, err := filepath.Abs(wd)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute working directory: %w", err)
+	}
 	if !strings.HasPrefix(absPath, wdAbs) {
 		return fmt.Errorf("%s file must be within current working directory", pathType)
 	}

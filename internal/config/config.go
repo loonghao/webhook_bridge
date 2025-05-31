@@ -210,14 +210,20 @@ func validateConfigPath(path string) error {
 	}
 
 	// Allow files in current directory or user config directory
-	wdAbs, _ := filepath.Abs(wd)
+	wdAbs, err := filepath.Abs(wd)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute working directory: %w", err)
+	}
 	if strings.HasPrefix(absPath, wdAbs) {
 		return nil
 	}
 
 	// Allow files in user config directory
 	if configDir, err := os.UserConfigDir(); err == nil {
-		configDirAbs, _ := filepath.Abs(configDir)
+		configDirAbs, err := filepath.Abs(configDir)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute config directory: %w", err)
+		}
 		if strings.HasPrefix(absPath, configDirAbs) {
 			return nil
 		}
@@ -225,7 +231,10 @@ func validateConfigPath(path string) error {
 
 	// Allow files in system temp directory (for testing)
 	if tempDir := os.TempDir(); tempDir != "" {
-		tempDirAbs, _ := filepath.Abs(tempDir)
+		tempDirAbs, err := filepath.Abs(tempDir)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute temp directory: %w", err)
+		}
 		if strings.HasPrefix(absPath, tempDirAbs) {
 			return nil
 		}
