@@ -13,7 +13,6 @@ import (
 	"github.com/loonghao/webhook_bridge/api/proto"
 	"github.com/loonghao/webhook_bridge/internal/config"
 	"github.com/loonghao/webhook_bridge/internal/grpc"
-	"github.com/loonghao/webhook_bridge/internal/web"
 	"github.com/loonghao/webhook_bridge/internal/web/modern"
 	"github.com/loonghao/webhook_bridge/internal/worker"
 	"github.com/loonghao/webhook_bridge/pkg/version"
@@ -23,7 +22,6 @@ import (
 type Server struct {
 	config     *config.Config
 	grpcClient *grpc.Client
-	dashboard  *web.DashboardHandler
 	modernDash *modern.ModernDashboardHandler
 	workerPool *worker.Pool
 
@@ -40,7 +38,6 @@ func New(cfg *config.Config) *Server {
 	grpcClient := grpc.NewClient(&cfg.Executor)
 
 	// Create dashboard handlers
-	dashboard := web.NewDashboardHandler(cfg)
 	modernDash := modern.NewModernDashboardHandler(cfg)
 
 	// Create worker pool
@@ -49,7 +46,6 @@ func New(cfg *config.Config) *Server {
 	return &Server{
 		config:     cfg,
 		grpcClient: grpcClient,
-		dashboard:  dashboard,
 		modernDash: modernDash,
 		workerPool: workerPool,
 		startTime:  time.Now(),
@@ -86,12 +82,8 @@ func (s *Server) SetupRoutes(router *gin.Engine) {
 	// Add custom middleware
 	s.setupMiddleware(router)
 
-	// Modern dashboard routes (primary)
+	// Modern dashboard routes
 	s.modernDash.RegisterRoutes(router)
-
-	// Legacy dashboard routes (for compatibility)
-	legacy := router.Group("/legacy")
-	s.dashboard.SetupRoutes(legacy)
 
 	// Health check endpoint
 	router.GET("/health", s.healthCheck)

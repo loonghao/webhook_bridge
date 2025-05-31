@@ -95,6 +95,11 @@ archives:
       - CHANGELOG.md
       - config.example.yaml
       - example_plugins/**/*
+      - python_executor/**/*
+      - webhook_bridge/**/*
+      - scripts/setup_python_env.py
+      - scripts/test_fixes.py
+      - web/**/*
 
 checksum:
   name_template: 'checksums.txt'

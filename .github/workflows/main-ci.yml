@@ -86,10 +86,53 @@ jobs:
       with:
         version: latest
         args: --timeout=5m
+
+  dashboard:
+    name: Dashboard Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'web/package-lock.json'
+
+    - name: Install Dashboard dependencies
+      run: go run dev.go dashboard install
+
+    - name: TypeScript type checking
+      run: go run dev.go dashboard type-check
+
+    - name: TypeScript linting
+      run: go run dev.go dashboard lint
+
+    - name: Build Dashboard (Development)
+      run: go run dev.go dashboard build
+
+    - name: Build Dashboard (Production)
+      run: go run dev.go dashboard build --production
+
+    - name: Upload Dashboard artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dashboard-build
+        path: web/static/js/dist/
+        retention-days: 30
         
   build:
     name: Build Binaries
-    needs: [test, lint]
+    needs: [test, lint, dashboard]
     strategy:
       matrix:
         include:
@@ -139,7 +182,13 @@ jobs:
     - name: Setup development environment
       shell: bash
       run: go run dev.go dev-setup
-        
+
+    - name: Download Dashboard artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: dashboard-build
+        path: web/static/js/dist/
+
     - name: Build binary
       env:
         GOOS: ${{ matrix.goos }}
@@ -161,7 +210,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: webhook-bridge-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: webhook-bridge-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+        path: |
+          webhook-bridge-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+          web/static/js/dist/
         retention-days: 30
 
   integration-test:

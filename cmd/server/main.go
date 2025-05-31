@@ -91,7 +91,6 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("🚀 Webhook bridge server started successfully on %s", httpServer.Addr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
@@ -99,17 +98,21 @@ func main() {
 
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+
+	log.Printf("🚀 Webhook bridge server started successfully on %s", cfg.GetServerAddress())
+	log.Println("Press Ctrl+C to stop the server")
+
 	<-quit
-	log.Println("Shutting down server...")
+	log.Println("🛑 Shutting down server...")
 
 	// Give outstanding requests a deadline for completion
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := httpServer.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		log.Printf("⚠️  Server forced to shutdown: %v", err)
+	} else {
+		log.Println("✅ Server exited gracefully")
 	}
-
-	log.Println("Server exited")
 }
