@@ -4,21 +4,30 @@
 
 # Webhook Bridge
 
-A flexible and powerful webhook integration platform that allows you to bridge webhooks into your tools or internal integrations.
+A high-performance webhook integration platform with **hybrid Go/Python architecture**. Features a blazing-fast Go HTTP server with flexible Python plugin execution environment.
 
-[![Python Version](https://img.shields.io/pypi/pyversions/webhook-bridge)](https://img.shields.io/pypi/pyversions/webhook-bridge)
-[![Nox](https://img.shields.io/badge/%F0%9F%A6%8A-Nox-D85E00.svg)](https://github.com/wntrblm/nox)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/loonghao/webhook_bridge)](https://golang.org/)
+[![Python Version](https://img.shields.io/pypi/pyversions/webhook-bridge)](https://pypi.org/project/webhook-bridge/)
 [![PyPI Version](https://img.shields.io/pypi/v/webhook-bridge?color=green)](https://pypi.org/project/webhook-bridge/)
+[![Go CI](https://github.com/loonghao/webhook_bridge/workflows/Go%20CI/CD/badge.svg)](https://github.com/loonghao/webhook_bridge/actions)
+[![Python Tests](https://github.com/loonghao/webhook_bridge/workflows/Tests/badge.svg)](https://github.com/loonghao/webhook_bridge/actions)
+[![License](https://img.shields.io/github/license/loonghao/webhook_bridge)](https://github.com/loonghao/webhook_bridge/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/loonghao/webhook_bridge)](https://github.com/loonghao/webhook_bridge/releases)
 [![Downloads](https://static.pepy.tech/badge/webhook-bridge)](https://pepy.tech/project/webhook-bridge)
-[![Downloads](https://static.pepy.tech/badge/webhook-bridge/month)](https://pepy.tech/project/webhook-bridge)
-[![Downloads](https://static.pepy.tech/badge/webhook-bridge/week)](https://pepy.tech/project/webhook-bridge)
-[![License](https://img.shields.io/pypi/l/webhook-bridge)](https://pypi.org/project/webhook-bridge/)
-[![PyPI Format](https://img.shields.io/pypi/format/webhook-bridge)](https://pypi.org/project/webhook-bridge/)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/loonghao/webhook-bridge/graphs/commit-activity)
 
 <p align="center">
 <img src="https://i.imgur.com/31RO4xN.png" alt="logo"></a>
 </p>
+
+## 🚀 **v1.0.0 - Major Architecture Upgrade**
+
+**Breaking Change**: Webhook Bridge has been completely rewritten with a hybrid Go/Python architecture for maximum performance and flexibility.
+
+### **🏗️ New Architecture**
+- **⚡ Go HTTP Server**: High-performance server built with Gin framework
+- **🐍 Python Executor**: Flexible plugin execution environment via gRPC
+- **🎨 Modern Dashboard**: Beautiful web interface with Tailwind CSS
+- **📦 Easy Installation**: Simple CLI tool for binary management
 
 ## Features
 
@@ -30,41 +39,116 @@ A flexible and powerful webhook integration platform that allows you to bridge w
 - 🔒 **Secure**: Built-in security features and error handling
 - 📊 **Logging**: Comprehensive logging and error tracking
 
-## Installation
+## 📦 Installation
 
-You can install via pip:
+### **🎯 Quick Start (Recommended)**
 
+Using `uvx` (no installation required):
 ```bash
-pip install webhook_bridge
+# Install and run in one command
+uvx webhook-bridge install
+uvx webhook-bridge run
+
+# Or run directly
+uvx webhook-bridge --help
 ```
 
-Or install from source:
+### **🐍 Python Package Installation**
 
 ```bash
-git clone https://github.com/loonghao/webhook_bridge.git
-cd webhook_bridge
-pip install -e .
+# Install via pip
+pip install webhook-bridge
+
+# Install and run the server
+webhook-bridge install
+webhook-bridge run
 ```
 
-## Quick Start
+### **⚡ Direct Binary Download**
 
-1. Launch the server:
+Download pre-built binaries from [GitHub Releases](https://github.com/loonghao/webhook_bridge/releases):
 
 ```bash
-webhook-bridge --host localhost --port 8000
+# Linux AMD64
+wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook-bridge-linux-amd64.tar.gz
+tar -xzf webhook-bridge-linux-amd64.tar.gz
+./webhook-bridge-linux-amd64
+
+# Windows AMD64
+# Download webhook-bridge-windows-amd64.zip and extract
+
+# macOS (Intel)
+wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook-bridge-darwin-amd64.tar.gz
+tar -xzf webhook-bridge-darwin-amd64.tar.gz
+./webhook-bridge-darwin-amd64
+
+# macOS (Apple Silicon)
+wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook-bridge-darwin-arm64.tar.gz
+tar -xzf webhook-bridge-darwin-arm64.tar.gz
+./webhook-bridge-darwin-arm64
 ```
 
-2. Test with a sample request:
+### **🐳 Docker**
 
 ```bash
-curl -X POST "http://localhost:8000/v1/plugin/example" \
+# Run with Docker
+docker run -p 8000:8000 ghcr.io/loonghao/webhook-bridge:latest
+
+# Or with docker-compose
+docker-compose up
+```
+
+## 🚀 Quick Start
+
+### **1. Install and Start Server**
+
+```bash
+# Using uvx (recommended)
+uvx webhook-bridge install
+uvx webhook-bridge run
+
+# Or using pip
+pip install webhook-bridge
+webhook-bridge install
+webhook-bridge run --port 8000
+```
+
+### **2. Access the Modern Dashboard**
+
+Open your browser and navigate to:
+- **Dashboard**: `http://localhost:8000/` - Modern web interface
+- **API Documentation**: `http://localhost:8000/api` - API reference
+
+### **3. Test with Sample Request**
+
+```bash
+# Test webhook endpoint
+curl -X POST "http://localhost:8000/v1/webhook/example" \
      -H "Content-Type: application/json" \
      -d '{"message": "Hello, World!"}'
+
+# Check server status
+curl "http://localhost:8000/health"
 ```
 
-3. Access the API documentation:
-   - Swagger UI: `http://localhost:8000/docs`
-   - ReDoc: `http://localhost:8000/redoc`
+### **4. CLI Commands**
+
+```bash
+# Check installation status
+webhook-bridge status
+
+# Update to latest version
+webhook-bridge update
+
+# Stop the server
+webhook-bridge stop
+
+# View configuration
+webhook-bridge config show
+
+# Initialize configuration file
+webhook-bridge config init
+```
 
 ## Configuration
 

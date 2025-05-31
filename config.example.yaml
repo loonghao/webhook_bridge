@@ -1,0 +1,221 @@
+# Webhook Bridge Configuration Example
+# Copy this file to config.yaml and modify as needed
+
+# HTTP Server Configuration
+server:
+  # Host to bind the server to
+  host: "0.0.0.0"
+  
+  # Port to bind the server to (0 for auto-assign)
+  port: 0
+  
+  # Server mode: debug, release
+  mode: "debug"
+  
+  # Enable automatic port assignment
+  auto_port: true
+
+# Python Interpreter Configuration
+python:
+  # Python interpreter discovery strategy
+  # Options: auto, uv, path, custom
+  strategy: "auto"
+  
+  # Custom Python interpreter path (used when strategy is "custom")
+  interpreter_path: ""
+  
+  # UV virtual environment settings
+  uv:
+    enabled: true
+    project_path: ""  # Path to Python project with pyproject.toml
+    venv_name: ".venv"
+  
+  # Additional plugin directories to search
+  plugin_dirs:
+    - "example_plugins"
+    - "custom_plugins"
+  
+  # Environment validation settings
+  validation:
+    enabled: true
+    min_python_version: "3.8"
+    required_capabilities: []
+    strict_mode: false
+    cache_timeout: 5  # minutes
+  
+  # Auto-install missing dependencies
+  auto_install: false
+  
+  # Required packages for webhook execution
+  required_packages:
+    - "grpcio"
+    - "grpcio-tools"
+
+# Python Executor Service Configuration
+executor:
+  # Host for the Python executor service
+  host: "localhost"
+  
+  # Port for the Python executor service (0 for auto-assign)
+  port: 0
+  
+  # Request timeout in seconds
+  timeout: 30
+  
+  # Enable automatic port assignment
+  auto_port: true
+
+# Logging Configuration
+logging:
+  # Log level: debug, info, warning, error
+  level: "info"
+  
+  # Log format: text, json
+  format: "text"
+  
+  # Log file path (optional, logs to stdout if not specified)
+  file: ""
+  
+  # Enable log rotation
+  rotation:
+    enabled: false
+    max_size: "100MB"
+    max_age: "7d"
+    max_backups: 3
+
+# Development Configuration
+development:
+  # Enable development mode features
+  enabled: false
+  
+  # Hot reload for plugins
+  hot_reload: false
+  
+  # Debug endpoints
+  debug_endpoints: false
+  
+  # Profiling
+  profiling:
+    enabled: false
+    port: 6060
+
+# Production Configuration
+production:
+  # Enable production optimizations
+  enabled: false
+  
+  # Security settings
+  security:
+    # Enable HTTPS
+    https:
+      enabled: false
+      cert_file: ""
+      key_file: ""
+    
+    # CORS settings
+    cors:
+      enabled: true
+      allowed_origins: ["*"]
+      allowed_methods: ["GET", "POST", "PUT", "DELETE"]
+      allowed_headers: ["*"]
+    
+    # Rate limiting
+    rate_limit:
+      enabled: false
+      requests_per_minute: 100
+  
+  # Monitoring
+  monitoring:
+    # Enable metrics collection
+    metrics:
+      enabled: false
+      endpoint: "/metrics"
+    
+    # Health check settings
+    health_check:
+      enabled: true
+      endpoint: "/health"
+      interval: "30s"
+
+# Plugin Configuration
+plugins:
+  # Default plugin timeout
+  timeout: 30
+  
+  # Plugin execution limits
+  limits:
+    max_memory: "512MB"
+    max_cpu_time: "10s"
+  
+  # Plugin caching
+  cache:
+    enabled: true
+    ttl: "5m"
+  
+  # Plugin discovery
+  discovery:
+    # Scan interval for new plugins
+    scan_interval: "1m"
+    
+    # Watch for file changes
+    watch_changes: true
+
+# Database Configuration (optional)
+database:
+  # Database type: sqlite, postgres, mysql
+  type: "sqlite"
+  
+  # Connection string
+  connection: "webhook_bridge.db"
+  
+  # Connection pool settings
+  pool:
+    max_open: 10
+    max_idle: 5
+    max_lifetime: "1h"
+
+# Cache Configuration
+cache:
+  # Cache type: memory, redis
+  type: "memory"
+  
+  # Redis configuration (if type is redis)
+  redis:
+    host: "localhost"
+    port: 6379
+    password: ""
+    database: 0
+  
+  # Memory cache settings
+  memory:
+    max_size: "100MB"
+    ttl: "1h"
+
+# Webhook Configuration
+webhook:
+  # Default webhook settings
+  defaults:
+    timeout: "30s"
+    retry_count: 3
+    retry_delay: "1s"
+  
+  # Webhook validation
+  validation:
+    # Validate webhook signatures
+    signature_validation: false
+    
+    # Allowed content types
+    allowed_content_types:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      - "text/plain"
+  
+  # Webhook processing
+  processing:
+    # Enable async processing
+    async: true
+    
+    # Queue settings
+    queue:
+      size: 1000
+      workers: 10

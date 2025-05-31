@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package webhook;
+
+option go_package = "github.com/loonghao/webhook_bridge/api/proto";
+
+// WebhookExecutor service for executing webhook plugins
+service WebhookExecutor {
+  // Execute a webhook plugin
+  rpc ExecutePlugin(ExecutePluginRequest) returns (ExecutePluginResponse);
+  
+  // List available plugins
+  rpc ListPlugins(ListPluginsRequest) returns (ListPluginsResponse);
+  
+  // Get plugin information
+  rpc GetPluginInfo(GetPluginInfoRequest) returns (GetPluginInfoResponse);
+  
+  // Health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Request message for executing a plugin
+message ExecutePluginRequest {
+  string plugin_name = 1;
+  string http_method = 2;
+  map<string, string> data = 3;
+  map<string, string> headers = 4;
+  string query_string = 5;
+}
+
+// Response message for plugin execution
+message ExecutePluginResponse {
+  int32 status_code = 1;
+  string message = 2;
+  map<string, string> data = 3;
+  string error = 4;
+  double execution_time = 5; // in seconds
+}
+
+// Request message for listing plugins
+message ListPluginsRequest {
+  string filter = 1; // optional filter pattern
+}
+
+// Response message for listing plugins
+message ListPluginsResponse {
+  repeated PluginInfo plugins = 1;
+  int32 total_count = 2;
+}
+
+// Plugin information
+message PluginInfo {
+  string name = 1;
+  string path = 2;
+  string description = 3;
+  repeated string supported_methods = 4;
+  bool is_available = 5;
+  string last_modified = 6;
+}
+
+// Request message for getting plugin info
+message GetPluginInfoRequest {
+  string plugin_name = 1;
+}
+
+// Response message for getting plugin info
+message GetPluginInfoResponse {
+  PluginInfo plugin = 1;
+  bool found = 2;
+}
+
+// Health check request
+message HealthCheckRequest {
+  string service = 1;
+}
+
+// Health check response
+message HealthCheckResponse {
+  string status = 1; // "healthy", "unhealthy", "unknown"
+  string message = 2;
+  map<string, string> details = 3;
+}

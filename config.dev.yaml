@@ -1,0 +1,60 @@
+# Development Configuration for Webhook Bridge
+# Optimized for development and testing
+
+server:
+  host: "localhost"
+  port: 0  # Auto-assign to avoid conflicts
+  mode: "debug"
+  auto_port: true
+
+python:
+  strategy: "auto"
+  uv:
+    enabled: true
+    venv_name: ".venv"
+  plugin_dirs:
+    - "example_plugins"
+    - "test_plugins"
+  validation:
+    enabled: true
+    min_python_version: "3.8"
+    strict_mode: false
+    cache_timeout: 1  # Short cache for development
+  auto_install: true  # Auto-install missing packages in dev
+
+executor:
+  host: "localhost"
+  port: 0  # Auto-assign
+  timeout: 10  # Shorter timeout for faster feedback
+  auto_port: true
+
+logging:
+  level: "debug"
+  format: "text"
+
+development:
+  enabled: true
+  hot_reload: true
+  debug_endpoints: true
+  profiling:
+    enabled: true
+    port: 6060
+
+plugins:
+  timeout: 10  # Shorter timeout for development
+  cache:
+    enabled: false  # Disable cache for development
+  discovery:
+    scan_interval: "10s"  # Frequent scanning
+    watch_changes: true
+
+webhook:
+  defaults:
+    timeout: "10s"
+    retry_count: 1  # Less retries in dev
+    retry_delay: "500ms"
+  processing:
+    async: false  # Synchronous for easier debugging
+    queue:
+      size: 100
+      workers: 2

@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""Python gRPC Executor Service for Webhook Bridge.
+
+This service provides a gRPC interface for executing Python webhook plugins,
+maintaining full compatibility with the existing plugin system.
+"""
+# Import future modules
+from __future__ import annotations
+
+# Import built-in modules
+import argparse
+import asyncio
+import logging
+import signal
+import sys
+from concurrent import futures
+
+# Import third-party modules
+import grpc
+
+# Import local modules
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+from python_executor.server import WebhookExecutorServicer
+from python_executor.utils import get_port_with_fallback, is_port_free
+from api.proto import webhook_pb2_grpc
+
+
+def setup_logging(level: str = "INFO") -> None:
+    """Setup logging configuration."""
+    logging.basicConfig(
+        level=getattr(logging, level.upper()),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler("python_executor.log"),
+        ],
+    )
+
+
+def create_server(host: str = "localhost", port: int = 50051, plugin_dirs: list[str] = None) -> grpc.aio.Server:
+    """Create and configure the gRPC server."""
+    server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))
+
+    # Add the webhook executor service with plugin directories
+    servicer = WebhookExecutorServicer(plugin_dirs=plugin_dirs)
+    webhook_pb2_grpc.add_WebhookExecutorServicer_to_server(servicer, server)
+
+    # Add insecure port
+    listen_addr = f"{host}:{port}"
+    server.add_insecure_port(listen_addr)
+
+    return server
+
+
+async def serve(host: str = "localhost", port: int = 50051, plugin_dirs: list[str] = None) -> None:
+    """Start the gRPC server."""
+    logger = logging.getLogger(__name__)
+
+    server = create_server(host, port, plugin_dirs)
+
+    # Start server
+    await server.start()
+    logger.info(f"Python Executor gRPC server started on {host}:{port}")
+    if plugin_dirs:
+        logger.info(f"Additional plugin directories: {plugin_dirs}")
+
+    # Setup graceful shutdown
+    def signal_handler(_signum, _frame):
+        logger.info("Received shutdown signal, stopping server...")
+        server.stop(grace=5)
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    try:
+        await server.wait_for_termination()
+    except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received, stopping server...")
+        server.stop(grace=5)
+
+
+def main() -> None:
+    """Main entry point."""
+    parser = argparse.ArgumentParser(description="Python Executor gRPC Service")
+    parser.add_argument(
+        "--host",
+        default="localhost",
+        help="Host to bind the server to (default: localhost)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        help="Port to bind the server to (default: 0 for auto-assign)",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Log level (default: INFO)",
+    )
+    parser.add_argument(
+        "--plugin-dirs",
+        nargs="*",
+        help="Additional plugin directories to search",
+    )
+    parser.add_argument(
+        "--config",
+        help="Configuration file path (YAML format)",
+    )
+
+    args = parser.parse_args()
+
+    # Setup logging
+    setup_logging(args.log_level)
+
+    # Load configuration if provided
+    plugin_dirs = args.plugin_dirs or []
+    if args.config:
+        try:
+            import yaml
+            with open(args.config, 'r') as f:
+                config_data = yaml.safe_load(f)
+                if 'python' in config_data and 'plugin_dirs' in config_data['python']:
+                    plugin_dirs.extend(config_data['python']['plugin_dirs'])
+                    logging.info(f"Loaded plugin directories from config: {config_data['python']['plugin_dirs']}")
+        except Exception as e:
+            logging.warning(f"Failed to load configuration from {args.config}: {e}")
+
+    # Assign port automatically if needed
+    port = args.port
+    if port == 0:
+        port = get_port_with_fallback(50051)  # Prefer 50051, fallback to any free port
+        logging.info(f"Auto-assigned port: {port}")
+    elif not is_port_free(port):
+        logging.warning(f"Port {port} is not available, finding alternative...")
+        port = get_port_with_fallback(port)
+        logging.info(f"Using alternative port: {port}")
+
+    # Start server
+    try:
+        asyncio.run(serve(args.host, port, plugin_dirs))
+    except KeyboardInterrupt:
+        logging.info("Server stopped by user")
+    except Exception as e:
+        logging.error(f"Server error: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

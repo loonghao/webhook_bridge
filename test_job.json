@@ -1,0 +1,13 @@
+{
+  "type": "webhook",
+  "payload": {
+    "plugin": "test_plugin",
+    "method": "POST",
+    "data": {
+      "test": "data",
+      "message": "Hello from worker!"
+    }
+  },
+  "priority": 1,
+  "max_retry": 3
+}
