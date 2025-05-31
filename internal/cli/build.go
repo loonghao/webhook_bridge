@@ -34,9 +34,9 @@ func runBuild(cmd *cobra.Command, args []string) error {
 		fmt.Println("🔨 Starting build process...")
 	}
 
-	// Create build directory
+	// Create build directory with secure permissions
 	buildDir := "build"
-	if err := os.MkdirAll(buildDir, 0755); err != nil {
+	if err := os.MkdirAll(buildDir, 0750); err != nil {
 		return fmt.Errorf("failed to create build directory: %w", err)
 	}
 

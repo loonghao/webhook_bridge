@@ -335,7 +335,7 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
-	return os.WriteFile(dst, sourceFile, 0644)
+	return os.WriteFile(dst, sourceFile, 0600)
 }
 
 // parsePort parses a port string to integer

@@ -120,7 +120,7 @@ func (dm *DirectoryManager) ensureDirectory(path, name string) error {
 			fmt.Printf("📁 Creating %s directory: %s\n", name, path)
 		}
 
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", path, err)
 		}
 	} else if err != nil {
@@ -182,7 +182,7 @@ func (dm *DirectoryManager) validateDirectory(path, name string) error {
 
 	// Check if we can write to it
 	testFile := filepath.Join(path, ".webhook_bridge_test")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		return fmt.Errorf("cannot write to %s directory: %s", name, path)
 	}
 	os.Remove(testFile) // Clean up

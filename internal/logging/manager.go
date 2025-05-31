@@ -54,7 +54,7 @@ func (lm *Manager) Initialize() error {
 
 		// Ensure log directory exists
 		logDir := filepath.Dir(logPath)
-		if err := os.MkdirAll(logDir, 0755); err != nil {
+		if err := os.MkdirAll(logDir, 0750); err != nil {
 			return fmt.Errorf("failed to create log directory: %w", err)
 		}
 
