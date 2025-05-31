@@ -19,7 +19,7 @@ func NewConfigManager(workingDir, explicitPath string, verbose bool) *ConfigMana
 	if workingDir == "" {
 		workingDir, _ = os.Getwd()
 	}
-	
+
 	return &ConfigManager{
 		workingDir:   workingDir,
 		explicitPath: explicitPath,
@@ -134,7 +134,7 @@ func (cm *ConfigManager) createDefaultConfig() (*Config, error) {
 // SaveDefaultConfig saves a default configuration file to the working directory
 func (cm *ConfigManager) SaveDefaultConfig() error {
 	configPath := filepath.Join(cm.workingDir, "config.yaml")
-	
+
 	// Check if config already exists
 	if _, err := os.Stat(configPath); err == nil {
 		if cm.verbose {

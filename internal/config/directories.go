@@ -18,7 +18,7 @@ func NewDirectoryManager(cfg *DirectoriesConfig, workingDir string, verbose bool
 	if workingDir == "" {
 		workingDir, _ = os.Getwd()
 	}
-	
+
 	return &DirectoryManager{
 		config:     cfg,
 		workingDir: workingDir,
@@ -104,11 +104,11 @@ func (dm *DirectoryManager) GetLogFilePath(logFile string) string {
 	if logFile == "" {
 		return ""
 	}
-	
+
 	if filepath.IsAbs(logFile) {
 		return logFile
 	}
-	
+
 	// If relative path, make it relative to working directory
 	return filepath.Join(dm.GetWorkingDir(), logFile)
 }
@@ -119,7 +119,7 @@ func (dm *DirectoryManager) ensureDirectory(path, name string) error {
 		if dm.verbose {
 			fmt.Printf("📁 Creating %s directory: %s\n", name, path)
 		}
-		
+
 		if err := os.MkdirAll(path, 0755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", path, err)
 		}
@@ -217,13 +217,13 @@ func (dm *DirectoryManager) SetupDirectoryEnvironment() error {
 // CleanupOldLogs cleans up old log files based on configuration
 func (dm *DirectoryManager) CleanupOldLogs(maxAge int) error {
 	logDir := dm.GetLogDir()
-	
+
 	if dm.verbose {
 		fmt.Printf("🧹 Cleaning up logs older than %d days in: %s\n", maxAge, logDir)
 	}
 
 	// Implementation for log cleanup would go here
 	// This is a placeholder for now
-	
+
 	return nil
 }

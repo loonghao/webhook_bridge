@@ -11,9 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/loonghao/webhook_bridge/internal/config"
 	"github.com/loonghao/webhook_bridge/internal/python"
-	"github.com/spf13/cobra"
 )
 
 // NewStartCommand creates the start command
@@ -222,7 +223,7 @@ func shouldAutoBuild(verbose bool) bool {
 
 func setupConfiguration(env string, verbose bool) error {
 	configFile := "config.yaml"
-	
+
 	// Check if config file exists
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
 		if verbose {

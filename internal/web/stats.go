@@ -257,8 +257,8 @@ func (sm *StatsManager) GetDetailedStats() map[string]interface{} {
 			"goroutines":         stats.Goroutines,
 			"cpu_usage":          stats.CPUUsage,
 		},
-		"plugins": pluginStats,
+		"plugins":     pluginStats,
 		"top_plugins": topPlugins,
-		"timestamp": time.Now(),
+		"timestamp":   time.Now(),
 	}
 }

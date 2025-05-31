@@ -171,11 +171,11 @@ func (h *BatchJobHandler) Handle(ctx context.Context, job *Job) error {
 
 	// Store batch result
 	job.Result = map[string]interface{}{
-		"total_items":     len(items),
+		"total_items":      len(items),
 		"successful_items": len(results),
-		"failed_items":    len(errors),
-		"results":         results,
-		"errors":          errors,
+		"failed_items":     len(errors),
+		"results":          results,
+		"errors":           errors,
 	}
 
 	if len(errors) > 0 {
@@ -303,8 +303,8 @@ func (h *HealthCheckJobHandler) Handle(ctx context.Context, job *Job) error {
 	resp, err := h.grpcClient.HealthCheck(ctx, req)
 	if err != nil {
 		job.Result = map[string]interface{}{
-			"status":  "unhealthy",
-			"error":   err.Error(),
+			"status":     "unhealthy",
+			"error":      err.Error(),
 			"checked_at": time.Now(),
 		}
 		return fmt.Errorf("health check failed: %w", err)

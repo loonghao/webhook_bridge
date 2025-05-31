@@ -164,11 +164,11 @@ func (c *Client) ListPlugins(ctx context.Context, req *proto.ListPluginsRequest)
 	if c.client == nil {
 		return nil, fmt.Errorf("gRPC client not connected")
 	}
-	
+
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
-	
+
 	return c.client.ListPlugins(ctx, req)
 }
 
@@ -177,11 +177,11 @@ func (c *Client) GetPluginInfo(ctx context.Context, req *proto.GetPluginInfoRequ
 	if c.client == nil {
 		return nil, fmt.Errorf("gRPC client not connected")
 	}
-	
+
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
-	
+
 	return c.client.GetPluginInfo(ctx, req)
 }
 
@@ -190,10 +190,10 @@ func (c *Client) HealthCheck(ctx context.Context, req *proto.HealthCheckRequest)
 	if c.client == nil {
 		return nil, fmt.Errorf("gRPC client not connected")
 	}
-	
+
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
-	
+
 	return c.client.HealthCheck(ctx, req)
 }

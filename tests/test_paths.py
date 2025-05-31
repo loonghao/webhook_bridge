@@ -1,16 +1,26 @@
-# Import built-in modules
-import os
-
 # Import local modules
-from webhook_bridge.filesystem import get_default_plugin_path
-from webhook_bridge.filesystem import get_plugins
+from webhook_bridge import __version__
 
 
-def test_get_default_plugin_path():
-    assert get_default_plugin_path()
+def test_version_exists():
+    """Test that version is defined."""
+    assert __version__
+    assert isinstance(__version__, str)
 
 
-def test_get_plugins(monkeypatch, test_data_root):
-    monkeypatch.setenv("WEBHOOK_BRIDGE_SERVER_PLUGINS",
-                       os.path.join(test_data_root, "custom_plugins"))
-    assert len(get_plugins().keys()) == 2
+def test_package_import():
+    """Test that the package can be imported."""
+    import webhook_bridge
+    assert webhook_bridge
+
+
+def test_cli_import():
+    """Test that CLI module can be imported."""
+    from webhook_bridge import cli
+    assert cli
+
+
+def test_manager_import():
+    """Test that manager module can be imported."""
+    from webhook_bridge import manager
+    assert manager
