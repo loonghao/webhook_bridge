@@ -43,7 +43,7 @@ def install_requirements():
     
     try:
         logger.info("Installing Python requirements...")
-        subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(requirements_file)], 
+        subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(requirements_file)],
                       check=True, capture_output=True, text=True)
         logger.info("Requirements installed successfully")
         return True

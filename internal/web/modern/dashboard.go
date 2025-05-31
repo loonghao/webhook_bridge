@@ -420,7 +420,7 @@ func (h *ModernDashboardHandler) saveConfig(c *gin.Context) {
 	yamlContent := h.generateYAMLConfig(configUpdate)
 
 	// Write to file
-	if err := os.WriteFile(configPath, []byte(yamlContent), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(yamlContent), 0600); err != nil {
 		c.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"success": false,
 			"error":   "Failed to save configuration file",

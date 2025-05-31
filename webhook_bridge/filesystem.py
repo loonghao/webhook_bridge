@@ -60,7 +60,7 @@ def get_plugin_directories() -> List[str]:
     
     default_dirs = [
         "plugins",
-        "example_plugins", 
+        "example_plugins",
         "webhook_plugins",
     ]
     

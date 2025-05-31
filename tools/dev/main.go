@@ -261,6 +261,9 @@ func buildProject(args []string) {
 		generateProto()
 	}
 
+	// Build main CLI
+	buildBinary("./cmd/webhook-bridge", "webhook-bridge")
+
 	// Build server
 	buildBinary("./cmd/server", "webhook-bridge-server")
 
