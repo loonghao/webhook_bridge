@@ -77,7 +77,10 @@ Thumbs.db
 .env.*.local
 
 
-# 
+# Task management system
+.shrimp-config.json
+
+#
 .ruff_cache
 .pytest_cache
 __pycache__
