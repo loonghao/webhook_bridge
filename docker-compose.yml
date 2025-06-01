@@ -13,15 +13,33 @@ services:
       - "8000:8000"   # Go HTTP server
       - "50051:50051" # Python gRPC server
     environment:
+      # Core configuration
+      - WEBHOOK_BRIDGE_CONFIG_PATH=/app/config
+      - WEBHOOK_BRIDGE_PLUGINS_PATH=/app/plugins:/app/example_plugins
+      - WEBHOOK_BRIDGE_LOG_PATH=/app/logs
+      - WEBHOOK_BRIDGE_DATA_PATH=/app/data
+      - WEBHOOK_BRIDGE_WEB_PATH=/app/web/static/js/dist
+      - WEBHOOK_BRIDGE_PYTHON_PATH=/app/python_executor
+      # Server configuration
       - WEBHOOK_BRIDGE_HOST=0.0.0.0
       - WEBHOOK_BRIDGE_PORT=8000
       - WEBHOOK_BRIDGE_MODE=release
+      # Python configuration
+      - PYTHONPATH=/app
     volumes:
+      # Configuration directory
+      - ./config:/app/config
+      # Custom plugins directory
+      - ./plugins:/app/plugins
+      # Logs directory
+      - ./logs:/app/logs
+      # Data directory for persistent storage
+      - ./data:/app/data
+      # Main configuration file
       - ./config.yaml:/app/config.yaml:ro
-      - ./plugins:/app/plugins:ro  # Custom plugins directory
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -82,3 +100,38 @@ services:
     depends_on:
       - python-executor
     command: webhook-bridge-server
+
+  # Optional: Redis for caching (if needed)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    profiles:
+      - optional
+
+  # Optional: PostgreSQL for persistent storage (if needed)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: webhook_bridge
+      POSTGRES_USER: webhook
+      POSTGRES_PASSWORD: webhook_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    profiles:
+      - optional
+
+volumes:
+  redis_data:
+  postgres_data:
+
+networks:
+  default:
+    name: webhook-bridge-network

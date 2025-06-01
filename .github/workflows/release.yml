@@ -33,7 +33,10 @@ jobs:
 
     - name: Setup development environment
       run: go run dev.go dev-setup
-        
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
     - name: Login to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -49,43 +52,3 @@ jobs:
         args: release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-        
-  docker-release:
-    name: Build and Push Docker Image
-    needs: goreleaser
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Get tag name
-      id: tag
-      run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-      
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: |
-          ghcr.io/loonghao/webhook-bridge:latest
-          ghcr.io/loonghao/webhook-bridge:${{ steps.tag.outputs.tag }}
-        build-args: |
-          VERSION=${{ steps.tag.outputs.tag }}
-          GIT_COMMIT=${{ github.sha }}
-          BUILD_DATE=${{ github.event.head_commit.timestamp }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max

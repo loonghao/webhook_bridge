@@ -59,6 +59,7 @@ WORKDIR /app
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python virtual environment
@@ -74,8 +75,22 @@ COPY python_executor/ python_executor/
 COPY api/ api/
 COPY example_plugins/ example_plugins/
 
+# Copy dashboard files
+COPY web/static/js/dist/ web/static/js/dist/
+
 # Copy configuration
 COPY config.yaml ./
+
+# Create directories for configuration and plugins
+RUN mkdir -p /app/config /app/plugins /app/logs /app/data
+
+# Environment variables for configuration
+ENV WEBHOOK_BRIDGE_CONFIG_PATH="/app/config"
+ENV WEBHOOK_BRIDGE_PLUGINS_PATH="/app/plugins:/app/example_plugins"
+ENV WEBHOOK_BRIDGE_LOG_PATH="/app/logs"
+ENV WEBHOOK_BRIDGE_DATA_PATH="/app/data"
+ENV WEBHOOK_BRIDGE_WEB_PATH="/app/web/static/js/dist"
+ENV WEBHOOK_BRIDGE_PYTHON_PATH="/app/python_executor"
 
 # Create non-root user
 RUN useradd -r -s /bin/false webhook && \
@@ -88,7 +103,10 @@ EXPOSE 8000 50051
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health || exit 1
+
+# Volume mounts for external configuration
+VOLUME ["/app/config", "/app/plugins", "/app/logs", "/app/data"]
 
 # Default command (can be overridden)
-CMD ["sh", "-c", "python python_executor/main.py & webhook-bridge-server"]
+CMD ["webhook-bridge-server", "--config", "/app/config.yaml"]
