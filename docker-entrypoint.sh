@@ -15,23 +15,43 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# Function to check if a port is available
+# Function to check if a port is available with enhanced diagnostics
 wait_for_port() {
     local host=$1
     local port=$2
     local timeout=${3:-30}
     local count=0
+    local check_interval=1
+    local last_progress_report=0
+    local progress_interval=5
 
-    log "Waiting for $host:$port to be available..."
+    log "🔍 Waiting for $host:$port to be available (timeout: ${timeout}s)..."
+
     while ! nc -z "$host" "$port" 2>/dev/null; do
         if [ $count -ge $timeout ]; then
-            log "ERROR: Timeout waiting for $host:$port"
+            log "❌ TIMEOUT: Port $host:$port not available after ${timeout} seconds"
+            log "🔧 Troubleshooting information:"
+            log "   - Check if the service is running"
+            log "   - Verify port configuration matches expected value"
+            log "   - Check for port conflicts or firewall issues"
+            if command -v netstat >/dev/null 2>&1; then
+                log "   - Active connections on port $port:"
+                netstat -an | grep ":$port " || log "     No connections found on port $port"
+            fi
             return 1
         fi
-        sleep 1
-        count=$((count + 1))
+
+        # Progress reporting every 5 seconds
+        if [ $((count - last_progress_report)) -ge $progress_interval ]; then
+            log "⏳ Still waiting for $host:$port... (${count}/${timeout}s elapsed)"
+            last_progress_report=$count
+        fi
+
+        sleep $check_interval
+        count=$((count + check_interval))
     done
-    log "$host:$port is available"
+
+    log "✅ Port $host:$port is now available (took ${count}s)"
 }
 
 # Function to validate configuration
@@ -62,6 +82,99 @@ check_port_in_use() {
     else
         return 1  # Port is free
     fi
+}
+
+# Function to perform comprehensive service health check
+check_service_health() {
+    local service_name=$1
+    local pid=$2
+    local host=$3
+    local port=$4
+
+    log "🏥 Performing health check for $service_name..."
+
+    # Check if process is running
+    if [ -n "$pid" ]; then
+        if kill -0 "$pid" 2>/dev/null; then
+            log "✅ Process $service_name (PID: $pid) is running"
+        else
+            log "❌ Process $service_name (PID: $pid) is not running"
+            return 1
+        fi
+    fi
+
+    # Check port accessibility
+    if [ -n "$port" ]; then
+        if nc -z "$host" "$port" 2>/dev/null; then
+            log "✅ Port $host:$port is accessible"
+        else
+            log "❌ Port $host:$port is not accessible"
+            return 1
+        fi
+    fi
+
+    # Additional system checks
+    log "📊 System resource status:"
+    if command -v free >/dev/null 2>&1; then
+        local mem_info=$(free -h | grep "Mem:" | awk '{print "Used: " $3 "/" $2 " (" $3/$2*100 "%)"}')
+        log "   Memory: $mem_info"
+    fi
+
+    if command -v df >/dev/null 2>&1; then
+        local disk_info=$(df -h / | tail -1 | awk '{print "Used: " $3 "/" $2 " (" $5 ")"}')
+        log "   Disk: $disk_info"
+    fi
+
+    log "✅ Health check for $service_name completed successfully"
+    return 0
+}
+
+# Function to diagnose startup failures
+diagnose_startup_failure() {
+    local service_name=$1
+    local pid=$2
+    local expected_port=$3
+
+    log "🔍 Diagnosing startup failure for $service_name..."
+
+    # Check if process exists
+    if [ -n "$pid" ]; then
+        if kill -0 "$pid" 2>/dev/null; then
+            log "ℹ️  Process is still running (PID: $pid)"
+
+            # Check what ports the process is using
+            if command -v lsof >/dev/null 2>&1; then
+                log "📡 Ports used by process $pid:"
+                lsof -p "$pid" -i 2>/dev/null || log "   No network connections found"
+            elif command -v netstat >/dev/null 2>&1; then
+                log "📡 Network connections:"
+                netstat -tulpn 2>/dev/null | grep "$pid" || log "   No connections found for PID $pid"
+            fi
+        else
+            log "💀 Process has terminated (PID: $pid)"
+        fi
+    fi
+
+    # Check port status
+    if [ -n "$expected_port" ]; then
+        if check_port_in_use "$expected_port"; then
+            log "⚠️  Port $expected_port is in use by another process"
+            if command -v lsof >/dev/null 2>&1; then
+                log "🔍 Process using port $expected_port:"
+                lsof -i ":$expected_port" 2>/dev/null || log "   Unable to determine process"
+            fi
+        else
+            log "ℹ️  Port $expected_port is available"
+        fi
+    fi
+
+    # Check system resources
+    log "🖥️  System status:"
+    if command -v uptime >/dev/null 2>&1; then
+        log "   Load: $(uptime | awk -F'load average:' '{print $2}')"
+    fi
+
+    log "🔍 Diagnosis completed for $service_name"
 }
 
 # Function to start Python executor
@@ -111,28 +224,40 @@ start_python_executor() {
     # Give Python executor a moment to initialize
     sleep 2
 
-    # Check if the process is still running
+    # Initial process health check
+    log "🔍 Performing initial health check..."
     if ! kill -0 $PYTHON_PID 2>/dev/null; then
-        log "ERROR: Python executor process died immediately after startup"
-        log "This usually indicates a configuration or dependency issue"
+        log "❌ ERROR: Python executor process died immediately after startup"
+        log "🔧 This usually indicates a configuration or dependency issue"
+        diagnose_startup_failure "Python executor" "$PYTHON_PID" "$PYTHON_EXECUTOR_PORT"
         exit 1
     fi
+    log "✅ Python executor process is running (PID: $PYTHON_PID)"
 
-    # Wait for Python executor to be ready
-    log "Waiting for Python executor to bind to port $PYTHON_EXECUTOR_PORT..."
-    if ! wait_for_port "$PYTHON_EXECUTOR_HOST" "$PYTHON_EXECUTOR_PORT" 30; then
-        log "ERROR: Python executor failed to start or bind to port"
-        log "Checking if process is still running..."
-        if kill -0 $PYTHON_PID 2>/dev/null; then
-            log "Process is running but not responding on expected port"
-        else
-            log "Process has terminated"
-        fi
+    # Wait for Python executor to be ready with enhanced monitoring
+    log "⏳ Waiting for Python executor to bind to port $PYTHON_EXECUTOR_PORT..."
+    if ! wait_for_port "$PYTHON_EXECUTOR_HOST" "$PYTHON_EXECUTOR_PORT" 45; then
+        log "❌ ERROR: Python executor failed to start or bind to port"
+        log "🔍 Performing detailed diagnosis..."
+        diagnose_startup_failure "Python executor" "$PYTHON_PID" "$PYTHON_EXECUTOR_PORT"
+
+        # Attempt graceful shutdown before exit
+        log "🛑 Attempting graceful shutdown of Python executor..."
         kill $PYTHON_PID 2>/dev/null || true
+        sleep 2
+        kill -9 $PYTHON_PID 2>/dev/null || true
         exit 1
     fi
 
-    log "Python executor is ready and listening on $PYTHON_EXECUTOR_HOST:$PYTHON_EXECUTOR_PORT"
+    # Final health verification
+    log "🏥 Performing final health verification..."
+    if check_service_health "Python executor" "$PYTHON_PID" "$PYTHON_EXECUTOR_HOST" "$PYTHON_EXECUTOR_PORT"; then
+        log "🎉 Python executor is ready and healthy on $PYTHON_EXECUTOR_HOST:$PYTHON_EXECUTOR_PORT"
+    else
+        log "⚠️  Python executor started but health check failed"
+        diagnose_startup_failure "Python executor" "$PYTHON_PID" "$PYTHON_EXECUTOR_PORT"
+        exit 1
+    fi
 }
 
 # Function to verify Go server configuration
@@ -168,16 +293,31 @@ start_go_server() {
     # Verify configuration consistency
     verify_go_server_config
 
+    # Comprehensive pre-startup verification
+    log "🔍 Performing pre-startup verification..."
+
     # Verify Python executor is still running and accessible
     if ! check_port_in_use "$PYTHON_EXECUTOR_PORT"; then
-        log "ERROR: Python executor is no longer accessible on port $PYTHON_EXECUTOR_PORT"
-        log "Go server will not be able to connect to Python executor"
+        log "❌ ERROR: Python executor is no longer accessible on port $PYTHON_EXECUTOR_PORT"
+        log "🔧 Go server will not be able to connect to Python executor"
+        if [ -n "$PYTHON_PID" ]; then
+            diagnose_startup_failure "Python executor" "$PYTHON_PID" "$PYTHON_EXECUTOR_PORT"
+        fi
         exit 1
     fi
 
-    log "✓ Python executor is accessible, starting Go server..."
+    # Final health check of Python executor before starting Go server
+    if [ -n "$PYTHON_PID" ]; then
+        if ! check_service_health "Python executor" "$PYTHON_PID" "localhost" "$PYTHON_EXECUTOR_PORT"; then
+            log "❌ ERROR: Python executor health check failed before starting Go server"
+            exit 1
+        fi
+    fi
 
-    # Start Go server
+    log "✅ All pre-startup checks passed, starting Go server..."
+    log "🚀 Executing: webhook-bridge-server --config $CONFIG_FILE"
+
+    # Start Go server (this will block)
     exec webhook-bridge-server --config "$CONFIG_FILE"
 }
 
@@ -199,11 +339,40 @@ shutdown() {
 # Set up signal handlers
 trap shutdown SIGTERM SIGINT
 
+# Function to display startup banner and system info
+display_startup_info() {
+    log "🚀 =============================================="
+    log "🚀 Starting webhook-bridge hybrid architecture"
+    log "🚀 =============================================="
+    log "📋 Configuration:"
+    log "   Config file: $CONFIG_FILE"
+    log "   Python executor: $PYTHON_EXECUTOR_HOST:$PYTHON_EXECUTOR_PORT"
+    log "   Log level: $LOG_LEVEL"
+    log ""
+    log "🖥️  System Information:"
+    if command -v uname >/dev/null 2>&1; then
+        log "   OS: $(uname -s) $(uname -r)"
+    fi
+    if command -v python3 >/dev/null 2>&1; then
+        log "   Python: $(python3 --version 2>&1)"
+    elif command -v python >/dev/null 2>&1; then
+        log "   Python: $(python --version 2>&1)"
+    fi
+    log "   Container: Docker"
+    log ""
+    log "🔧 Available tools:"
+    for tool in nc netstat lsof grep free df uptime; do
+        if command -v "$tool" >/dev/null 2>&1; then
+            log "   ✅ $tool"
+        else
+            log "   ❌ $tool (not available)"
+        fi
+    done
+    log "🚀 =============================================="
+}
+
 # Main execution
-log "Starting webhook-bridge hybrid architecture..."
-log "Config file: $CONFIG_FILE"
-log "Python executor: $PYTHON_EXECUTOR_HOST:$PYTHON_EXECUTOR_PORT"
-log "Log level: $LOG_LEVEL"
+display_startup_info
 
 # Validate initial configuration
 if ! validate_config; then
@@ -222,7 +391,9 @@ if ! validate_config; then
 fi
 
 # Start Python executor first
+log "📍 Phase 1: Starting Python executor..."
 start_python_executor
 
+log "📍 Phase 2: Starting Go server..."
 # Start Go server (this will block)
 start_go_server
