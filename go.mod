@@ -5,7 +5,7 @@ go 1.24.3
 require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/kardianos/service v1.2.2
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.9.1
 	google.golang.org/grpc v1.72.2
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
