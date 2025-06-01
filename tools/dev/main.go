@@ -421,15 +421,6 @@ func installDeps() {
 		os.Exit(1)
 	}
 
-	// Clean Go module cache to avoid version conflicts
-	fmt.Println("Cleaning Go module cache...")
-	cmd = exec.Command("go", "clean", "-modcache")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("Warning: Failed to clean module cache: %v\n", err)
-	}
-
 	// Go dependencies
 	fmt.Println("Downloading Go modules...")
 	cmd = exec.Command("go", "mod", "download")
