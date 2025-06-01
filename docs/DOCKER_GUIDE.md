@@ -373,7 +373,7 @@ Contributors don't need any special configuration. Docker images are automatical
 
 ## 📚 Additional Resources
 
-- [Configuration Guide](./CONFIGURATION.md)
 - [Plugin Development](./PLUGIN_DEVELOPMENT.md)
-- [API Documentation](./API.md)
-- [Troubleshooting](./TROUBLESHOOTING.md)
+- [Dashboard Guide](./DASHBOARD_GUIDE.md)
+- [GitHub Repository](https://github.com/loonghao/webhook_bridge)
+- [Docker Hub](https://hub.docker.com/r/loonghao/webhook-bridge)

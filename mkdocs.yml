@@ -111,6 +111,9 @@ nav:
     - CLI使用指南: CLI_USAGE.md
     - CLI快速参考: CLI_QUICK_REFERENCE.md
     - Dashboard使用指南: DASHBOARD_GUIDE.md
+  - 开发指南:
+    - 插件开发: PLUGIN_DEVELOPMENT.md
+    - Docker部署: DOCKER_GUIDE.md
 
 # Extra
 extra:
