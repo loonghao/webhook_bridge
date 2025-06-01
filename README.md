@@ -16,21 +16,81 @@ A high-performance webhook integration platform with **hybrid Go/Python architec
 [![Downloads](https://static.pepy.tech/badge/webhook-bridge)](https://pepy.tech/project/webhook-bridge)
 
 ```mermaid
-flowchart LR
-    A[GitLab] -.->|webhook| D[Webhook Data]
-    B[GitHub] -.->|webhook| D
-    C[Sentry] -.->|webhook| D
+flowchart TB
+    subgraph "External Sources"
+        A[GitLab]
+        B[GitHub]
+        C[Sentry]
+        D[Other Webhooks]
+    end
 
-    D --> E[webhook-bridge]
-    E --> F[Custom Plugin]
-    F --> G[Internal Integration]
+    subgraph "Webhook Bridge - Hybrid Architecture"
+        subgraph "Go HTTP Server (Port 8000)"
+            E[Gin Router]
+            F[Request Validation]
+            G[Load Balancer]
+            H[Web Dashboard]
+        end
+
+        subgraph "Python Executor (Port 50051)"
+            I[gRPC Server]
+            J[Plugin Loader]
+            K[Plugin Manager]
+        end
+
+        subgraph "Plugin System"
+            L[Custom Plugins]
+            M[Example Plugins]
+            N[Legacy Plugins]
+        end
+    end
+
+    subgraph "Outputs"
+        O[Internal Integration]
+        P[API Responses]
+        Q[Logs & Metrics]
+    end
+
+    A -.->|HTTP POST| E
+    B -.->|HTTP POST| E
+    C -.->|HTTP POST| E
+    D -.->|HTTP POST| E
+
+    E --> F
+    F --> G
+    G -->|gRPC| I
+    E --> H
+
+    I --> J
+    J --> K
+    K --> L
+    K --> M
+    K --> N
+
+    L --> O
+    M --> O
+    N --> O
+
+    G --> P
+    K --> Q
 
     style A fill:#FCA326
     style B fill:#24292e
     style C fill:#362D59
+    style D fill:#95A5A6
     style E fill:#00D4AA
-    style F fill:#FF6B6B
-    style G fill:#4ECDC4
+    style F fill:#3498DB
+    style G fill:#2ECC71
+    style H fill:#E74C3C
+    style I fill:#9B59B6
+    style J fill:#F39C12
+    style K fill:#E67E22
+    style L fill:#FF6B6B
+    style M fill:#4ECDC4
+    style N fill:#95A5A6
+    style O fill:#1ABC9C
+    style P fill:#34495E
+    style Q fill:#7F8C8D
 ```
 
 ## 🚀 **v1.0.0 - Major Architecture Upgrade**
