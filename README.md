@@ -93,146 +93,152 @@ flowchart TB
     style Q fill:#7F8C8D
 ```
 
-## 🚀 **v1.0.0 - Major Architecture Upgrade**
+## 🚀 **v2.0.0+ - Hybrid Architecture Revolution**
 
 **Breaking Change**: Webhook Bridge has been completely rewritten with a hybrid Go/Python architecture for maximum performance and flexibility.
 
-### **🏗️ New Architecture**
-- **⚡ Go HTTP Server**: High-performance server built with Gin framework
-- **🐍 Python Executor**: Flexible plugin execution environment via gRPC
-- **🎨 Modern Dashboard**: Beautiful web interface with Tailwind CSS
-- **📦 Easy Installation**: Simple CLI tool for binary management
+### **🏗️ Hybrid Architecture**
+- **⚡ Go HTTP Server**: Blazing-fast server built with Gin framework (Port 8000)
+- **🐍 Python Executor**: Flexible plugin execution environment via gRPC (Port 50051)
+- **🔗 gRPC Communication**: Type-safe, high-performance inter-service communication
+- **🎨 Modern Dashboard**: Beautiful React-based web interface with Tailwind CSS
+- **📦 Multi-platform Binaries**: Native binaries for Linux, Windows, and macOS
+- **🐳 Docker Ready**: Production-ready containerized deployment
 
 ## Features
 
-- 🚀 **API Versioning**: Support for versioned API endpoints (`/v1`, `/latest`)
-- 🔌 **Plugin System**: Dynamic plugin loading and execution
+- ⚡ **High Performance**: Go HTTP server with concurrent request handling
+- 🔌 **Plugin System**: Dynamic Python plugin loading and execution via gRPC
 - 🌐 **RESTful API**: Support for GET, POST, PUT, DELETE HTTP methods
-- 🛠️ **Flexible Configuration**: Extensive CLI and programmatic configuration options
-- 📝 **Rich Documentation**: Interactive API documentation with Swagger UI and ReDoc
-- 🔒 **Secure**: Built-in security features and error handling
-- 📊 **Logging**: Comprehensive logging and error tracking
+- 🎛️ **Modern Dashboard**: React-based web interface for management and monitoring
+- 🛠️ **Flexible Configuration**: YAML configuration with environment variable support
+- 📝 **Rich Documentation**: Interactive API documentation and comprehensive guides
+- 🔒 **Secure**: Built-in security features, input validation, and error handling
+- 📊 **Observability**: Comprehensive logging, metrics, and health checks
+- 🐳 **Container Ready**: Docker and Docker Compose support with volume mounts
+- 🔄 **Backward Compatible**: Supports existing v0.6.0 Python plugins
 
 ## 📦 Installation
 
 ### **🎯 Quick Start (Recommended)**
 
-Using `uvx` (no installation required):
+Download and run the pre-built binary:
 ```bash
-# Install and run in one command
-uvx webhook-bridge install
-uvx webhook-bridge run
+# Download latest release for your platform
+# Linux AMD64
+wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook_bridge_Linux_x86_64.tar.gz
+tar -xzf webhook_bridge_Linux_x86_64.tar.gz
 
-# Or run directly
-uvx webhook-bridge --help
+# Start the server
+./webhook-bridge-server
+
+# Or use the unified CLI
+./webhook-bridge serve
 ```
 
-### **🐍 Python Package Installation**
+### **� Docker (Recommended for Production)**
 
 ```bash
-# Install via pip
-pip install webhook-bridge
+# Quick start with Docker
+docker run -p 8000:8000 -p 50051:50051 ghcr.io/loonghao/webhook-bridge:latest
 
-# Install and run the server
-webhook-bridge install
-webhook-bridge run
+# Or with docker-compose (recommended)
+curl -O https://raw.githubusercontent.com/loonghao/webhook_bridge/main/docker-compose.yml
+docker-compose up -d
 ```
 
-### **⚡ Direct Binary Download**
+### **⚡ All Platform Binaries**
 
 Download pre-built binaries from [GitHub Releases](https://github.com/loonghao/webhook_bridge/releases):
 
 ```bash
 # Linux AMD64
-wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook-bridge-linux-amd64.tar.gz
-tar -xzf webhook-bridge-linux-amd64.tar.gz
-./webhook-bridge-linux-amd64
+wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook_bridge_Linux_x86_64.tar.gz
+tar -xzf webhook_bridge_Linux_x86_64.tar.gz
+
+# Linux ARM64
+wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook_bridge_Linux_arm64.tar.gz
+tar -xzf webhook_bridge_Linux_arm64.tar.gz
 
 # Windows AMD64
-# Download webhook-bridge-windows-amd64.zip and extract
+# Download webhook_bridge_Windows_x86_64.zip and extract
 
 # macOS (Intel)
-wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook-bridge-darwin-amd64.tar.gz
-tar -xzf webhook-bridge-darwin-amd64.tar.gz
-./webhook-bridge-darwin-amd64
+wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook_bridge_Darwin_x86_64.tar.gz
+tar -xzf webhook_bridge_Darwin_x86_64.tar.gz
 
 # macOS (Apple Silicon)
-wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook-bridge-darwin-arm64.tar.gz
-tar -xzf webhook-bridge-darwin-arm64.tar.gz
-./webhook-bridge-darwin-arm64
+wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook_bridge_Darwin_arm64.tar.gz
+tar -xzf webhook_bridge_Darwin_arm64.tar.gz
 ```
 
-### **🐳 Docker**
+### **� Legacy Python Package (Compatibility)**
 
+For backward compatibility with existing setups:
 ```bash
-# Run with Docker
-docker run -p 8000:8000 ghcr.io/loonghao/webhook-bridge:latest
+# Install Python package (includes Python executor only)
+pip install webhook-bridge
 
-# Or with docker-compose
-docker-compose up
+# Note: You'll still need the Go server binary for full functionality
 ```
 
 ## 🚀 Quick Start
 
-### **1. Simple Start (Recommended)**
+### **1. Start the Server**
 
 ```bash
-# Download and extract release package
-# Then run the unified CLI tool
+# Method 1: Direct server start (fastest)
+./webhook-bridge-server
 
-# Most simple way - standalone server
+# Method 2: Using unified CLI
 ./webhook-bridge serve
 
-# Full development mode with Python plugins
-./webhook-bridge start
+# Method 3: Development mode with auto-reload
+./webhook-bridge serve --config config.dev.yaml
 
-# Open web dashboard
-./webhook-bridge dashboard
+# Method 4: Docker (production ready)
+docker-compose up -d
 ```
 
 ### **2. Access the Modern Dashboard**
 
 Open your browser and navigate to:
-- **🎛️ Dashboard**: `http://localhost:8000/dashboard` - Beautiful web interface
-- **📖 API Documentation**: `http://localhost:8000/api` - Interactive API reference
+- **🎛️ Dashboard**: `http://localhost:8000/` - Modern React-based interface
+- **📖 API Documentation**: `http://localhost:8000/docs` - Interactive API reference
 - **❤️ Health Check**: `http://localhost:8000/health` - Service status
+- **📊 Metrics**: `http://localhost:8000/metrics` - Performance metrics
 
 ### **3. Test with Sample Request**
 
 ```bash
-# Test webhook endpoint
+# Test webhook endpoint with example plugin
 curl -X POST "http://localhost:8000/api/v1/webhook/example" \
      -H "Content-Type: application/json" \
-     -d '{"message": "Hello, World!"}'
+     -d '{"message": "Hello, Hybrid Architecture!"}'
 
-# Check server status
+# Check server health
 curl "http://localhost:8000/health"
 
 # List available plugins
 curl "http://localhost:8000/api/v1/plugins"
+
+# Get system information
+curl "http://localhost:8000/api/v1/system/info"
 ```
 
-### **4. CLI Commands Overview**
+### **4. Available Binaries**
+
+The release package includes multiple binaries for different use cases:
 
 ```bash
-# Core commands
-webhook-bridge serve          # Start standalone server (recommended)
-webhook-bridge start          # Start full development environment
-webhook-bridge dashboard      # Open web management interface
+# Main server (Go HTTP server + Python executor management)
+./webhook-bridge-server       # Production server
 
-# Development commands
-webhook-bridge build          # Build project components
-webhook-bridge test           # Run tests with coverage
-webhook-bridge clean          # Clean build artifacts
+# Unified CLI tool (recommended for development)
+./webhook-bridge              # CLI with serve, build, test commands
 
-# Management commands
-webhook-bridge status         # Check service status
-webhook-bridge stop           # Stop running services
-webhook-bridge config         # Configuration management
-
-# Get help
-webhook-bridge --help         # Show all commands
-webhook-bridge serve --help   # Command-specific help
+# Python executor (standalone gRPC server)
+./python-manager              # For advanced deployments
 ```
 
 📖 **详细CLI使用指南**:
@@ -241,121 +247,150 @@ webhook-bridge serve --help   # Command-specific help
 
 ## Configuration
 
+### YAML Configuration
+
+Webhook Bridge uses YAML configuration files for flexible setup:
+
+```yaml
+# config.yaml
+server:
+  host: "0.0.0.0"
+  port: 8000
+  mode: "release"  # debug, release
+
+python:
+  strategy: "auto"  # auto, uv, path, custom
+  grpc_port: 50051
+  timeout: 30
+  plugin_dirs:
+    - "./plugins"
+    - "./example_plugins"
+
+logging:
+  level: "info"
+  format: "json"  # json, text
+  file: "./logs/webhook-bridge.log"
+
+dashboard:
+  enabled: true
+  path: "/web/static/js/dist"
+```
+
 ### Command Line Options
 
 ```bash
-webhook-bridge --help
+# Server options
+webhook-bridge-server --help
+webhook-bridge serve --help
 ```
 
-#### Server Configuration
+#### Core Server Configuration
+- `--config`: Configuration file path (default: "config.yaml")
 - `--host`: Host to bind the server to (default: "0.0.0.0")
-- `--port`: Port to bind the server to (default: 8000)
-- `--log-level`: Logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+- `--port`: HTTP server port (default: 8000)
+- `--grpc-port`: Python executor gRPC port (default: 50051)
+- `--log-level`: Logging level (debug/info/warn/error)
 
-#### Worker Configuration
-- `--workers`: Number of worker processes (default: 1)
-- `--worker-class`: Worker class to use (default: uvicorn.workers.UvicornWorker)
+#### Python Executor Configuration
+- `--python-strategy`: Python discovery strategy (auto/uv/path/custom)
+- `--python-path`: Custom Python interpreter path
+- `--plugin-dirs`: Plugin directories (comma-separated)
 
-#### Development and Debugging
-- `--reload`: Enable auto-reload for development
-- `--reload-dirs`: Directories to watch for reload (space-separated)
-
-#### Logging Configuration
-- `--access-log`: Enable access log (default: enabled)
-- `--no-access-log`: Disable access log
-- `--use-colors`: Use colors in log output (default: enabled)
-- `--no-use-colors`: Disable colors in log output
-
-#### SSL/TLS Configuration
-- `--ssl-keyfile`: SSL key file path
-- `--ssl-certfile`: SSL certificate file path
-- `--ssl-ca-certs`: SSL CA certificates file path
-
-#### Performance Configuration
-- `--limit-concurrency`: Maximum number of concurrent connections
-- `--limit-max-requests`: Maximum number of requests before restarting worker
-- `--timeout-keep-alive`: Keep-alive timeout in seconds (default: 5)
-
-#### API Configuration
-- `--title`: API title
-- `--description`: API description
-- `--disable-docs`: Disable the API documentation endpoints (/docs and /redoc)
-
-#### Plugin Configuration
-- `--plugin-dir`: Directory containing webhook plugins
+#### Development Options
+- `--dev`: Enable development mode with auto-reload
+- `--verbose`: Enable verbose logging
+- `--debug`: Enable debug mode
 
 ### Environment Variables
 
-All command-line options can also be set via environment variables:
+All configuration options can be set via environment variables:
 
-- `WEBHOOK_BRIDGE_HOST`: Host to bind the server to
-- `WEBHOOK_BRIDGE_PORT`: Port to bind the server to
-- `WEBHOOK_BRIDGE_LOG_LEVEL`: Logging level
-- `WEBHOOK_BRIDGE_WORKERS`: Number of worker processes
-- `WEBHOOK_BRIDGE_WORKER_CLASS`: Worker class to use
-- `WEBHOOK_BRIDGE_RELOAD`: Enable auto-reload (true/false)
-- `WEBHOOK_BRIDGE_SERVER_PLUGINS`: Additional plugin directories (separated by system path separator)
+```bash
+# Server configuration
+export WEBHOOK_BRIDGE_HOST="0.0.0.0"
+export WEBHOOK_BRIDGE_PORT="8000"
+export WEBHOOK_BRIDGE_GRPC_PORT="50051"
+export WEBHOOK_BRIDGE_LOG_LEVEL="info"
+export WEBHOOK_BRIDGE_MODE="release"
+
+# Python executor configuration
+export WEBHOOK_BRIDGE_PYTHON_STRATEGY="auto"
+export WEBHOOK_BRIDGE_PYTHON_PATH="/usr/bin/python3"
+export WEBHOOK_BRIDGE_PLUGIN_DIRS="./plugins:./example_plugins"
+
+# Docker-specific variables
+export WEBHOOK_BRIDGE_CONFIG_PATH="/app/config"
+export WEBHOOK_BRIDGE_DATA_PATH="/app/data"
+export WEBHOOK_BRIDGE_LOG_PATH="/app/logs"
+```
 
 ### Usage Examples
 
 #### Basic Usage
 ```bash
 # Start server with default settings
-webhook-bridge
+./webhook-bridge-server
 
-# Start server on specific host and port
-webhook-bridge --host 127.0.0.1 --port 9000
+# Start with custom configuration
+./webhook-bridge-server --config config.prod.yaml
+
+# Start on specific host and port
+./webhook-bridge-server --host 127.0.0.1 --port 9000
 ```
 
 #### Production Deployment
 ```bash
-# Start with multiple workers for production
-webhook-bridge --workers 4 --host 0.0.0.0 --port 8000
+# Production server with custom config
+./webhook-bridge-server --config config.prod.yaml --log-level info
 
-# Start with SSL/TLS support
-webhook-bridge --ssl-keyfile /path/to/key.pem --ssl-certfile /path/to/cert.pem
+# Docker production deployment
+docker run -d \
+  --name webhook-bridge \
+  -p 8000:8000 \
+  -p 50051:50051 \
+  -v ./config:/app/config \
+  -v ./plugins:/app/plugins \
+  -v ./logs:/app/logs \
+  ghcr.io/loonghao/webhook-bridge:latest
 
-# Start with performance limits
-webhook-bridge --limit-concurrency 1000 --limit-max-requests 10000
+# Docker Compose (recommended)
+docker-compose up -d
 ```
 
 #### Development Mode
 ```bash
-# Start with auto-reload for development
-webhook-bridge --reload --reload-dirs webhook_bridge --log-level DEBUG
+# Development with auto-reload
+./webhook-bridge serve --dev --verbose
 
-# Start without access logs and colors for cleaner output
-webhook-bridge --no-access-log --no-use-colors
+# Development with custom Python path
+./webhook-bridge serve --python-path /usr/local/bin/python3.11 --debug
+
+# Separate services for debugging
+./python-manager &  # Terminal 1
+./webhook-bridge-server --grpc-port 50051  # Terminal 2
 ```
 
-### Modern CLI Features
+### Architecture Benefits
 
-The webhook bridge now uses **Click** for a modern CLI experience with:
+The hybrid Go/Python architecture provides:
 
-- **Rich help system**: `webhook-bridge --help`
-- **Environment variable support**: All options can be set via `WEBHOOK_BRIDGE_*` environment variables
-- **Type validation**: Automatic validation of paths, integers, and choices
-- **Boolean flags**: Use `--flag/--no-flag` syntax for boolean options
-- **Multiple values**: Use `--reload-dirs dir1 --reload-dirs dir2` for multiple directories
+- **🚀 Performance**: Go HTTP server handles thousands of concurrent requests
+- **🔧 Flexibility**: Python plugins for rapid development and rich ecosystem
+- **📡 Communication**: gRPC for type-safe, high-performance inter-service communication
+- **🔄 Compatibility**: Existing Python plugins work without modification
+- **📦 Deployment**: Single binary deployment with embedded Python executor management
+- **🐳 Containerization**: Docker-ready with proper volume mounts and health checks
 
-### Configuration with Pydantic
+### Development Workflow
 
-Server configuration is now managed with **Pydantic** for:
+Modern development experience with:
 
-- **Type safety**: Automatic type validation and conversion
-- **Default values**: Sensible defaults for all configuration options
-- **Documentation**: Built-in field descriptions and validation
-- **Serialization**: Easy conversion to/from JSON and other formats
-
-### CI/CD Improvements
-
-The project now features an upgraded CI/CD pipeline with:
-
-- **macOS-14 runners**: Upgraded from macOS-12 for better resource availability
-- **Apple Silicon support**: Native ARM64 testing on macOS
-- **Multi-Python testing**: Python 3.10, 3.11, and 3.12 support
-- **Dependency caching**: Faster builds with Poetry and pip caching
-- **Optimized matrix**: Reduced resource usage with strategic test combinations
+- **🛠️ Unified CLI**: Single binary for all operations
+- **🔄 Hot Reload**: Automatic restart on configuration changes
+- **📊 Observability**: Built-in metrics, logging, and health checks
+- **🎛️ Dashboard**: React-based web interface for management
+- **🧪 Testing**: Comprehensive test suite for both Go and Python components
+- **📚 Documentation**: Interactive API docs and comprehensive guides
 
 ## Plugin Development
 
@@ -418,8 +453,10 @@ The plugin must:
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- nox for development environment management
+- **Go 1.21+**: For building the HTTP server
+- **Python 3.8+**: For plugin development and executor
+- **Node.js 18+**: For dashboard development (optional)
+- **Protocol Buffers**: For gRPC code generation
 
 ### Setup Development Environment
 
@@ -429,32 +466,61 @@ git clone https://github.com/loonghao/webhook_bridge.git
 cd webhook_bridge
 ```
 
-2. Install nox:
+2. Setup development environment:
 ```bash
-pip install -r requirements-dev.txt
+# Install Go dependencies and setup tools
+go run dev.go dev-setup
+
+# Install dashboard dependencies (optional)
+go run dev.go dashboard install
+
+# Generate protobuf files
+go run dev.go proto
 ```
 
 3. Run tests:
 ```bash
-nox -s pytest
+# Run all tests
+go run dev.go test
+
+# Run Go tests only
+go test ./...
+
+# Run Python tests only
+cd python_executor && python -m pytest
 ```
 
-4. Run linting:
+4. Build and run:
 ```bash
-nox -s lint-fix
+# Build all components
+go run dev.go build
+
+# Run in development mode
+go run dev.go serve --dev
 ```
 
 ### Project Structure
 
 ```
 webhook_bridge/
-├── webhook_bridge/      # Main package directory
-│   ├── api/            # API endpoints
-│   ├── models/         # Data models
-│   └── templates/      # HTML templates
-├── tests/              # Test files
-├── pyproject.toml      # Project metadata and dependencies
-└── README.md          # This file
+├── cmd/                    # Go applications
+│   ├── server/            # Main HTTP server
+│   ├── webhook-bridge/    # Unified CLI
+│   └── python-manager/    # Python executor manager
+├── internal/              # Go internal packages
+│   ├── server/           # HTTP server implementation
+│   ├── python/           # Python executor management
+│   ├── config/           # Configuration management
+│   └── web/              # Web dashboard handlers
+├── python_executor/       # Python gRPC server
+├── webhook_bridge/        # Python package (legacy compatibility)
+├── web/                   # React dashboard
+│   ├── src/              # React source code
+│   └── static/js/dist/   # Built dashboard assets
+├── example_plugins/       # Example Python plugins
+├── api/proto/            # Protocol buffer definitions
+├── docs/                 # Documentation
+└── tests/                # Test files
 ```
 
 ## API Endpoints
