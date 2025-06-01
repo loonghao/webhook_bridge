@@ -394,60 +394,152 @@ Modern development experience with:
 
 ## Plugin Development
 
-Create a Python file in your plugin directory:
+### 🐍 **Python Plugin Development**
+
+#### **1. Install the Python API Package**
+
+To develop Python plugins, you need to install the `webhook-bridge` Python package:
+
+```bash
+# Install the Python API package
+pip install webhook-bridge
+
+# Or using uv (recommended)
+uv pip install webhook-bridge
+```
+
+This package provides the `BasePlugin` class and all necessary APIs for plugin development.
+
+#### **2. Create Your Plugin**
+
+Create a Python file in your plugin directory and inherit from `BasePlugin`:
 
 ```python
+# my_plugin.py
 from typing import Dict, Any
 from webhook_bridge.plugin import BasePlugin
 
-class MyPlugin(BasePlugin):
-    """Custom webhook plugin."""
+
+class Plugin(BasePlugin):
+    """Custom webhook plugin.
+
+    Note: The class MUST be named 'Plugin' for automatic discovery.
+    """
 
     def handle(self) -> Dict[str, Any]:
         """Generic handler for all HTTP methods.
 
+        Available attributes:
+        - self.data: Dict containing webhook payload
+        - self.logger: Logger instance for the plugin
+        - self.http_method: HTTP method (GET/POST/PUT/DELETE)
+
         Returns:
             Dict[str, Any]: Processed result
         """
+        # Access webhook data
+        message = self.data.get("message", "No message")
+
+        # Log plugin execution
+        self.logger.info(f"Processing {self.http_method} request with message: {message}")
+
         # Process your webhook data here
         result = {
             "status": "success",
-            "data": {"message": f"Processed: {self.data}"}
+            "data": {
+                "processed_message": f"Processed: {message}",
+                "method": self.http_method,
+                "timestamp": "2024-01-01T00:00:00Z"
+            }
         }
         return result
 
     def get(self) -> Dict[str, Any]:
-        """Handle GET requests.
-
-        Returns:
-            Dict[str, Any]: Processed result
-        """
-        # Process GET request
+        """Handle GET requests specifically."""
         return {
             "status": "success",
-            "data": {"message": "GET request processed"}
+            "data": {"message": "GET request processed", "method": "GET"}
         }
 
     def post(self) -> Dict[str, Any]:
-        """Handle POST requests.
-
-        Returns:
-            Dict[str, Any]: Processed result
-        """
-        # Process POST request
+        """Handle POST requests specifically."""
         return {
             "status": "success",
-            "data": {"message": "POST request processed"}
+            "data": {"message": "POST request processed", "method": "POST"}
+        }
+
+    def put(self) -> Dict[str, Any]:
+        """Handle PUT requests specifically."""
+        return {
+            "status": "success",
+            "data": {"message": "PUT request processed", "method": "PUT"}
+        }
+
+    def delete(self) -> Dict[str, Any]:
+        """Handle DELETE requests specifically."""
+        return {
+            "status": "success",
+            "data": {"message": "DELETE request processed", "method": "DELETE"}
         }
 ```
 
+#### **3. Plugin Execution Flow**
+
+The plugin execution follows this hybrid architecture flow:
+
+```
+1. HTTP Request → Go HTTP Server (Port 8000)
+2. Request Validation → Go server validates and routes request
+3. gRPC Call → Go server calls Python Executor (Port 50051)
+4. Plugin Loading → Python executor loads your plugin class
+5. Method Routing → Calls appropriate method based on HTTP method
+6. Execution → Your plugin code runs with webhook data
+7. Response → Results sent back through gRPC to Go server
+8. HTTP Response → Go server returns formatted response to client
+```
+
+#### **4. Plugin Requirements**
+
 The plugin must:
-1. Inherit from `BasePlugin`
-2. Implement at least the `handle` method (generic handler)
-3. Optionally implement method-specific handlers: `get`, `post`, `put`, `delete`
-4. Return a dictionary containing at least:
+1. **Class Name**: Must be named `Plugin` for automatic discovery
+2. **Inheritance**: Inherit from `BasePlugin`
+3. **Methods**: Implement at least the `handle` method (generic handler)
+4. **Optional Methods**: Implement method-specific handlers: `get`, `post`, `put`, `delete`
+5. **Return Format**: Return a dictionary containing:
    - `status`: String indicating success or failure
    - `data`: Dictionary containing the processed result
+
+#### **5. Dashboard Plugin Testing**
+
+The modern React Dashboard provides **visual plugin execution** capabilities:
+
+**🧪 Plugin Testing Features:**
+- **Plugin List**: View all available plugins with status and metadata
+- **Interactive Testing**: Manually execute plugins with custom data
+- **Method Selection**: Test different HTTP methods (GET/POST/PUT/DELETE)
+- **Real-time Results**: View execution results and performance metrics
+- **Error Debugging**: Detailed error messages and stack traces
+
+**Testing Example in Dashboard:**
+```json
+{
+  "plugin": "my_plugin",
+  "method": "POST",
+  "test_data": {
+    "message": "Hello from Dashboard!",
+    "user_id": 12345
+  },
+  "expected_result": {
+    "status": "success",
+    "data": {
+      "processed_message": "Processed: Hello from Dashboard!",
+      "method": "POST"
+    }
+  }
+}
+```
+
+Access the Dashboard at: `http://localhost:8000/` → **Plugins** tab → **Test Plugin**
 
 ## Development
 
