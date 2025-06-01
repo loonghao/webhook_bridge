@@ -8,6 +8,10 @@ env:
 # Global hooks
 before:
   hooks:
+    # Setup development environment and build dashboard
+    - go run dev.go dev-setup
+    - go run dev.go dashboard install
+    - go run dev.go dashboard build --production
     # Generate protobuf files before building
     - go run dev.go proto
 
@@ -39,7 +43,6 @@ builds:
       - -s -w
       - -X main.version={{.Version}}
       - -X main.buildTime={{.Date}}
-      - -X main.goVersion={{.Env.GOVERSION}}
       - -X github.com/loonghao/webhook_bridge/pkg/version.Version={{.Version}}
       - -X github.com/loonghao/webhook_bridge/pkg/version.GitCommit={{.Commit}}
       - -X github.com/loonghao/webhook_bridge/pkg/version.BuildDate={{.Date}}
@@ -127,12 +130,13 @@ archives:
       - LICENSE
       - CHANGELOG.md
       - config.example.yaml
+      - config.yaml
       - example_plugins/**/*
       - python_executor/**/*
       - webhook_bridge/**/*
       - scripts/setup_python_env.py
-      - scripts/test_fixes.py
-      - web/**/*
+      - web/static/js/dist/**/*
+      - docs/**/*
 
 checksum:
   name_template: 'checksums.txt'
@@ -225,21 +229,29 @@ scoops:
     description: "A hybrid Go/Python webhook bridge for flexible automation"
     license: "Apache-2.0"
 
-# Docker images (disabled for now - requires Docker to be installed)
-# dockers:
-#   - image_templates:
-#       - "ghcr.io/loonghao/webhook-bridge:{{ .Tag }}"
-#       - "ghcr.io/loonghao/webhook-bridge:v{{ .Major }}"
-#       - "ghcr.io/loonghao/webhook-bridge:v{{ .Major }}.{{ .Minor }}"
-#       - "ghcr.io/loonghao/webhook-bridge:latest"
-#     dockerfile: Dockerfile
-#     build_flag_templates:
-#       - "--pull"
-#       - "--label=org.opencontainers.image.created={{.Date}}"
-#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
-#       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-#       - "--label=org.opencontainers.image.version={{.Version}}"
-#       - "--platform=linux/amd64"
+# Docker images
+dockers:
+  - image_templates:
+      - "ghcr.io/loonghao/webhook-bridge:{{ .Tag }}"
+      - "ghcr.io/loonghao/webhook-bridge:v{{ .Major }}"
+      - "ghcr.io/loonghao/webhook-bridge:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/loonghao/webhook-bridge:latest"
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--label=org.opencontainers.image.description=A hybrid Go/Python webhook bridge for flexible automation"
+      - "--platform=linux/amd64"
+    extra_files:
+      - web/static/js/dist/
+      - python_executor/
+      - webhook_bridge/
+      - config.yaml
+      - example_plugins/
 
 # Announce to Discord (optional)
 # announces:

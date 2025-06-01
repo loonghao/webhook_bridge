@@ -1,0 +1,245 @@
+name: PR Release Test
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.goreleaser.yml'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'pkg/**'
+      - 'web/**'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/pr-release-test.yml'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test-goreleaser:
+    name: Test GoReleaser Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Install Protocol Buffers compiler
+      run: |
+        sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+    - name: Setup development environment
+      run: go run dev.go dev-setup
+        
+    - name: Test GoReleaser build (snapshot)
+      uses: goreleaser/goreleaser-action@v5
+      with:
+        distribution: goreleaser
+        version: latest
+        args: build --snapshot --clean
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: goreleaser-test-artifacts
+        path: |
+          dist/
+        retention-days: 7
+
+  test-docker:
+    name: Test Docker Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup development environment
+      run: go run dev.go dev-setup
+        
+    - name: Build dashboard
+      run: |
+        go run dev.go dashboard install
+        go run dev.go dashboard build --production
+        
+    - name: Test Docker build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
+        tags: |
+          ghcr.io/loonghao/webhook-bridge:pr-test
+        build-args: |
+          VERSION=pr-test
+          GIT_COMMIT=${{ github.sha }}
+          BUILD_DATE=${{ github.event.pull_request.updated_at }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker Compose
+      run: |
+        # Create required directories
+        mkdir -p config plugins logs data
+        
+        # Test docker-compose configuration
+        docker-compose config
+        
+        # Test building with docker-compose
+        docker-compose build webhook-bridge
+
+  test-docker-functionality:
+    name: Test Docker Container Functionality
+    runs-on: ubuntu-latest
+    needs: test-docker
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Setup development environment
+      run: go run dev.go dev-setup
+        
+    - name: Build dashboard
+      run: |
+        go run dev.go dashboard install
+        go run dev.go dashboard build --production
+        
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: webhook-bridge:test
+        build-args: |
+          VERSION=test
+          GIT_COMMIT=${{ github.sha }}
+          BUILD_DATE=${{ github.event.pull_request.updated_at }}
+
+    - name: Create test directories
+      run: |
+        mkdir -p config plugins logs data
+        cp config.yaml config/test-config.yaml
+
+    - name: Test container startup
+      run: |
+        # Start container in background
+        docker run -d \
+          --name webhook-bridge-test \
+          -p 8000:8000 \
+          -p 50051:50051 \
+          -v $(pwd)/config:/app/config \
+          -v $(pwd)/plugins:/app/plugins \
+          -v $(pwd)/logs:/app/logs \
+          -v $(pwd)/data:/app/data \
+          -e WEBHOOK_BRIDGE_CONFIG_PATH=/app/config \
+          -e WEBHOOK_BRIDGE_PLUGINS_PATH=/app/plugins:/app/example_plugins \
+          webhook-bridge:test
+
+    - name: Wait for container to be ready
+      run: |
+        # Wait up to 60 seconds for the service to be ready
+        timeout 60 bash -c 'until wget --no-verbose --tries=1 --spider http://localhost:8000/health; do sleep 2; done'
+
+    - name: Test health endpoint
+      run: |
+        curl -f http://localhost:8000/health
+        echo "Health check passed!"
+
+    - name: Test dashboard access
+      run: |
+        curl -f http://localhost:8000/ | grep -q "webhook-bridge"
+        echo "Dashboard access test passed!"
+
+    - name: Show container logs
+      if: always()
+      run: |
+        echo "=== Container Logs ==="
+        docker logs webhook-bridge-test
+
+    - name: Cleanup
+      if: always()
+      run: |
+        docker stop webhook-bridge-test || true
+        docker rm webhook-bridge-test || true
+
+  test-release-workflow:
+    name: Test Release Workflow
+    runs-on: ubuntu-latest
+    needs: [test-goreleaser, test-docker]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Install Protocol Buffers compiler
+      run: |
+        sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+    - name: Setup development environment
+      run: go run dev.go dev-setup
+        
+    - name: Test full GoReleaser workflow (snapshot)
+      uses: goreleaser/goreleaser-action@v5
+      with:
+        distribution: goreleaser
+        version: latest
+        args: release --snapshot --clean
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Verify release artifacts
+      run: |
+        echo "=== Checking release artifacts ==="
+        ls -la dist/
+        
+        echo "=== Checking binaries ==="
+        find dist/ -name "webhook-bridge*" -type f -executable
+        
+        echo "=== Checking archives ==="
+        find dist/ -name "*.tar.gz" -o -name "*.zip"
+        
+        echo "=== Checking checksums ==="
+        cat dist/checksums.txt
+
+    - name: Upload test release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-release-artifacts
+        path: |
+          dist/
+        retention-days: 7
