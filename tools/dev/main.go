@@ -252,7 +252,7 @@ func generateProto() {
 	fmt.Println("✅ Protobuf files generated successfully")
 }
 
-func buildProject(args []string) {
+func buildProject(_ []string) {
 	fmt.Println("🔨 Building project...")
 
 	// Ensure protobuf files exist
@@ -771,7 +771,11 @@ func (d *DashboardCommands) Build(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			fmt.Printf("Warning: failed to restore directory: %v\n", err)
+		}
+	}()
 
 	if err := os.Chdir(webDir); err != nil {
 		return fmt.Errorf("failed to change to web directory: %w", err)
@@ -852,7 +856,11 @@ func (d *DashboardCommands) Install(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			fmt.Printf("Warning: failed to restore directory: %v\n", err)
+		}
+	}()
 
 	if err := os.Chdir(webDir); err != nil {
 		return fmt.Errorf("failed to change to web directory: %w", err)
@@ -881,7 +889,11 @@ func (d *DashboardCommands) Lint(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			fmt.Printf("Warning: failed to restore directory: %v\n", err)
+		}
+	}()
 
 	if err := os.Chdir(webDir); err != nil {
 		return fmt.Errorf("failed to change to web directory: %w", err)
@@ -911,7 +923,11 @@ func (d *DashboardCommands) TypeCheck(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			fmt.Printf("Warning: failed to restore directory: %v\n", err)
+		}
+	}()
 
 	if err := os.Chdir(webDir); err != nil {
 		return fmt.Errorf("failed to change to web directory: %w", err)
@@ -965,7 +981,11 @@ func (d *DashboardCommands) Serve(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			fmt.Printf("Warning: failed to restore directory: %v\n", err)
+		}
+	}()
 
 	if err := os.Chdir(webDir); err != nil {
 		return fmt.Errorf("failed to change to web directory: %w", err)
