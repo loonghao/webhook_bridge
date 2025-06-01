@@ -64,15 +64,43 @@ webhook-bridge start
 - 执行统计信息
 
 **在线测试功能：**
+
+Dashboard 提供完整的插件可视化测试界面：
+
+**测试界面功能：**
+- 🎯 **插件选择器**: 下拉菜单选择要测试的插件
+- 🔧 **HTTP方法选择**: GET/POST/PUT/DELETE 方法切换
+- 📝 **数据输入器**: JSON 格式的测试数据编辑器
+- ⚡ **一键执行**: 点击按钮立即执行插件
+- 📊 **结果显示**: 实时显示执行结果和性能指标
+- 🐛 **错误调试**: 详细的错误信息和堆栈跟踪
+
+**测试数据示例：**
 ```json
 {
   "method": "POST",
-  "url": "/api/v1/webhook/example",
-  "headers": {
-    "Content-Type": "application/json"
-  },
-  "body": {
-    "test": "data"
+  "plugin": "example",
+  "test_data": {
+    "message": "Hello from Dashboard!",
+    "user_id": 12345,
+    "timestamp": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+**执行结果示例：**
+```json
+{
+  "status_code": 200,
+  "message": "success",
+  "execution_time": "0.045s",
+  "data": {
+    "status": "success",
+    "data": {
+      "processed_message": "Processed: Hello from Dashboard!",
+      "method": "POST",
+      "plugin": "example"
+    }
   }
 }
 ```
