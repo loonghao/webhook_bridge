@@ -146,8 +146,10 @@ issues:
     - .venv
     - node_modules
     - dist
+    - api/proto
   exclude-files:
     - ".*\\.pb\\.go$"
+    - "api/proto/.*\\.go$"
   exclude-rules:
     # Exclude some linters from running on test files
     - path: _test\.go
@@ -163,6 +165,11 @@ issues:
 
     # Exclude protobuf generated files
     - path: ".*\\.pb\\.go$"
+      linters:
+        - all
+
+    # Exclude api/proto directory completely
+    - path: "api/proto/"
       linters:
         - all
 

@@ -10,19 +10,23 @@ jobs:
   test:
     name: Test Go Code
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        go-version: ['1.21', '1.22', '1.23']
     runs-on: ${{ matrix.os }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Add variables to environment file
+      run: cat ".github/env" >> "$GITHUB_ENV"
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: ${{ matrix.go-version }}
+        go-version: ${{ env.GO_VERSION }}
+        check-latest: true
         cache: true
 
     - name: Install Protocol Buffers compiler
@@ -36,23 +40,20 @@ jobs:
         fi
       shell: bash
 
-    - name: Install development dependencies
-      run: go run dev.go install
-
-    - name: Download dependencies
-      run: go mod download
-
-    - name: Verify dependencies
-      run: go mod verify
+    - name: Setup CI environment
+      shell: bash
+      run: |
+        chmod +x dev/ci-setup.sh
+        ./dev/ci-setup.sh
 
     - name: Generate protobuf code
       run: go run dev.go proto
 
     - name: Run tests with coverage
       run: go run dev.go test-coverage
-      
+
     - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.23'
+      if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.out
@@ -68,23 +69,37 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Add variables to environment file
+      run: cat ".github/env" >> "$GITHUB_ENV"
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: ${{ env.GO_VERSION }}
+        check-latest: true
         cache: true
 
     - name: Install Protocol Buffers compiler
       run: |
         sudo apt-get update && sudo apt-get install -y protobuf-compiler
 
-    - name: Setup development environment
-      run: go run dev.go dev-setup
+    - name: Install Go protobuf tools
+      run: |
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+    - name: Setup CI environment
+      run: |
+        chmod +x dev/ci-setup.sh
+        ./dev/ci-setup.sh
+
+    - name: Generate protobuf code
+      run: go run dev.go proto
 
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v6
       with:
-        version: latest
+        version: ${{ env.GOLANGCI_LINT_VERSION }}
         args: --timeout=5m
 
   dashboard:
@@ -95,10 +110,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Add variables to environment file
+      run: cat ".github/env" >> "$GITHUB_ENV"
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: ${{ env.GO_VERSION }}
+        check-latest: true
         cache: true
 
     - name: Set up Node.js
@@ -162,10 +181,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Add variables to environment file
+      run: cat ".github/env" >> "$GITHUB_ENV"
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: ${{ env.GO_VERSION }}
+        check-latest: true
         cache: true
 
     - name: Install Protocol Buffers compiler
@@ -178,6 +201,12 @@ jobs:
         elif [ "${{ matrix.os }}" = "windows-latest" ]; then
           choco install protoc
         fi
+
+    - name: Install Go protobuf tools
+      shell: bash
+      run: |
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
     - name: Setup development environment
       shell: bash
@@ -233,10 +262,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Add variables to environment file
+      run: cat ".github/env" >> "$GITHUB_ENV"
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: ${{ env.GO_VERSION }}
+        check-latest: true
         cache: true
 
     - name: Set up Python
@@ -304,10 +337,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Add variables to environment file
+      run: cat ".github/env" >> "$GITHUB_ENV"
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: ${{ env.GO_VERSION }}
+        check-latest: true
         cache: true
 
     - name: Install Gosec Security Scanner
