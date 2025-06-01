@@ -337,6 +337,40 @@ docker run -it --rm \
   ghcr.io/loonghao/webhook-bridge:latest
 ```
 
+## 🔐 Docker Registry Authentication
+
+### GitHub Container Registry (GHCR)
+
+The project is configured to automatically publish Docker images to GitHub Container Registry (ghcr.io). **No additional token configuration is required** for the repository owner.
+
+#### Automatic Configuration
+- ✅ **GITHUB_TOKEN**: Automatically provided by GitHub Actions
+- ✅ **Permissions**: Already configured in `.github/workflows/release.yml`
+  ```yaml
+  permissions:
+    contents: write
+    packages: write
+    id-token: write
+  ```
+
+#### Manual Docker Push (for maintainers)
+If you need to manually push images:
+
+```bash
+# Login to GHCR
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+
+# Build and push
+docker build -t ghcr.io/loonghao/webhook-bridge:latest .
+docker push ghcr.io/loonghao/webhook-bridge:latest
+```
+
+#### For Contributors
+Contributors don't need any special configuration. Docker images are automatically built and published when:
+1. A new tag is pushed (e.g., `v1.0.0`)
+2. The release workflow runs successfully
+3. GoReleaser handles the Docker build and push automatically
+
 ## 📚 Additional Resources
 
 - [Configuration Guide](./CONFIGURATION.md)

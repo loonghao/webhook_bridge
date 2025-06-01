@@ -15,9 +15,23 @@ A high-performance webhook integration platform with **hybrid Go/Python architec
 [![Release](https://img.shields.io/github/v/release/loonghao/webhook_bridge)](https://github.com/loonghao/webhook_bridge/releases)
 [![Downloads](https://static.pepy.tech/badge/webhook-bridge)](https://pepy.tech/project/webhook-bridge)
 
-<p align="center">
-<img src="https://i.imgur.com/31RO4xN.png" alt="logo"></a>
-</p>
+```mermaid
+flowchart LR
+    A[GitLab] -.->|webhook| D[Webhook Data]
+    B[GitHub] -.->|webhook| D
+    C[Sentry] -.->|webhook| D
+
+    D --> E[webhook-bridge]
+    E --> F[Custom Plugin]
+    F --> G[Internal Integration]
+
+    style A fill:#FCA326
+    style B fill:#24292e
+    style C fill:#362D59
+    style E fill:#00D4AA
+    style F fill:#FF6B6B
+    style G fill:#4ECDC4
+```
 
 ## 🚀 **v1.0.0 - Major Architecture Upgrade**
 
