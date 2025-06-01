@@ -12,7 +12,7 @@ requests>=2.31.0
 PyYAML>=6.0.1
 
 # Legacy dependencies (keeping for compatibility)
-setuptools==70.0.0
+setuptools==78.1.1
 uvicorn==0.32.0
 fastapi==0.109.1
 pytest==8.3.3
