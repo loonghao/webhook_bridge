@@ -14,7 +14,7 @@ PyYAML>=6.0.1
 # Legacy dependencies (keeping for compatibility)
 setuptools==70.0.0
 uvicorn==0.32.0
-fastapi==0.109.1
+fastapi==0.115.12
 pytest==8.3.3
 pydantic==1.10.22
 addict==2.4.0
