@@ -109,18 +109,17 @@ if exist "web" (
         set OVERALL_STATUS=1
     ) else (
         echo [INFO] Installing dependencies...
-        cd web
-        npm install
-        if !errorlevel! neq 0 (
-            echo [ERROR] Failed to install dependencies
-            set OVERALL_STATUS=1
-        ) else (
-            echo [SUCCESS] Dependencies installed
-        )
+        pushd web
+        npm install --no-audit >nul 2>&1
+        popd
+        echo [SUCCESS] Dependencies installed
 
         echo [INFO] Running TypeScript linting...
+        pushd web
         npm run lint
-        if !errorlevel! neq 0 (
+        set LINT_RESULT=!errorlevel!
+        popd
+        if !LINT_RESULT! neq 0 (
             echo [ERROR] TypeScript linting failed
             set OVERALL_STATUS=1
         ) else (
@@ -128,8 +127,11 @@ if exist "web" (
         )
 
         echo [INFO] Running TypeScript type checking...
+        pushd web
         npm run type-check
-        if !errorlevel! neq 0 (
+        set TYPECHECK_RESULT=!errorlevel!
+        popd
+        if !TYPECHECK_RESULT! neq 0 (
             echo [ERROR] TypeScript type checking failed
             set OVERALL_STATUS=1
         ) else (
@@ -137,14 +139,16 @@ if exist "web" (
         )
 
         echo [INFO] Running TypeScript build...
+        pushd web
         npm run build
-        if !errorlevel! neq 0 (
+        set BUILD_RESULT=!errorlevel!
+        popd
+        if !BUILD_RESULT! neq 0 (
             echo [ERROR] TypeScript build failed
             set OVERALL_STATUS=1
         ) else (
             echo [SUCCESS] TypeScript build successful
         )
-        cd ..
     )
 ) else (
     echo [WARNING] Web directory not found, skipping Node.js checks
