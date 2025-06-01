@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for webhook bridge hybrid architecture
 
 # Stage 1: Build Go application
-FROM golang:1.21-alpine AS go-builder
+FROM golang:1.23-alpine AS go-builder
 
 WORKDIR /app
 
