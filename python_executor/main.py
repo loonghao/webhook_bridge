@@ -12,6 +12,7 @@ import argparse
 import asyncio
 from concurrent import futures
 import logging
+import os
 from pathlib import Path
 import signal
 import sys
@@ -127,7 +128,16 @@ def main() -> None:
     if args.config:
         try:
             # Import third-party modules
-            import yaml
+            try:
+                import yaml
+            except ImportError:
+                logging.error("PyYAML is not installed. Please install it with: pip install PyYAML")
+                sys.exit(1)
+
+            if not os.path.exists(args.config):
+                logging.error(f"Configuration file not found: {args.config}")
+                sys.exit(1)
+
             with open(args.config) as f:
                 config_data = yaml.safe_load(f)
 
@@ -150,20 +160,25 @@ def main() -> None:
         port = config_port
         logging.info(f"Using port from config file: {port}")
     if port == 0:
-        port = get_port_with_fallback(50051)  # Prefer 50051, fallback to any free port
+        port = get_port_with_fallback(50051, args.host)  # Prefer 50051, fallback to any free port
         logging.info(f"Auto-assigned port: {port}")
-    elif not is_port_free(port):
-        logging.warning(f"Port {port} is not available, finding alternative...")
-        port = get_port_with_fallback(port)
+    elif not is_port_free(port, args.host):
+        logging.warning(f"Port {port} is not available on {args.host}, finding alternative...")
+        port = get_port_with_fallback(port, args.host)
         logging.info(f"Using alternative port: {port}")
 
     # Start server
     try:
+        logging.info(f"Starting Python executor on {args.host}:{port}")
+        logging.info(f"Plugin directories: {plugin_dirs}")
         asyncio.run(serve(args.host, port, plugin_dirs))
     except KeyboardInterrupt:
         logging.info("Server stopped by user")
     except Exception as e:
         logging.error(f"Server error: {e}")
+        logging.error(f"Failed to start server on {args.host}:{port}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
 
 
