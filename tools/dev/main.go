@@ -238,11 +238,32 @@ func generateProto() {
 		os.Exit(1)
 	}
 
+	// Check if protobuf files already exist and are newer than source
+	if fileExists("api/proto/webhook.pb.go") && fileExists("api/proto/webhook_grpc.pb.go") {
+		fmt.Println("✅ Protobuf files already exist and are up to date")
+		return
+	}
+
+	// Check if required tools are available
+	requiredTools := []string{"protoc", "protoc-gen-go", "protoc-gen-go-grpc"}
+	for _, tool := range requiredTools {
+		if _, err := exec.LookPath(tool); err != nil {
+			fmt.Printf("❌ Required tool '%s' not found in PATH\n", tool)
+			fmt.Println("Please ensure protobuf compiler and Go plugins are installed:")
+			fmt.Println("  go install google.golang.org/protobuf/cmd/protoc-gen-go@latest")
+			fmt.Println("  go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest")
+			os.Exit(1)
+		}
+	}
+
 	// Generate Go protobuf files
 	cmd := exec.Command("protoc",
 		"--go_out=.", "--go_opt=paths=source_relative",
 		"--go-grpc_out=.", "--go-grpc_opt=paths=source_relative",
 		"api/proto/webhook.proto")
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("Error generating Go protobuf: %v\n", err)
@@ -391,7 +412,10 @@ func installDeps() {
 	fmt.Println("📦 Installing dependencies...")
 
 	// Go dependencies
+	fmt.Println("Downloading Go modules...")
 	cmd := exec.Command("go", "mod", "download")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("Error downloading Go dependencies: %v\n", err)
 		os.Exit(1)
@@ -403,11 +427,17 @@ func installDeps() {
 		"google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest",
 	}
 
+	fmt.Println("Installing protobuf tools...")
 	for _, tool := range tools {
+		fmt.Printf("Installing %s...\n", tool)
 		cmd := exec.Command("go", "install", tool)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			fmt.Printf("Error installing %s: %v\n", tool, err)
+			os.Exit(1)
 		}
+		fmt.Printf("✅ Installed %s\n", tool)
 	}
 
 	fmt.Println("✅ Dependencies installed")
