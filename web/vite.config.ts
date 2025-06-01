@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: 'static/js/dist',
     emptyOutDir: true,
     rollupOptions: {
       output: {
