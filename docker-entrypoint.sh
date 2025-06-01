@@ -208,6 +208,31 @@ start_python_executor() {
         log "Port $PYTHON_EXECUTOR_PORT is available for Python executor"
     fi
     
+    # Verify Python environment before starting
+    log "🔍 Verifying Python environment..."
+    if ! python --version >/dev/null 2>&1; then
+        log "❌ ERROR: Python is not available"
+        exit 1
+    fi
+    log "✅ Python version: $(python --version 2>&1)"
+
+    # Check if Python executor script exists
+    if [ ! -f "/app/python_executor/main.py" ]; then
+        log "❌ ERROR: Python executor script not found at /app/python_executor/main.py"
+        exit 1
+    fi
+    log "✅ Python executor script found"
+
+    # Test Python import capabilities
+    log "🔍 Testing Python dependencies..."
+    if ! python -c "import grpc, yaml, asyncio; print('Dependencies OK')" 2>/dev/null; then
+        log "❌ ERROR: Required Python dependencies not available"
+        log "🔧 Attempting to list installed packages..."
+        python -m pip list 2>/dev/null || log "Unable to list packages"
+        exit 1
+    fi
+    log "✅ Python dependencies verified"
+
     # Start Python executor in background with explicit port configuration
     log "Starting Python executor with explicit port: $PYTHON_EXECUTOR_PORT"
     log "Command: python /app/python_executor/main.py --host $PYTHON_EXECUTOR_HOST --port $PYTHON_EXECUTOR_PORT --log-level $LOG_LEVEL --config $CONFIG_FILE"
@@ -308,7 +333,7 @@ start_go_server() {
 
     # Final health check of Python executor before starting Go server
     if [ -n "$PYTHON_PID" ]; then
-        if ! check_service_health "Python executor" "$PYTHON_PID" "localhost" "$PYTHON_EXECUTOR_PORT"; then
+        if ! check_service_health "Python executor" "$PYTHON_PID" "$PYTHON_EXECUTOR_HOST" "$PYTHON_EXECUTOR_PORT"; then
             log "❌ ERROR: Python executor health check failed before starting Go server"
             exit 1
         fi

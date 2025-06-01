@@ -47,7 +47,7 @@ python:
 
 executor:
   # Python executor gRPC service configuration
-  host: "localhost"
+  host: "0.0.0.0"  # Use 0.0.0.0 for Docker compatibility
   port: 50051
   timeout: 30  # seconds
 

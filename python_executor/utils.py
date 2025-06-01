@@ -22,19 +22,19 @@ def get_free_port_in_range(start: int, end: int) -> Optional[int]:
     return None
 
 
-def is_port_free(port: int) -> bool:
+def is_port_free(port: int, host: str = 'localhost') -> bool:
     """Check if a port is available for use."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('localhost', port))
+            s.bind((host, port))
             return True
     except OSError:
         return False
 
 
-def get_port_with_fallback(preferred_port: int) -> int:
+def get_port_with_fallback(preferred_port: int, host: str = 'localhost') -> int:
     """Try to use the specified port, fall back to a free port if occupied."""
-    if preferred_port > 0 and is_port_free(preferred_port):
+    if preferred_port > 0 and is_port_free(preferred_port, host):
         return preferred_port
 
     # If preferred port is not available, find a free one

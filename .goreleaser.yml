@@ -237,6 +237,7 @@ dockers:
       - "ghcr.io/loonghao/webhook-bridge:v{{ .Major }}.{{ .Minor }}"
       - "ghcr.io/loonghao/webhook-bridge:latest"
     dockerfile: Dockerfile
+    use: buildx
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"

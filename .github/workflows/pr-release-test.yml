@@ -203,41 +203,272 @@ jobs:
           -e WEBHOOK_BRIDGE_PLUGINS_PATH=/app/plugins:/app/example_plugins \
           webhook-bridge:test
 
-    - name: Wait for container to be ready
+    - name: Wait for container to be ready (Enhanced)
       run: |
-        # Wait up to 120 seconds for both services to be ready
-        # Accept both 200 (healthy) and 503 (degraded) status codes
-        echo "Waiting for services to start..."
-        timeout 120 bash -c 'until curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -E "^(200|503)$"; do echo "Waiting for health endpoint..."; sleep 3; done'
-        echo "Services are ready!"
+        echo "🚀 Starting enhanced container readiness check..."
+        echo "📊 Container startup monitoring with 180-second timeout"
 
-    - name: Test health endpoint
+        # Function to check container status
+        check_container_status() {
+          local status=$(docker inspect webhook-bridge-test --format='{{.State.Status}}' 2>/dev/null || echo "not_found")
+          echo "📦 Container status: $status"
+          return 0
+        }
+
+        # Function to check port availability
+        check_port() {
+          local port=$1
+          local service_name=$2
+          if nc -z localhost $port 2>/dev/null; then
+            echo "✅ Port $port ($service_name) is accessible"
+            return 0
+          else
+            echo "⏳ Port $port ($service_name) not yet accessible"
+            return 1
+          fi
+        }
+
+        # Function to check health endpoint
+        check_health_endpoint() {
+          local response_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
+          echo "🏥 Health endpoint response: $response_code"
+          if [[ "$response_code" =~ ^(200|503)$ ]]; then
+            return 0
+          else
+            return 1
+          fi
+        }
+
+        # Phase 1: Wait for container to be running (30 seconds)
+        echo "📍 Phase 1: Waiting for container to start..."
+        timeout 30 bash -c 'while true; do
+          status=$(docker inspect webhook-bridge-test --format="{{.State.Status}}" 2>/dev/null || echo "not_found")
+          if [ "$status" = "running" ]; then
+            echo "✅ Container is running"
+            break
+          fi
+          echo "⏳ Container status: $status"
+          sleep 2
+        done' || {
+          echo "❌ Container failed to start within 30 seconds"
+          check_container_status
+          exit 1
+        }
+
+        # Phase 2: Wait for Python executor (gRPC port 50051) - 60 seconds
+        echo "📍 Phase 2: Waiting for Python executor (gRPC)..."
+        timeout 60 bash -c 'while ! nc -z localhost 50051 2>/dev/null; do
+          echo "⏳ Waiting for Python executor on port 50051..."
+          sleep 3
+        done' || {
+          echo "❌ Python executor not ready within 60 seconds"
+          check_container_status
+          echo "📋 Container logs (last 50 lines):"
+          docker logs --tail 50 webhook-bridge-test
+          exit 1
+        }
+        echo "✅ Python executor is ready"
+
+        # Phase 3: Wait for Go server (HTTP port 8000) - 60 seconds
+        echo "📍 Phase 3: Waiting for Go server (HTTP)..."
+        timeout 60 bash -c 'while ! nc -z localhost 8000 2>/dev/null; do
+          echo "⏳ Waiting for Go server on port 8000..."
+          sleep 3
+        done' || {
+          echo "❌ Go server not ready within 60 seconds"
+          check_container_status
+          echo "📋 Container logs (last 50 lines):"
+          docker logs --tail 50 webhook-bridge-test
+          exit 1
+        }
+        echo "✅ Go server is ready"
+
+        # Phase 4: Wait for health endpoint - 30 seconds
+        echo "📍 Phase 4: Waiting for health endpoint..."
+        timeout 30 bash -c 'while true; do
+          response_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
+          if [[ "$response_code" =~ ^(200|503)$ ]]; then
+            echo "✅ Health endpoint responding with code: $response_code"
+            break
+          fi
+          echo "⏳ Health endpoint response: $response_code"
+          sleep 3
+        done' || {
+          echo "❌ Health endpoint not responding within 30 seconds"
+          check_container_status
+          echo "📋 Container logs (last 50 lines):"
+          docker logs --tail 50 webhook-bridge-test
+          exit 1
+        }
+
+        echo "🎉 All services are ready! Total startup verification completed."
+
+    - name: Test health endpoint (Enhanced)
       run: |
-        # Test health endpoint and show response
+        echo "🏥 Starting comprehensive health endpoint testing..."
+
+        # Test health endpoint with detailed response analysis
+        echo "📡 Making health check request..."
         response=$(curl -s http://localhost:8000/health)
-        echo "Health check response: $response"
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
 
-        # Check if the response contains expected fields
-        echo "$response" | jq -e '.status' > /dev/null
-        echo "$response" | jq -e '.service' > /dev/null
-        echo "Health check passed!"
+        echo "📊 Health check results:"
+        echo "   Response code: $response_code"
+        echo "   Response body: $response"
+
+        # Validate response code
+        if [[ "$response_code" =~ ^(200|503)$ ]]; then
+          echo "✅ Response code is acceptable: $response_code"
+        else
+          echo "❌ Unexpected response code: $response_code"
+          exit 1
+        fi
+
+        # Validate JSON structure
+        if echo "$response" | jq . > /dev/null 2>&1; then
+          echo "✅ Response is valid JSON"
+        else
+          echo "❌ Response is not valid JSON"
+          echo "Raw response: $response"
+          exit 1
+        fi
+
+        # Check required fields
+        echo "🔍 Validating response structure..."
+        if echo "$response" | jq -e '.status' > /dev/null; then
+          status=$(echo "$response" | jq -r '.status')
+          echo "✅ Status field present: $status"
+        else
+          echo "❌ Missing 'status' field in response"
+          exit 1
+        fi
+
+        if echo "$response" | jq -e '.service' > /dev/null; then
+          service=$(echo "$response" | jq -r '.service')
+          echo "✅ Service field present: $service"
+        else
+          echo "❌ Missing 'service' field in response"
+          exit 1
+        fi
+
+        # Additional health checks
+        echo "🔍 Additional service validation..."
+        if echo "$response" | jq -e '.timestamp' > /dev/null; then
+          timestamp=$(echo "$response" | jq -r '.timestamp')
+          echo "✅ Timestamp field present: $timestamp"
+        fi
+
+        if echo "$response" | jq -e '.components' > /dev/null; then
+          components=$(echo "$response" | jq -r '.components | keys | join(", ")')
+          echo "✅ Components field present: $components"
+        fi
+
+        echo "🎉 Health endpoint validation completed successfully!"
+
+    - name: Test gRPC connectivity
+      run: |
+        echo "🔗 Testing gRPC connectivity between Go server and Python executor..."
+
+        # Install grpcurl for gRPC testing
+        echo "📦 Installing grpcurl..."
+        curl -sSL "https://github.com/fullstorydev/grpcurl/releases/download/v1.8.9/grpcurl_1.8.9_linux_x86_64.tar.gz" | tar -xz -C /tmp
+        sudo mv /tmp/grpcurl /usr/local/bin/
+
+        # Test gRPC service availability
+        echo "🔍 Testing gRPC service on port 50051..."
+        if grpcurl -plaintext localhost:50051 list 2>/dev/null; then
+          echo "✅ gRPC service is accessible and responding"
+
+          # List available services
+          echo "📋 Available gRPC services:"
+          grpcurl -plaintext localhost:50051 list
+
+          # Test specific service methods if available
+          if grpcurl -plaintext localhost:50051 list | grep -q "webhook"; then
+            echo "🔍 Testing webhook service methods:"
+            grpcurl -plaintext localhost:50051 list webhook.WebhookExecutor || echo "   Service methods not accessible"
+          fi
+        else
+          echo "❌ gRPC service not accessible on port 50051"
+          echo "🔍 Checking if port is open..."
+          nc -z localhost 50051 && echo "   Port is open but gRPC not responding" || echo "   Port is not accessible"
+        fi
+
+        echo "🔗 gRPC connectivity test completed"
 
     - name: Test dashboard access
       run: |
-        curl -f http://localhost:8000/ | grep -q "webhook-bridge"
-        echo "Dashboard access test passed!"
+        echo "🌐 Testing dashboard access..."
+        if curl -f http://localhost:8000/ | grep -q "webhook-bridge"; then
+          echo "✅ Dashboard access test passed!"
+        else
+          echo "❌ Dashboard access test failed"
+          echo "🔍 Checking dashboard response:"
+          curl -v http://localhost:8000/ || echo "Failed to access dashboard"
+          exit 1
+        fi
 
-    - name: Show container logs
+    - name: Show container diagnostics (Enhanced)
       if: always()
       run: |
-        echo "=== Container Status ==="
-        docker ps -a --filter name=webhook-bridge-test
+        echo "🔍 =============================================="
+        echo "🔍 Container Diagnostics and Troubleshooting"
+        echo "🔍 =============================================="
+
+        echo "📦 Container Status:"
+        docker ps -a --filter name=webhook-bridge-test --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
         echo ""
-        echo "=== Container Logs ==="
-        docker logs webhook-bridge-test
+
+        echo "🔍 Container Detailed Inspection:"
+        if docker inspect webhook-bridge-test >/dev/null 2>&1; then
+          echo "   Status: $(docker inspect webhook-bridge-test --format='{{.State.Status}}')"
+          echo "   Started At: $(docker inspect webhook-bridge-test --format='{{.State.StartedAt}}')"
+          echo "   Finished At: $(docker inspect webhook-bridge-test --format='{{.State.FinishedAt}}')"
+          echo "   Exit Code: $(docker inspect webhook-bridge-test --format='{{.State.ExitCode}}')"
+          echo "   Error: $(docker inspect webhook-bridge-test --format='{{.State.Error}}')"
+          echo "   OOMKilled: $(docker inspect webhook-bridge-test --format='{{.State.OOMKilled}}')"
+          echo "   Restart Count: $(docker inspect webhook-bridge-test --format='{{.RestartCount}}')"
+        else
+          echo "   ❌ Container not found or not accessible"
+        fi
         echo ""
-        echo "=== Container Inspect ==="
-        docker inspect webhook-bridge-test --format='{{.State.Status}}: {{.State.Error}}'
+
+        echo "🌐 Network Connectivity:"
+        echo "   Checking port accessibility from host..."
+        for port in 8000 50051; do
+          if nc -z localhost $port 2>/dev/null; then
+            echo "   ✅ Port $port is accessible"
+          else
+            echo "   ❌ Port $port is not accessible"
+          fi
+        done
+        echo ""
+
+        echo "📋 Container Logs (Full):"
+        echo "----------------------------------------"
+        if docker logs webhook-bridge-test 2>&1; then
+          echo "----------------------------------------"
+        else
+          echo "❌ Failed to retrieve container logs"
+        fi
+        echo ""
+
+        echo "🖥️  System Resources:"
+        echo "   Memory usage:"
+        free -h
+        echo "   Disk usage:"
+        df -h
+        echo "   Docker system info:"
+        docker system df
+        echo ""
+
+        echo "🔧 Docker Environment:"
+        echo "   Docker version: $(docker --version)"
+        echo "   Docker info:"
+        docker info --format "   Containers: {{.Containers}} ({{.ContainersRunning}} running)"
+        echo ""
+
+        echo "🔍 =============================================="
 
     - name: Cleanup
       if: always()
