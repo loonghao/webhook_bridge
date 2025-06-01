@@ -26,28 +26,28 @@
 ## 🎯 按使用场景查找
 
 ### 新用户入门
-1. 阅读 [项目概述](https://github.com/loonghao/webhook_bridge/blob/main/README.md) 了解项目概述
-2. 查看 [CLI快速参考](CLI_QUICK_REFERENCE.md) 学习基本命令
-3. 使用 `webhook-bridge serve` 快速启动
-4. 访问 `http://localhost:8000/dashboard` 体验Web界面
+1. 阅读 [项目概述](https://github.com/loonghao/webhook_bridge/blob/main/README.md) 了解混合 Go/Python 架构
+2. 下载预构建二进制文件或使用 Docker 部署
+3. 使用 `./webhook-bridge-server` 快速启动
+4. 访问 `http://localhost:8000/` 体验现代化 React Dashboard
 
 ### 开发者
-1. 阅读 [CLI使用指南](CLI_USAGE.md) 的开发环境部分
-2. 使用 `webhook-bridge start --env dev --verbose` 启动开发环境
-3. 查看 [Dashboard使用指南](DASHBOARD_GUIDE.md) 学习插件测试
-4. 参考插件开发示例
+1. 安装 Go 1.21+ 和 Python 3.8+ 开发环境
+2. 使用 `go run dev.go dev-setup` 设置开发环境
+3. 使用 `go run dev.go serve --dev` 启动开发模式
+4. 查看 [Docker指南](DOCKER_GUIDE.md) 学习容器化部署
 
 ### 运维人员
-1. 查看 [CLI使用指南](CLI_USAGE.md) 的生产环境部分
-2. 学习 [Dashboard使用指南](DASHBOARD_GUIDE.md) 的监控功能
-3. 配置系统服务和负载均衡
-4. 设置监控告警
+1. 查看 [Docker指南](DOCKER_GUIDE.md) 学习生产环境部署
+2. 使用 Docker Compose 进行容器化部署
+3. 配置环境变量和卷挂载
+4. 设置健康检查和监控告警
 
 ### 故障排除
-1. 查看 [CLI使用指南](CLI_USAGE.md) 的故障排除章节
-2. 使用 `webhook-bridge status --verbose` 检查状态
-3. 查看 [Dashboard使用指南](DASHBOARD_GUIDE.md) 的调试功能
-4. 检查日志文件
+1. 查看 [Docker指南](DOCKER_GUIDE.md) 的故障排除章节
+2. 使用 `./webhook-bridge-server --help` 检查命令选项
+3. 检查 Go HTTP 服务器 (端口 8000) 和 Python gRPC 服务器 (端口 50051) 状态
+4. 查看容器日志或本地日志文件
 
 ## 🔧 命令速查
 
