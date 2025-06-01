@@ -32,8 +32,15 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
-        cache: true
+        go-version: '1.23.0'
+        cache: false
+
+    - name: Verify Go installation
+      run: |
+        go version
+        which go
+        go env GOROOT
+        go env GOPATH
 
     - name: Install Protocol Buffers compiler
       run: |
@@ -70,8 +77,8 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
-        cache: true
+        go-version: '1.23.0'
+        cache: false
 
     - name: Install Protocol Buffers compiler
       run: |
@@ -139,8 +146,8 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
-        cache: true
+        go-version: '1.23.0'
+        cache: false
 
     - name: Install Protocol Buffers compiler
       run: |
@@ -235,8 +242,8 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
-        cache: true
+        go-version: '1.23.0'
+        cache: false
 
     - name: Install Protocol Buffers compiler
       run: |

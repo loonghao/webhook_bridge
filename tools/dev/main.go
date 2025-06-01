@@ -411,9 +411,28 @@ func startDevEnvironment() {
 func installDeps() {
 	fmt.Println("📦 Installing dependencies...")
 
+	// Check and display Go version
+	fmt.Println("Checking Go version...")
+	cmd := exec.Command("go", "version")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Error checking Go version: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Clean Go module cache to avoid version conflicts
+	fmt.Println("Cleaning Go module cache...")
+	cmd = exec.Command("go", "clean", "-modcache")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Warning: Failed to clean module cache: %v\n", err)
+	}
+
 	// Go dependencies
 	fmt.Println("Downloading Go modules...")
-	cmd := exec.Command("go", "mod", "download")
+	cmd = exec.Command("go", "mod", "download")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
