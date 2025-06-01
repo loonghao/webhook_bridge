@@ -54,6 +54,16 @@ validate_config() {
     return 0
 }
 
+# Function to check if a port is in use
+check_port_in_use() {
+    local port=$1
+    if nc -z localhost "$port" 2>/dev/null; then
+        return 0  # Port is in use
+    else
+        return 1  # Port is free
+    fi
+}
+
 # Function to start Python executor
 start_python_executor() {
     log "Starting Python executor..."
@@ -76,25 +86,70 @@ start_python_executor() {
     else
         log "Using config file: $CONFIG_FILE"
     fi
+
+    # Check if the Python executor port is available
+    if check_port_in_use "$PYTHON_EXECUTOR_PORT"; then
+        log "WARNING: Port $PYTHON_EXECUTOR_PORT is already in use"
+        log "This may cause Python executor startup to fail"
+    else
+        log "Port $PYTHON_EXECUTOR_PORT is available for Python executor"
+    fi
     
-    # Start Python executor in background
+    # Start Python executor in background with explicit port configuration
+    log "Starting Python executor with explicit port: $PYTHON_EXECUTOR_PORT"
+    log "Command: python /app/python_executor/main.py --host $PYTHON_EXECUTOR_HOST --port $PYTHON_EXECUTOR_PORT --log-level $LOG_LEVEL --config $CONFIG_FILE"
+
     python /app/python_executor/main.py \
         --host "$PYTHON_EXECUTOR_HOST" \
         --port "$PYTHON_EXECUTOR_PORT" \
         --log-level "$LOG_LEVEL" \
         --config "$CONFIG_FILE" &
-    
+
     PYTHON_PID=$!
     log "Python executor started with PID: $PYTHON_PID"
-    
+
+    # Give Python executor a moment to initialize
+    sleep 2
+
+    # Check if the process is still running
+    if ! kill -0 $PYTHON_PID 2>/dev/null; then
+        log "ERROR: Python executor process died immediately after startup"
+        log "This usually indicates a configuration or dependency issue"
+        exit 1
+    fi
+
     # Wait for Python executor to be ready
+    log "Waiting for Python executor to bind to port $PYTHON_EXECUTOR_PORT..."
     if ! wait_for_port "$PYTHON_EXECUTOR_HOST" "$PYTHON_EXECUTOR_PORT" 30; then
-        log "ERROR: Python executor failed to start"
+        log "ERROR: Python executor failed to start or bind to port"
+        log "Checking if process is still running..."
+        if kill -0 $PYTHON_PID 2>/dev/null; then
+            log "Process is running but not responding on expected port"
+        else
+            log "Process has terminated"
+        fi
         kill $PYTHON_PID 2>/dev/null || true
         exit 1
     fi
-    
-    log "Python executor is ready"
+
+    log "Python executor is ready and listening on $PYTHON_EXECUTOR_HOST:$PYTHON_EXECUTOR_PORT"
+}
+
+# Function to verify Go server configuration
+verify_go_server_config() {
+    log "Verifying Go server configuration..."
+
+    # Check if config file contains executor port configuration
+    if command -v grep >/dev/null 2>&1; then
+        if grep -q "port: $PYTHON_EXECUTOR_PORT" "$CONFIG_FILE"; then
+            log "✓ Config file contains matching executor port: $PYTHON_EXECUTOR_PORT"
+        else
+            log "⚠ Config file may not contain matching executor port"
+            log "Expected: port: $PYTHON_EXECUTOR_PORT"
+        fi
+    else
+        log "grep not available, skipping config verification"
+    fi
 }
 
 # Function to start Go server
@@ -109,6 +164,18 @@ start_go_server() {
     fi
 
     log "Using config file: $CONFIG_FILE"
+
+    # Verify configuration consistency
+    verify_go_server_config
+
+    # Verify Python executor is still running and accessible
+    if ! check_port_in_use "$PYTHON_EXECUTOR_PORT"; then
+        log "ERROR: Python executor is no longer accessible on port $PYTHON_EXECUTOR_PORT"
+        log "Go server will not be able to connect to Python executor"
+        exit 1
+    fi
+
+    log "✓ Python executor is accessible, starting Go server..."
 
     # Start Go server
     exec webhook-bridge-server --config "$CONFIG_FILE"
