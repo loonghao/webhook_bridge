@@ -247,11 +247,18 @@ dockers:
       - "--label=org.opencontainers.image.description=A hybrid Go/Python webhook bridge for flexible automation"
       - "--platform=linux/amd64"
     extra_files:
+      - go.mod
+      - go.sum
+      - cmd/
+      - internal/
+      - pkg/
+      - api/
       - web/static/js/dist/
       - python_executor/
       - webhook_bridge/
       - config.yaml
       - example_plugins/
+      - requirements.txt
 
 # Announce to Discord (optional)
 # announces:

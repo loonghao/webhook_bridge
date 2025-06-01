@@ -43,6 +43,8 @@ func main() {
 		startDevEnvironment()
 	case "clean":
 		cleanProject()
+	case "clean-cache":
+		cleanGoCache()
 	case "test":
 		runTests(args)
 	case "test-go":
@@ -147,6 +149,7 @@ DEVELOPMENT:
     start        Start development environment (manual)
     start-dev    Start integrated dev environment (auto)
     clean        Clean build artifacts
+    clean-cache  Clean Go build and module cache
 
 DASHBOARD:
     dashboard    Dashboard development commands
@@ -377,6 +380,61 @@ func cleanProject() {
 	}
 
 	fmt.Println("✅ Clean completed")
+}
+
+func cleanGoCache() {
+	fmt.Println("🧹 Cleaning Go build cache and module cache...")
+
+	var hasErrors bool
+
+	// Clean build cache
+	if err := runCommand("go", "clean", "-cache"); err != nil {
+		fmt.Printf("⚠️  Warning: Failed to clean build cache: %v\n", err)
+		if runtime.GOOS == "windows" {
+			fmt.Println("💡 This is common on Windows due to file locks. Try closing IDEs/editors and retry.")
+		}
+		hasErrors = true
+	} else {
+		fmt.Println("✅ Build cache cleaned")
+	}
+
+	// Clean module cache (be more careful on Windows)
+	if runtime.GOOS == "windows" {
+		fmt.Println("⚠️  Skipping module cache clean on Windows to avoid file lock issues")
+		fmt.Println("💡 Run 'go clean -modcache' manually if needed")
+	} else {
+		if err := runCommand("go", "clean", "-modcache"); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to clean module cache: %v\n", err)
+			hasErrors = true
+		} else {
+			fmt.Println("✅ Module cache cleaned")
+		}
+	}
+
+	// Clean test cache
+	if err := runCommand("go", "clean", "-testcache"); err != nil {
+		fmt.Printf("⚠️  Warning: Failed to clean test cache: %v\n", err)
+		hasErrors = true
+	} else {
+		fmt.Println("✅ Test cache cleaned")
+	}
+
+	// Remove any potential Go tool binaries that might be cached
+	if err := runCommand("go", "clean", "-i", "all"); err != nil {
+		fmt.Printf("⚠️  Warning: Failed to clean installed packages: %v\n", err)
+		hasErrors = true
+	} else {
+		fmt.Println("✅ Installed packages cleaned")
+	}
+
+	if hasErrors {
+		fmt.Println("⚠️  Go cache cleanup completed with warnings")
+		fmt.Println("💡 Some caches couldn't be cleaned due to file locks or permissions")
+	} else {
+		fmt.Println("🎉 Go cache cleanup completed successfully!")
+	}
+
+	fmt.Println("💡 You may need to run 'go mod download' to re-download dependencies")
 }
 
 func runDev() {

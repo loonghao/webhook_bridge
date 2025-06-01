@@ -70,6 +70,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     wget \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python virtual environment
@@ -88,11 +89,15 @@ COPY example_plugins/ example_plugins/
 # Copy dashboard files
 COPY web/static/js/dist/ web/static/js/dist/
 
-# Copy configuration
+# Copy configuration and entrypoint script
 COPY config.yaml ./
+COPY docker-entrypoint.sh /usr/local/bin/
 
 # Create directories for configuration and plugins
 RUN mkdir -p /app/config /app/plugins /app/logs /app/data
+
+# Make entrypoint script executable
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Environment variables for configuration
 ENV WEBHOOK_BRIDGE_CONFIG_PATH="/app/config"
@@ -119,4 +124,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 VOLUME ["/app/config", "/app/plugins", "/app/logs", "/app/data"]
 
 # Default command (can be overridden)
-CMD ["webhook-bridge-server", "--config", "/app/config.yaml"]
+# Use entrypoint script to start both Python executor and Go server
+ENTRYPOINT ["docker-entrypoint.sh"]
