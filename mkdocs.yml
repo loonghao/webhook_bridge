@@ -79,8 +79,8 @@ markdown_extensions:
   - pymdownx.caret
   - pymdownx.details
   - pymdownx.emoji:
-      emoji_generator: !!python/name:materialx.emoji.to_svg
-      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -106,24 +106,11 @@ markdown_extensions:
 
 # Page tree
 nav:
-  - 首页: index.md
-  - 快速开始:
-    - 安装指南: installation.md
-    - 快速开始: quickstart.md
+  - 首页: README.md
   - 用户指南:
     - CLI使用指南: CLI_USAGE.md
     - CLI快速参考: CLI_QUICK_REFERENCE.md
     - Dashboard使用指南: DASHBOARD_GUIDE.md
-  - 开发者指南:
-    - 插件开发: plugin-development.md
-    - API参考: api-reference.md
-    - 架构设计: architecture.md
-  - 部署运维:
-    - 生产部署: deployment.md
-    - 监控告警: monitoring.md
-    - 故障排除: troubleshooting.md
-  - 更新日志: CHANGELOG.md
-  - 贡献指南: CONTRIBUTING.md
 
 # Extra
 extra:

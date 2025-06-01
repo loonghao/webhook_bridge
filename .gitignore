@@ -26,6 +26,7 @@ result/
 
 # Docs
 docs/_build/
+site/
 /run_pycharm.bat
 /coverage.xml
 /plugins/
