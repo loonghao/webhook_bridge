@@ -6,7 +6,7 @@
 
 ### 🚀 快速开始
 
-- **[主要README](../README.md)** - 项目概述、安装和基本使用
+- **[项目概述](https://github.com/loonghao/webhook_bridge/blob/main/README.md)** - 项目概述、安装和基本使用
 - **[CLI快速参考](CLI_QUICK_REFERENCE.md)** - 常用命令速查表，适合快速查阅
 
 ### 📖 详细指南
@@ -26,7 +26,7 @@
 ## 🎯 按使用场景查找
 
 ### 新用户入门
-1. 阅读 [主要README](../README.md) 了解项目概述
+1. 阅读 [项目概述](https://github.com/loonghao/webhook_bridge/blob/main/README.md) 了解项目概述
 2. 查看 [CLI快速参考](CLI_QUICK_REFERENCE.md) 学习基本命令
 3. 使用 `webhook-bridge serve` 快速启动
 4. 访问 `http://localhost:8000/dashboard` 体验Web界面
