@@ -123,20 +123,32 @@ def main() -> None:
 
     # Load configuration if provided
     plugin_dirs = args.plugin_dirs or []
+    config_port = None
     if args.config:
         try:
             # Import third-party modules
             import yaml
             with open(args.config) as f:
                 config_data = yaml.safe_load(f)
+
+                # Load plugin directories
                 if 'python' in config_data and 'plugin_dirs' in config_data['python']:
                     plugin_dirs.extend(config_data['python']['plugin_dirs'])
                     logging.info(f"Loaded plugin directories from config: {config_data['python']['plugin_dirs']}")
+
+                # Load executor port configuration
+                if 'executor' in config_data and 'port' in config_data['executor']:
+                    config_port = config_data['executor']['port']
+                    logging.info(f"Loaded executor port from config: {config_port}")
+
         except Exception as e:
             logging.warning(f"Failed to load configuration from {args.config}: {e}")
 
-    # Assign port automatically if needed
+    # Assign port with priority: command line > config file > auto-assign
     port = args.port
+    if port == 0 and config_port is not None:
+        port = config_port
+        logging.info(f"Using port from config file: {port}")
     if port == 0:
         port = get_port_with_fallback(50051)  # Prefer 50051, fallback to any free port
         logging.info(f"Auto-assigned port: {port}")
