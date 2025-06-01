@@ -1,6 +1,6 @@
 [project]
 name = "webhook-bridge"
-version = "2.1.0"
+version = "2.2.0"
 description = "A flexible webhook integration platform with hybrid Go/Python architecture - CLI manager for Go binaries."
 authors = [
     {name = "hal.long", email = "hal.long@outlook.com"}
@@ -39,7 +39,7 @@ webhook-bridge = "webhook_bridge.cli:main"
 
 [tool.poetry]
 name = "webhook-bridge"
-version = "2.1.0"
+version = "2.2.0"
 description = "A flexible webhook integration platform with hybrid Go/Python architecture - CLI manager for Go binaries."
 authors = ["hal.long <hal.long@outlook.com>"]
 license = "MIT"
@@ -62,7 +62,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "2.1.0"
+version = "2.2.0"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml:version",
