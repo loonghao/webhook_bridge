@@ -34,22 +34,32 @@ FROM python:3.11-slim AS python-base
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies for building Python packages
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
+    make \
+    pkg-config \
+    libffi-dev \
+    libssl-dev \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install UV
-RUN pip install uv
+RUN pip install --no-cache-dir uv
 
 # Copy Python requirements
-COPY pyproject.toml ./
-COPY requirements*.txt ./
+COPY requirements.txt ./
 
-# Install Python dependencies
-RUN uv venv /opt/venv && \
-    /opt/venv/bin/pip install grpcio grpcio-tools && \
-    /opt/venv/bin/pip install -r requirements.txt
+# Create virtual environment and install dependencies using uv
+RUN uv venv /opt/venv
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Python dependencies using uv with verbose output
+RUN echo "Installing Python dependencies..." && \
+    cat requirements.txt && \
+    uv pip install --verbose -r requirements.txt
 
 # Stage 3: Final runtime image
 FROM python:3.11-slim
