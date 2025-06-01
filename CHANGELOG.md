@@ -1,3 +1,23 @@
+## v2.1.0 (2025-06-01)
+
+### Feat
+
+- add comprehensive code quality check scripts
+- add webhook-bridge main CLI to build pipeline
+- configure commitizen to auto-update Go version files
+
+### Fix
+
+- complete code quality check system and dashboard build issues
+- add missing build:prod script for dashboard production builds
+- resolve Go lint issues in development tools
+- remove problematic PR preview job from docs workflow
+- resolve CI build issues for dashboard and documentation
+- resolve Python lint issues and code style violations
+- unify version to 2.0.0 across Go and Python packages
+- resolve build issues and version consistency
+- resolve dashboard, logging, and Python executor issues
+
 ## v2.0.0 (2025-05-31)
 
 ### BREAKING CHANGE
