@@ -257,6 +257,7 @@ dockers:
       - python_executor/
       - webhook_bridge/
       - config.yaml
+      - docker-entrypoint.sh
       - example_plugins/
       - requirements.txt
 
