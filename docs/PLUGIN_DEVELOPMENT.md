@@ -383,7 +383,7 @@ print(f"测试结果: {result}")
 
 ## 📚 更多资源
 
-- [API 文档](API.md) - 完整的 API 参考
-- [配置指南](CONFIGURATION.md) - 服务器配置选项
 - [Docker 指南](DOCKER_GUIDE.md) - 容器化部署
-- [示例插件](../example_plugins/) - 更多插件示例
+- [Dashboard 指南](DASHBOARD_GUIDE.md) - 可视化界面使用
+- [GitHub 仓库](https://github.com/loonghao/webhook_bridge) - 源代码和示例
+- [示例插件](https://github.com/loonghao/webhook_bridge/tree/main/example_plugins) - 更多插件示例
