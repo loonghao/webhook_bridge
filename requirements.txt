@@ -18,7 +18,7 @@ fastapi==0.109.1
 pytest==8.3.3
 pydantic==1.10.22
 addict==2.4.0
-Jinja2==3.1.4
+Jinja2==3.1.6
 markdown2==2.5.3
 
 # Additional testing dependencies
