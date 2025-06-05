@@ -14,6 +14,8 @@ before:
     - go run dev.go dashboard build --production
     # Generate protobuf files before building
     - go run dev.go proto
+    # Prepare platform-specific Python dependencies
+    - go run dev.go prepare-python-deps
 
 builds:
   # Main CLI binary (unified command-line interface)
@@ -135,8 +137,12 @@ archives:
       - python_executor/**/*
       - webhook_bridge/**/*
       - scripts/setup_python_env.py
-      - web/static/js/dist/**/*
+      - web/dist/**/*
       - docs/**/*
+      # Platform-specific Python dependencies
+      - src: "dist/python-deps/{{ .Os }}_{{ .Arch }}/**/*"
+        dst: "python_deps/"
+        strip_parent: true
 
 checksum:
   name_template: 'checksums.txt'

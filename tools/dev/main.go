@@ -73,6 +73,8 @@ func main() {
 		createSnapshotRelease()
 	case "release-dry-run":
 		dryRunRelease()
+	case "prepare-python-deps":
+		preparePythonDeps()
 	default:
 		fmt.Printf("❌ Unknown command: %s\n", command)
 		showHelp()
@@ -171,6 +173,7 @@ RELEASE:
     release      Create a release with GoReleaser
     release-snapshot Create a snapshot release
     release-dry-run  Dry run release process
+    prepare-python-deps Prepare platform-specific Python dependencies
 
 UTILITIES:
     version      Show version information
@@ -1145,4 +1148,193 @@ func printColored(text, color string) {
 	} else {
 		fmt.Printf("%s%s%s\n", color, text, ColorReset)
 	}
+}
+
+// preparePythonDeps prepares platform-specific Python dependencies for packaging
+func preparePythonDeps() {
+	fmt.Println("📦 Preparing platform-specific Python dependencies...")
+
+	// Define target platforms
+	platforms := []struct {
+		os   string
+		arch string
+	}{
+		{"linux", "amd64"},
+		{"linux", "arm64"},
+		{"windows", "amd64"},
+		{"darwin", "amd64"},
+		{"darwin", "arm64"},
+	}
+
+	// Create base directory
+	baseDir := "dist/python-deps"
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		fmt.Printf("❌ Failed to create directory %s: %v\n", baseDir, err)
+		os.Exit(1)
+	}
+
+	for _, platform := range platforms {
+		platformDir := fmt.Sprintf("%s/%s_%s", baseDir, platform.os, platform.arch)
+		fmt.Printf("📁 Preparing dependencies for %s/%s...\n", platform.os, platform.arch)
+
+		// Create platform directory
+		if err := os.MkdirAll(platformDir, 0755); err != nil {
+			fmt.Printf("❌ Failed to create directory %s: %v\n", platformDir, err)
+			continue
+		}
+
+		// Copy Python executor
+		pythonSrcDir := "python_executor"
+		pythonDstDir := filepath.Join(platformDir, "python_executor")
+		if err := copyDir(pythonSrcDir, pythonDstDir); err != nil {
+			fmt.Printf("❌ Failed to copy Python executor for %s/%s: %v\n", platform.os, platform.arch, err)
+			continue
+		}
+
+		// Copy webhook_bridge package
+		packageSrcDir := "webhook_bridge"
+		packageDstDir := filepath.Join(platformDir, "webhook_bridge")
+		if err := copyDir(packageSrcDir, packageDstDir); err != nil {
+			fmt.Printf("❌ Failed to copy webhook_bridge package for %s/%s: %v\n", platform.os, platform.arch, err)
+			continue
+		}
+
+		// Copy requirements files
+		reqFiles := []string{"requirements.txt", "requirements-dev.txt"}
+		for _, reqFile := range reqFiles {
+			if fileExists(reqFile) {
+				srcPath := reqFile
+				dstPath := filepath.Join(platformDir, reqFile)
+				if err := copyFile(srcPath, dstPath); err != nil {
+					fmt.Printf("⚠️  Warning: Failed to copy %s for %s/%s: %v\n", reqFile, platform.os, platform.arch, err)
+				}
+			}
+		}
+
+		// Create platform-specific setup script
+		setupScript := generateSetupScript(platform.os)
+		setupPath := filepath.Join(platformDir, getSetupScriptName(platform.os))
+		if err := os.WriteFile(setupPath, []byte(setupScript), 0755); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to create setup script for %s/%s: %v\n", platform.os, platform.arch, err)
+		}
+
+		fmt.Printf("✅ Dependencies prepared for %s/%s\n", platform.os, platform.arch)
+	}
+
+	fmt.Println("✅ All platform-specific Python dependencies prepared!")
+}
+
+// copyDir recursively copies a directory
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip __pycache__ directories
+		if info.IsDir() && info.Name() == "__pycache__" {
+			return filepath.SkipDir
+		}
+
+		// Skip .pyc files
+		if strings.HasSuffix(path, ".pyc") {
+			return nil
+		}
+
+		// Calculate destination path
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+
+		return copyFile(path, dstPath)
+	})
+}
+
+// copyFile copies a single file
+func copyFile(src, dst string) error {
+	// Create destination directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = dstFile.ReadFrom(srcFile)
+	return err
+}
+
+// generateSetupScript generates a platform-specific setup script
+func generateSetupScript(osName string) string {
+	if osName == "windows" {
+		return `@echo off
+REM Setup script for webhook-bridge Python dependencies on Windows
+echo Setting up webhook-bridge Python environment...
+
+REM Check if Python is available
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo Python is not installed or not in PATH
+    echo Please install Python 3.8+ and add it to PATH
+    exit /b 1
+)
+
+REM Install dependencies
+echo Installing Python dependencies...
+python -m pip install --user -r requirements.txt
+
+echo Setup completed successfully!
+echo You can now run: webhook-bridge run
+`
+	} else {
+		return `#!/bin/bash
+# Setup script for webhook-bridge Python dependencies on Unix-like systems
+set -e
+
+echo "Setting up webhook-bridge Python environment..."
+
+# Check if Python is available
+if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+    echo "Python is not installed or not in PATH"
+    echo "Please install Python 3.8+ and add it to PATH"
+    exit 1
+fi
+
+# Determine Python command
+PYTHON_CMD="python3"
+if ! command -v python3 &> /dev/null; then
+    PYTHON_CMD="python"
+fi
+
+# Install dependencies
+echo "Installing Python dependencies..."
+$PYTHON_CMD -m pip install --user -r requirements.txt
+
+echo "Setup completed successfully!"
+echo "You can now run: webhook-bridge run"
+`
+	}
+}
+
+// getSetupScriptName returns the appropriate setup script name for the platform
+func getSetupScriptName(osName string) string {
+	if osName == "windows" {
+		return "setup.bat"
+	}
+	return "setup.sh"
 }

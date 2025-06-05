@@ -86,3 +86,4 @@ Thumbs.db
 __pycache__
 .nox
 logs/
+data/
