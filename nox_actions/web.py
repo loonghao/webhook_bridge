@@ -159,7 +159,7 @@ dashboard:
     session.log("   Press Ctrl+C to stop")
 
     try:
-        session.run("./webhook-bridge.exe", "start", "--config", str(config_path), external=True)
+        session.run("webhook-bridge.exe", "start", "--config", str(config_path), "--verbose", external=True)
     except KeyboardInterrupt:
         session.log("\n⚠️  Server stopped by user")
 
@@ -182,8 +182,7 @@ def dev(session: nox.Session) -> None:
     # Create test configuration
     config_path = Path("config.test.yaml")
     if not config_path.exists():
-        config_content = """
-# Test configuration for local webhook-bridge
+        config_content = """# Test configuration for local webhook-bridge
 server:
   host: "127.0.0.1"
   port: 8000
@@ -204,8 +203,15 @@ dashboard:
   enabled: true
   auto_open: true
 """
-        config_path.write_text(config_content.strip())
+        config_path.write_text(config_content)
         session.log(f"📝 Created test configuration: {config_path}")
+
+    # Create necessary directories
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
+
+    plugins_dir = Path("example_plugins")
+    plugins_dir.mkdir(exist_ok=True)
 
     # Open dashboard in browser
     dashboard_url = "http://127.0.0.1:8001"
@@ -214,12 +220,12 @@ dashboard:
 
     # Start the server
     session.log("🎯 Starting webhook-bridge server...")
-    session.log("   Server: http://127.0.0.1:8000")
+    session.log("   API: http://127.0.0.1:8000")
     session.log("   Dashboard: http://127.0.0.1:8001")
     session.log("   Press Ctrl+C to stop")
 
     try:
-        session.run("./webhook-bridge.exe", "start", "--config", str(config_path), external=True)
+        session.run("webhook-bridge.exe", "start", "--config", str(config_path), "--verbose", external=True)
     except KeyboardInterrupt:
         session.log("\n⚠️  Server stopped by user")
 
@@ -234,28 +240,43 @@ def quick(session: nox.Session) -> None:
 
     # Create minimal config
     config_path = Path("config.quick.yaml")
-    config_content = """
-server:
+    config_content = """server:
   host: "127.0.0.1"
   port: 8000
   dashboard_port: 8001
+
 logging:
   level: "info"
+  file: "logs/webhook-bridge.log"
+
 plugins:
   directory: "example_plugins"
+
 python:
   executor_port: 50051
   auto_install: false
+
 dashboard:
   enabled: true
 """
-    config_path.write_text(config_content.strip())
+    config_path.write_text(config_content)
+    session.log(f"📝 Created configuration: {config_path}")
+
+    # Create logs directory
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
+
+    # Create plugins directory
+    plugins_dir = Path("example_plugins")
+    plugins_dir.mkdir(exist_ok=True)
 
     session.log("🚀 Starting server...")
+    session.log("   API: http://127.0.0.1:8000")
     session.log("   Dashboard: http://127.0.0.1:8001")
+    session.log("   Press Ctrl+C to stop")
 
     try:
-        session.run("./webhook-bridge.exe", "start", "--config", str(config_path), external=True)
+        session.run("webhook-bridge.exe", "start", "--config", str(config_path), "--verbose", external=True)
     except KeyboardInterrupt:
         session.log("\n⚠️  Server stopped")
 
@@ -266,21 +287,49 @@ def clean_local(session: nox.Session) -> None:
     session.log("🧹 Cleaning up local build artifacts...")
 
     # Remove binaries
-    binaries = ["webhook-bridge.exe", "webhook-bridge-server.exe", "python-manager.exe"]
+    binaries = ["webhook-bridge.exe", "webhook-bridge-server.exe", "python-manager.exe", "unified-server.exe"]
     for binary in binaries:
         binary_path = Path(binary)
         if binary_path.exists():
             binary_path.unlink()
             session.log(f"🗑️  Removed {binary}")
 
-    # Remove test config
-    test_config = Path("config.test.yaml")
-    if test_config.exists():
-        test_config.unlink()
-        session.log("🗑️  Removed config.test.yaml")
+    # Remove test configs
+    test_configs = ["config.test.yaml", "config.quick.yaml", "config.dev.yaml", "config.local.yaml"]
+    for config in test_configs:
+        config_path = Path(config)
+        if config_path.exists():
+            config_path.unlink()
+            session.log(f"🗑️  Removed {config}")
 
     # Clean Go build cache
     session.run("go", "clean", "-cache", external=True)
     session.log("🗑️  Cleaned Go build cache")
 
     session.log("✅ Cleanup completed!")
+
+
+@nox.session
+def clean_all(session: nox.Session) -> None:
+    """Deep clean: remove all development artifacts and caches."""
+    session.log("🧹 Deep cleaning development environment...")
+
+    # Use the platform-specific clean script
+    if os.name == "nt":  # Windows
+        script_path = Path("scripts/clean-dev.ps1")
+        if script_path.exists():
+            session.run("powershell", "-ExecutionPolicy", "Bypass", "-File", str(script_path), external=True)
+        else:
+            session.log("⚠️  Clean script not found, running basic cleanup...")
+            # Fallback to basic cleanup
+            clean_local(session)
+    else:  # Unix-like
+        script_path = Path("scripts/clean-dev.sh")
+        if script_path.exists():
+            session.run("bash", str(script_path), external=True)
+        else:
+            session.log("⚠️  Clean script not found, running basic cleanup...")
+            # Fallback to basic cleanup
+            clean_local(session)
+
+    session.log("✅ Deep clean completed!")
