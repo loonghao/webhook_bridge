@@ -122,12 +122,11 @@ def run_local(session: nox.Session) -> None:
     # Create test configuration
     config_path = Path("config.test.yaml")
     if not config_path.exists():
-        config_content = """
-# Test configuration for local webhook-bridge
+        config_content = """# Test configuration for local webhook-bridge
 server:
   host: "127.0.0.1"
   port: 8000
-  dashboard_port: 8001
+  mode: "debug"
 
 logging:
   level: "debug"
@@ -136,26 +135,30 @@ logging:
 plugins:
   directory: "example_plugins"
 
+executor:
+  host: "127.0.0.1"
+  port: 50051
+  timeout: 30
+
 python:
-  executor_port: 50051
+  strategy: "auto"
   auto_install: false
 
 dashboard:
   enabled: true
-  auto_open: true
 """
-        config_path.write_text(config_content.strip())
+        config_path.write_text(config_content)
         session.log(f"📝 Created test configuration: {config_path}")
 
     # Open dashboard in browser
-    dashboard_url = "http://127.0.0.1:8001"
+    dashboard_url = "http://127.0.0.1:8000/dashboard"
     session.log(f"🌐 Opening dashboard: {dashboard_url}")
     webbrowser.open_new_tab(dashboard_url)
 
     # Start the server
     session.log("🎯 Starting webhook-bridge server...")
     session.log("   Server: http://127.0.0.1:8000")
-    session.log("   Dashboard: http://127.0.0.1:8001")
+    session.log("   Dashboard: http://127.0.0.1:8000/dashboard")
     session.log("   Press Ctrl+C to stop")
 
     try:
@@ -186,7 +189,7 @@ def dev(session: nox.Session) -> None:
 server:
   host: "127.0.0.1"
   port: 8000
-  dashboard_port: 8001
+  mode: "debug"
 
 logging:
   level: "debug"
@@ -195,13 +198,17 @@ logging:
 plugins:
   directory: "example_plugins"
 
+executor:
+  host: "127.0.0.1"
+  port: 50051
+  timeout: 30
+
 python:
-  executor_port: 50051
+  strategy: "auto"
   auto_install: false
 
 dashboard:
   enabled: true
-  auto_open: true
 """
         config_path.write_text(config_content)
         session.log(f"📝 Created test configuration: {config_path}")
@@ -214,14 +221,14 @@ dashboard:
     plugins_dir.mkdir(exist_ok=True)
 
     # Open dashboard in browser
-    dashboard_url = "http://127.0.0.1:8001"
+    dashboard_url = "http://127.0.0.1:8000/dashboard"
     session.log(f"🌐 Opening dashboard: {dashboard_url}")
     webbrowser.open_new_tab(dashboard_url)
 
     # Start the server
     session.log("🎯 Starting webhook-bridge server...")
     session.log("   API: http://127.0.0.1:8000")
-    session.log("   Dashboard: http://127.0.0.1:8001")
+    session.log("   Dashboard: http://127.0.0.1:8000/dashboard")
     session.log("   Press Ctrl+C to stop")
 
     try:
@@ -243,7 +250,7 @@ def quick(session: nox.Session) -> None:
     config_content = """server:
   host: "127.0.0.1"
   port: 8000
-  dashboard_port: 8001
+  mode: "debug"
 
 logging:
   level: "info"
@@ -252,8 +259,13 @@ logging:
 plugins:
   directory: "example_plugins"
 
+executor:
+  host: "127.0.0.1"
+  port: 50051
+  timeout: 30
+
 python:
-  executor_port: 50051
+  strategy: "auto"
   auto_install: false
 
 dashboard:
@@ -272,7 +284,7 @@ dashboard:
 
     session.log("🚀 Starting server...")
     session.log("   API: http://127.0.0.1:8000")
-    session.log("   Dashboard: http://127.0.0.1:8001")
+    session.log("   Dashboard: http://127.0.0.1:8000/dashboard")
     session.log("   Press Ctrl+C to stop")
 
     try:
