@@ -162,7 +162,7 @@ dashboard:
     session.log("   Press Ctrl+C to stop")
 
     try:
-        session.run("webhook-bridge.exe", "start", "--config", str(config_path), "--verbose", external=True)
+        session.run("webhook-bridge.exe", "serve", "--config", str(config_path), "--verbose", external=True)
     except KeyboardInterrupt:
         session.log("\n⚠️  Server stopped by user")
 
@@ -232,7 +232,7 @@ dashboard:
     session.log("   Press Ctrl+C to stop")
 
     try:
-        session.run("webhook-bridge.exe", "start", "--config", str(config_path), "--verbose", external=True)
+        session.run("webhook-bridge.exe", "serve", "--config", str(config_path), "--verbose", external=True)
     except KeyboardInterrupt:
         session.log("\n⚠️  Server stopped by user")
 
@@ -288,7 +288,7 @@ dashboard:
     session.log("   Press Ctrl+C to stop")
 
     try:
-        session.run("webhook-bridge.exe", "start", "--config", str(config_path), "--verbose", external=True)
+        session.run("webhook-bridge.exe", "serve", "--config", str(config_path), "--verbose", external=True)
     except KeyboardInterrupt:
         session.log("\n⚠️  Server stopped")
 

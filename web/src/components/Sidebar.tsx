@@ -47,7 +47,7 @@ const navigationGroups = [
 
 export function Sidebar() {
   return (
-    <div className="w-64 bg-card border-r border-border">
+    <div className="w-64 bg-card border-r">
       <div className="p-6">
         <div className="flex items-center space-x-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">

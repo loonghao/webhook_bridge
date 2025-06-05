@@ -12,8 +12,8 @@ var IndexHTML string
 //go:embed dist/favicon.ico
 var FaviconData []byte
 
-//go:embed dist/assets/index.CA1_AtTQ.js
+//go:embed dist/assets/index.BoJitokV.js
 var JSFile []byte
 
-//go:embed dist/assets/index.tn0RQdqM.css
+//go:embed dist/assets/index.MysGidYy.css
 var CSSFile []byte
