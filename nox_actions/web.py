@@ -159,9 +159,105 @@ dashboard:
     session.log("   Press Ctrl+C to stop")
 
     try:
-        session.run("./webhook-bridge.exe", "--config", str(config_path), external=True)
+        session.run("./webhook-bridge.exe", "start", "--config", str(config_path), external=True)
     except KeyboardInterrupt:
         session.log("\n⚠️  Server stopped by user")
+
+
+@nox.session
+def dev(session: nox.Session) -> None:
+    """Build and run the webhook-bridge server for development (one command)."""
+    session.log("🚀 Building and starting webhook-bridge development server...")
+
+    # Build first
+    session.log("📦 Building project...")
+    session.run("go", "run", "dev.go", "dashboard", "install", external=True)
+    session.run("go", "run", "dev.go", "dashboard", "build", external=True)
+    session.run("go", "build", "-o", "webhook-bridge.exe", "./cmd/webhook-bridge", external=True)
+    session.run("go", "build", "-o", "webhook-bridge-server.exe", "./cmd/server", external=True)
+    session.run("go", "build", "-o", "python-manager.exe", "./cmd/python-manager", external=True)
+
+    session.log("✅ Build completed!")
+
+    # Create test configuration
+    config_path = Path("config.test.yaml")
+    if not config_path.exists():
+        config_content = """
+# Test configuration for local webhook-bridge
+server:
+  host: "127.0.0.1"
+  port: 8000
+  dashboard_port: 8001
+
+logging:
+  level: "debug"
+  file: "logs/webhook-bridge.log"
+
+plugins:
+  directory: "example_plugins"
+
+python:
+  executor_port: 50051
+  auto_install: false
+
+dashboard:
+  enabled: true
+  auto_open: true
+"""
+        config_path.write_text(config_content.strip())
+        session.log(f"📝 Created test configuration: {config_path}")
+
+    # Open dashboard in browser
+    dashboard_url = "http://127.0.0.1:8001"
+    session.log(f"🌐 Opening dashboard: {dashboard_url}")
+    webbrowser.open_new_tab(dashboard_url)
+
+    # Start the server
+    session.log("🎯 Starting webhook-bridge server...")
+    session.log("   Server: http://127.0.0.1:8000")
+    session.log("   Dashboard: http://127.0.0.1:8001")
+    session.log("   Press Ctrl+C to stop")
+
+    try:
+        session.run("./webhook-bridge.exe", "start", "--config", str(config_path), external=True)
+    except KeyboardInterrupt:
+        session.log("\n⚠️  Server stopped by user")
+
+
+@nox.session
+def quick(session: nox.Session) -> None:
+    """Quick start: build and run server with minimal output."""
+    session.log("⚡ Quick start webhook-bridge...")
+
+    # Build binaries only (skip frontend for speed)
+    session.run("go", "build", "-o", "webhook-bridge.exe", "./cmd/webhook-bridge", external=True)
+
+    # Create minimal config
+    config_path = Path("config.quick.yaml")
+    config_content = """
+server:
+  host: "127.0.0.1"
+  port: 8000
+  dashboard_port: 8001
+logging:
+  level: "info"
+plugins:
+  directory: "example_plugins"
+python:
+  executor_port: 50051
+  auto_install: false
+dashboard:
+  enabled: true
+"""
+    config_path.write_text(config_content.strip())
+
+    session.log("🚀 Starting server...")
+    session.log("   Dashboard: http://127.0.0.1:8001")
+
+    try:
+        session.run("./webhook-bridge.exe", "start", "--config", str(config_path), external=True)
+    except KeyboardInterrupt:
+        session.log("\n⚠️  Server stopped")
 
 
 @nox.session
