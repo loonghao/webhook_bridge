@@ -54,6 +54,17 @@ func New(cfg *config.Config) *Server {
 
 // Start initializes the gRPC connection and worker pool
 func (s *Server) Start() error {
+	// Setup logging and statistics for gRPC client
+	if s.modernDash != nil {
+		logManager := s.modernDash.GetLogManager()
+		statsManager := s.modernDash.GetStatsManager()
+
+		if logManager != nil && statsManager != nil {
+			grpc.SetupClientWithLoggingAndStats(s.grpcClient, logManager, statsManager)
+			log.Printf("✅ Enhanced gRPC client with logging and statistics")
+		}
+	}
+
 	// Connect to gRPC server
 	err := s.grpcClient.Connect()
 
@@ -81,6 +92,11 @@ func (s *Server) Stop() error {
 func (s *Server) SetupRoutes(router *gin.Engine) {
 	// Add custom middleware
 	s.setupMiddleware(router)
+
+	// Add LogManager middleware from ModernDashboardHandler
+	if s.modernDash != nil && s.modernDash.GetLogManager() != nil {
+		router.Use(s.modernDash.GetLogManager().LogMiddleware())
+	}
 
 	// Modern dashboard routes
 	s.modernDash.RegisterRoutes(router)

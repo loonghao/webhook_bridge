@@ -59,7 +59,7 @@ def create_server(host: str = "localhost", port: int = 50051, plugin_dirs: list[
     return server
 
 
-async def serve(host: str = "localhost", port: int = 50051, plugin_dirs: list[str] = None) -> None:
+async def serve(host: str = "0.0.0.0", port: int = 50051, plugin_dirs: list[str] = None) -> None:
     """Start the gRPC server."""
     logger = logging.getLogger(__name__)
 
@@ -92,8 +92,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Python Executor gRPC Service")
     parser.add_argument(
         "--host",
-        default="localhost",
-        help="Host to bind the server to (default: localhost)",
+        default="0.0.0.0",
+        help="Host to bind the server to (default: 0.0.0.0)",
     )
     parser.add_argument(
         "--port",
@@ -129,6 +129,7 @@ def main() -> None:
         try:
             # Import third-party modules
             try:
+                # Import third-party modules
                 import yaml
             except ImportError:
                 logging.error("PyYAML is not installed. Please install it with: pip install PyYAML")
@@ -177,6 +178,7 @@ def main() -> None:
     except Exception as e:
         logging.error(f"Server error: {e}")
         logging.error(f"Failed to start server on {args.host}:{port}")
+        # Import built-in modules
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)

@@ -175,6 +175,22 @@ export function Configuration() {
                   className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background"
                   placeholder="python"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use "auto" for automatic detection or specify a path to Python executable
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Active Interpreter</label>
+                <input
+                  type="text"
+                  value={config.python?.active_interpreter || ''}
+                  onChange={(e) => handleInputChange('python', 'active_interpreter', e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background"
+                  placeholder="Leave empty for default"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Name of the active interpreter from configured interpreters
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium">Virtual Environment Path</label>
@@ -197,6 +213,15 @@ export function Configuration() {
                 <label htmlFor="auto_download_uv" className="text-sm font-medium">
                   Auto Download UV
                 </label>
+              </div>
+              <div className="pt-4 border-t">
+                <p className="text-sm text-muted-foreground mb-2">
+                  For advanced interpreter management, visit the{' '}
+                  <a href="/interpreters" className="text-primary hover:underline">
+                    Python Interpreters
+                  </a>{' '}
+                  page.
+                </p>
               </div>
             </CardContent>
           </Card>

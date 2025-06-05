@@ -37,14 +37,34 @@ type StatsManager struct {
 	totalExecutions int64
 	totalErrors     int64
 	mutex           sync.RWMutex
+	storage         *PluginStatsStorage // Persistent storage
+	persistEnabled  bool                // Whether persistence is enabled
 }
 
 // NewStatsManager creates a new statistics manager
 func NewStatsManager() *StatsManager {
 	return &StatsManager{
-		startTime:   time.Now(),
-		pluginStats: make(map[string]*ExecutionStats),
+		startTime:      time.Now(),
+		pluginStats:    make(map[string]*ExecutionStats),
+		persistEnabled: false, // Disabled by default
 	}
+}
+
+// NewStatsManagerWithPersistence creates a new statistics manager with persistence
+func NewStatsManagerWithPersistence(dataDir string) *StatsManager {
+	storage := NewPluginStatsStorage(dataDir)
+
+	sm := &StatsManager{
+		startTime:      time.Now(),
+		pluginStats:    make(map[string]*ExecutionStats),
+		storage:        storage,
+		persistEnabled: true,
+	}
+
+	// Load existing data
+	sm.LoadStats()
+
+	return sm
 }
 
 // RecordExecution records a plugin execution
@@ -72,6 +92,9 @@ func (sm *StatsManager) RecordExecution(plugin, method string, startTime time.Ti
 	stats.AvgTime = stats.TotalTime / time.Duration(stats.Count)
 
 	sm.totalExecutions++
+
+	// Request async save if persistence is enabled
+	sm.requestSave()
 }
 
 // RecordError records an execution error
@@ -85,6 +108,9 @@ func (sm *StatsManager) RecordError(plugin, method string) {
 	}
 
 	sm.totalErrors++
+
+	// Request async save if persistence is enabled
+	sm.requestSave()
 }
 
 // RecordRequest records an HTTP request
@@ -261,4 +287,141 @@ func (sm *StatsManager) GetDetailedStats() map[string]interface{} {
 		"top_plugins": topPlugins,
 		"timestamp":   time.Now(),
 	}
+}
+
+// Persistence Methods
+
+// LoadStats loads statistics from persistent storage
+func (sm *StatsManager) LoadStats() error {
+	if !sm.persistEnabled || sm.storage == nil {
+		return nil
+	}
+
+	data := sm.storage.GetData()
+	if data == nil {
+		return fmt.Errorf("no data available in storage")
+	}
+
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	// Restore start time if available
+	if !data.StartTime.IsZero() {
+		sm.startTime = data.StartTime
+	}
+
+	// Restore counters
+	sm.totalRequests = data.TotalRequests
+	sm.totalExecutions = data.TotalExecutions
+	sm.totalErrors = data.TotalErrors
+
+	// Restore plugin statistics
+	sm.pluginStats = make(map[string]*ExecutionStats)
+	for key, stats := range data.PluginStats {
+		statsCopy := *stats
+		sm.pluginStats[key] = &statsCopy
+	}
+
+	return nil
+}
+
+// SaveStats saves current statistics to persistent storage
+func (sm *StatsManager) SaveStats() error {
+	if !sm.persistEnabled || sm.storage == nil {
+		return nil
+	}
+
+	sm.mutex.RLock()
+	defer sm.mutex.RUnlock()
+
+	data := &PluginStatsData{
+		Version:         "1.0",
+		LastSaved:       time.Now(),
+		StartTime:       sm.startTime,
+		TotalRequests:   sm.totalRequests,
+		TotalExecutions: sm.totalExecutions,
+		TotalErrors:     sm.totalErrors,
+		PluginStats:     make(map[string]*ExecutionStats),
+	}
+
+	// Copy plugin statistics
+	for key, stats := range sm.pluginStats {
+		statsCopy := *stats
+		data.PluginStats[key] = &statsCopy
+	}
+
+	return sm.storage.SaveStats(data)
+}
+
+// requestSave requests an asynchronous save operation
+func (sm *StatsManager) requestSave() {
+	if sm.persistEnabled && sm.storage != nil {
+		sm.storage.RequestSave()
+	}
+}
+
+// EnablePersistence enables or disables persistence
+func (sm *StatsManager) EnablePersistence(enabled bool) {
+	sm.persistEnabled = enabled
+}
+
+// IsPersistenceEnabled returns whether persistence is enabled
+func (sm *StatsManager) IsPersistenceEnabled() bool {
+	return sm.persistEnabled
+}
+
+// GetStorageInfo returns information about the storage
+func (sm *StatsManager) GetStorageInfo() map[string]interface{} {
+	if !sm.persistEnabled || sm.storage == nil {
+		return map[string]interface{}{
+			"enabled":    false,
+			"file_path":  "",
+			"last_saved": nil,
+		}
+	}
+
+	data := sm.storage.GetData()
+	return map[string]interface{}{
+		"enabled":     true,
+		"file_path":   sm.storage.GetFilePath(),
+		"backup_path": sm.storage.GetBackupPath(),
+		"last_saved":  data.LastSaved,
+		"version":     data.Version,
+	}
+}
+
+// ForceSave forces an immediate save operation
+func (sm *StatsManager) ForceSave() error {
+	if !sm.persistEnabled || sm.storage == nil {
+		return fmt.Errorf("persistence is not enabled")
+	}
+	return sm.SaveStats()
+}
+
+// ResetStats resets all statistics (but preserves start time)
+func (sm *StatsManager) ResetStats() {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	sm.pluginStats = make(map[string]*ExecutionStats)
+	sm.totalRequests = 0
+	sm.totalExecutions = 0
+	sm.totalErrors = 0
+
+	// Request save to persist the reset
+	sm.requestSave()
+}
+
+// Close gracefully shuts down the stats manager
+func (sm *StatsManager) Close() error {
+	if sm.persistEnabled && sm.storage != nil {
+		// Force a final save
+		if err := sm.SaveStats(); err != nil {
+			return fmt.Errorf("failed to save stats during shutdown: %w", err)
+		}
+
+		// Close the storage
+		return sm.storage.Close()
+	}
+	return nil
 }

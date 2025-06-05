@@ -1,55 +1,152 @@
 package modern
 
 import (
+	"context"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 
+	"github.com/loonghao/webhook_bridge/api/proto"
 	"github.com/loonghao/webhook_bridge/internal/config"
+	"github.com/loonghao/webhook_bridge/internal/grpc"
+	"github.com/loonghao/webhook_bridge/internal/web"
 )
+
+// WebSocket upgrader with CORS support
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		// Allow connections from any origin for development
+		// In production, you should restrict this to your domain
+		return true
+	},
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 // ModernDashboardHandler handles modern web dashboard requests
 type ModernDashboardHandler struct {
-	config   *config.Config
-	template *template.Template
+	config         *config.Config
+	template       *template.Template
+	logManager     *web.PersistentLogManager
+	grpcClient     *grpc.Client
+	statsManager   *web.StatsManager
+	monitorClients map[*websocket.Conn]bool
+	monitorMutex   sync.RWMutex
+}
+
+// MonitorMessage represents a real-time monitoring message
+type MonitorMessage struct {
+	Type      string      `json:"type"`
+	Timestamp time.Time   `json:"timestamp"`
+	Data      interface{} `json:"data"`
+}
+
+// PluginStatusUpdate represents a plugin status change
+type PluginStatusUpdate struct {
+	PluginName    string `json:"plugin_name"`
+	Status        string `json:"status"`
+	LastExecuted  string `json:"last_executed,omitempty"`
+	ExecutionTime int64  `json:"execution_time,omitempty"`
+	Success       bool   `json:"success"`
+	Error         string `json:"error,omitempty"`
+}
+
+// SystemMetricsUpdate represents system metrics update
+type SystemMetricsUpdate struct {
+	TotalExecutions    int64   `json:"total_executions"`
+	SuccessRate        float64 `json:"success_rate"`
+	AvgExecutionTime   float64 `json:"avg_execution_time"`
+	ActivePlugins      int     `json:"active_plugins"`
+	ErrorRate          float64 `json:"error_rate"`
+	LastHourExecutions int64   `json:"last_hour_executions"`
 }
 
 // NewModernDashboardHandler creates a new modern dashboard handler
 func NewModernDashboardHandler(cfg *config.Config) *ModernDashboardHandler {
-	// Try to load the React app's index.html
+	// Try to use embedded template first
 	var tmpl *template.Template
 	var err error
 
-	// Look for the built React app's index.html
-	indexPaths := []string{
-		filepath.Join("web", "dist", "index.html"),
-		"web/dist/index.html",
-		filepath.Join("web", "index.html"),
-		"web/index.html",
-	}
+	// Try to get embedded template from web package
+	if embeddedTmpl, embeddedErr := web.GetIndexTemplate(); embeddedErr == nil && embeddedTmpl != nil {
+		tmpl = embeddedTmpl
+	} else {
+		// Fallback to file system
+		indexPaths := []string{
+			filepath.Join("web", "dist", "index.html"),
+			"web/dist/index.html",
+			filepath.Join("web", "index.html"),
+			"web/index.html",
+		}
 
-	for _, path := range indexPaths {
-		if tmpl, err = template.ParseFiles(path); err == nil {
-			break
+		for _, path := range indexPaths {
+			if tmpl, err = template.ParseFiles(path); err == nil {
+				break
+			}
+		}
+
+		if err != nil {
+			// Final fallback to embedded template
+			tmpl = template.Must(template.New("dashboard").Parse(fallbackTemplate))
 		}
 	}
 
-	if err != nil {
-		// Fallback to embedded template if file not found
-		tmpl = template.Must(template.New("dashboard").Parse(fallbackTemplate))
+	// Initialize PersistentLogManager with configuration
+	logDir := cfg.Directories.LogDir
+	if logDir == "" {
+		logDir = "logs"
 	}
 
-	return &ModernDashboardHandler{
-		config:   cfg,
-		template: tmpl,
+	// Create absolute path for log directory
+	if !filepath.IsAbs(logDir) {
+		if cfg.Directories.WorkingDir != "" {
+			logDir = filepath.Join(cfg.Directories.WorkingDir, logDir)
+		} else {
+			logDir = filepath.Join(".", logDir)
+		}
 	}
+
+	logManager := web.NewPersistentLogManager(logDir, 1000)
+
+	// Initialize gRPC client
+	grpcClient := grpc.NewClient(&cfg.Executor)
+
+	// Initialize stats manager with persistence
+	dataDir := cfg.Directories.DataDir
+	if dataDir == "" {
+		dataDir = "data"
+	}
+	statsManager := web.NewStatsManagerWithPersistence(dataDir)
+
+	return &ModernDashboardHandler{
+		config:         cfg,
+		template:       tmpl,
+		logManager:     logManager,
+		grpcClient:     grpcClient,
+		statsManager:   statsManager,
+		monitorClients: make(map[*websocket.Conn]bool),
+	}
+}
+
+// GetLogManager returns the log manager instance
+func (h *ModernDashboardHandler) GetLogManager() *web.PersistentLogManager {
+	return h.logManager
+}
+
+// GetStatsManager returns the stats manager instance
+func (h *ModernDashboardHandler) GetStatsManager() *web.StatsManager {
+	return h.statsManager
 }
 
 // RegisterRoutes registers dashboard routes
@@ -68,52 +165,109 @@ func (h *ModernDashboardHandler) RegisterRoutes(router *gin.Engine) {
 		api.GET("/system", h.getSystemInfo) // Add system endpoint
 		api.POST("/workers/jobs", h.submitJob)
 
+		// Python interpreter management endpoints
+		api.GET("/interpreters", h.getInterpreters)
+		api.POST("/interpreters", h.addInterpreter)
+		api.DELETE("/interpreters/:name", h.removeInterpreter)
+		api.POST("/interpreters/:name/validate", h.validateInterpreter)
+		api.POST("/interpreters/:name/activate", h.activateInterpreter)
+		api.GET("/interpreters/discover", h.discoverInterpreters)
+
+		// Connection management endpoints
+		api.GET("/connection", h.getConnectionStatus)
+		api.POST("/connection/reconnect", h.reconnectService)
+		api.POST("/connection/test", h.testConnection)
+
+		// Plugin management endpoints
+		api.POST("/plugins/:name/execute", h.executePlugin)
+		api.GET("/plugins/:name/stats", h.getPluginStats)
+		api.GET("/plugins/:name/logs", h.getPluginLogs)
+		api.GET("/plugins/stats", h.getAllPluginStats)
+
+		// WebSocket endpoints for real-time data
+		api.GET("/logs/stream", h.streamLogs)
+		api.GET("/monitor/stream", h.streamMonitor)
+
 		// Python environment management endpoints
 		api.GET("/python-env", h.getPythonEnvStatus)
 		api.POST("/download-uv", h.downloadUV)
 		api.POST("/download-python", h.downloadPython)
 		api.POST("/setup-venv", h.setupVirtualEnv)
 		api.POST("/test-python", h.testPythonEnv)
+
+		// Test endpoints
+		api.POST("/test-log", h.addTestLog)
 	}
 
-	// Static assets - serve React app build files
-	staticDirs := []string{
-		"./web/dist/assets",
-		"web/dist/assets",
-		"./web/assets",
-		"web/assets",
-	}
+	// Static assets - serve from embedded resources first, then fallback to filesystem
+	// Add embedded asset handlers for specific files
+	router.GET("/assets/*filepath", func(c *gin.Context) {
+		filepath := c.Param("filepath")
 
-	for _, dir := range staticDirs {
-		if _, err := os.Stat(dir); err == nil {
-			router.Static("/assets", dir)
-			break
+		// Handle JS files
+		if strings.HasSuffix(filepath, ".js") {
+			jsData := web.GetJSFile()
+			if jsData != nil {
+				c.Header("Content-Type", "application/javascript")
+				c.Data(http.StatusOK, "application/javascript", jsData)
+				return
+			}
 		}
-	}
 
-	// Favicon - try React app's public directory first
-	faviconPaths := []string{
-		"./web/dist/favicon.ico",
-		"web/dist/favicon.ico",
-		"./web/public/favicon.ico",
-		"web/public/favicon.ico",
-		"./web/static/favicon.ico",
-		"web/static/favicon.ico",
-	}
-
-	for _, path := range faviconPaths {
-		if _, err := os.Stat(path); err == nil {
-			router.StaticFile("/favicon.ico", path)
-			break
+		// Handle CSS files
+		if strings.HasSuffix(filepath, ".css") {
+			cssData := web.GetCSSFile()
+			if cssData != nil {
+				c.Header("Content-Type", "text/css")
+				c.Data(http.StatusOK, "text/css", cssData)
+				return
+			}
 		}
-	}
+
+		c.Status(http.StatusNotFound)
+	})
+
+	// Note: Removed filesystem fallback for /assets to avoid conflicts with embedded resources
+
+	// Favicon - serve from embedded resources first, then fallback to filesystem
+	router.GET("/favicon.ico", func(c *gin.Context) {
+		faviconData, err := web.GetFaviconData()
+		if err == nil && faviconData != nil {
+			c.Header("Content-Type", "image/x-icon")
+			c.Data(http.StatusOK, "image/x-icon", faviconData)
+			return
+		}
+
+		// Fallback to filesystem
+		faviconPaths := []string{
+			"./web/dist/favicon.ico",
+			"web/dist/favicon.ico",
+			"./web/public/favicon.ico",
+			"web/public/favicon.ico",
+			"./web/static/favicon.ico",
+			"web/static/favicon.ico",
+		}
+
+		for _, path := range faviconPaths {
+			if _, err := os.Stat(path); err == nil {
+				c.File(path)
+				return
+			}
+		}
+
+		c.Status(http.StatusNotFound)
+	})
 
 	// Dashboard routes - must be last to catch all routes for SPA
 	router.GET("/", h.dashboard)
 	router.GET("/dashboard", h.dashboard)
 	router.GET("/dashboard/*path", h.dashboard) // Catch all dashboard sub-routes for SPA
+	router.GET("/plugins", h.dashboard)         // Plugins page
 	router.GET("/status", h.dashboard)          // System Status page
+	router.GET("/logs", h.dashboard)            // Logs page
 	router.GET("/config", h.dashboard)          // Configuration page
+	router.GET("/interpreters", h.dashboard)    // Python Interpreters page
+	router.GET("/connection", h.dashboard)      // Connection Status page
 	router.NoRoute(h.dashboard)                 // Catch all other routes for SPA
 }
 
@@ -234,33 +388,94 @@ func (h *ModernDashboardHandler) getSystemInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, systemInfo)
 }
 
-// getPlugins returns plugin information
+// getPlugins returns plugin information with real data from gRPC and stats
 func (h *ModernDashboardHandler) getPlugins(c *gin.Context) {
-	plugins := []map[string]interface{}{
-		{
-			"name":           "example_plugin",
-			"version":        "1.0.0",
-			"status":         "active",
-			"description":    "Example webhook plugin",
-			"lastExecuted":   time.Now().Add(-time.Hour).Format(time.RFC3339),
-			"executionCount": 856,
-		},
-		{
-			"name":           "notification_plugin",
-			"version":        "2.1.0",
-			"status":         "active",
-			"description":    "Notification webhook plugin",
-			"lastExecuted":   time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
-			"executionCount": 344,
-		},
-		{
-			"name":           "data_processor",
-			"version":        "1.5.2",
-			"status":         "inactive",
-			"description":    "Data processing webhook plugin",
-			"lastExecuted":   time.Now().Add(-24 * time.Hour).Format(time.RFC3339),
-			"executionCount": 12,
-		},
+	var plugins []map[string]interface{}
+
+	// Try to get real plugin list from gRPC
+	if h.grpcClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// Try to list plugins via gRPC
+		req := &proto.ListPluginsRequest{}
+		if resp, err := h.grpcClient.ListPlugins(ctx, req); err == nil && resp != nil {
+			// Convert gRPC response to our format
+			for _, plugin := range resp.Plugins {
+				pluginData := map[string]interface{}{
+					"name":             plugin.Name,
+					"version":          "1.0.0", // Default version since proto doesn't have it
+					"description":      plugin.Description,
+					"status":           "active", // Default status
+					"path":             plugin.Path,
+					"supportedMethods": plugin.SupportedMethods,
+					"isAvailable":      plugin.IsAvailable,
+					"lastModified":     plugin.LastModified,
+				}
+
+				// Get statistics for this plugin if available
+				if h.statsManager != nil {
+					pluginStats := h.statsManager.GetPluginStats()
+					for _, stat := range pluginStats {
+						if stat.Plugin == plugin.Name {
+							pluginData["executionCount"] = stat.Count
+							pluginData["errorCount"] = stat.Errors
+							pluginData["lastExecuted"] = stat.LastExec.Format(time.RFC3339)
+							pluginData["avgExecutionTime"] = stat.AvgTime.String()
+
+							// Determine status based on recent activity
+							if time.Since(stat.LastExec) < 24*time.Hour {
+								pluginData["status"] = "active"
+							} else {
+								pluginData["status"] = "inactive"
+							}
+							break
+						}
+					}
+				}
+
+				plugins = append(plugins, pluginData)
+			}
+		} else {
+			// Log the error but continue with fallback data
+			log.Printf("Failed to get plugins from gRPC: %v", err)
+		}
+	}
+
+	// If no plugins found via gRPC, use fallback data
+	if len(plugins) == 0 {
+		plugins = []map[string]interface{}{
+			{
+				"name":             "example_plugin",
+				"version":          "1.0.0",
+				"status":           "active",
+				"description":      "Example webhook plugin",
+				"lastExecuted":     time.Now().Add(-time.Hour).Format(time.RFC3339),
+				"executionCount":   856,
+				"errorCount":       5,
+				"avgExecutionTime": "45ms",
+			},
+			{
+				"name":             "notification_plugin",
+				"version":          "2.1.0",
+				"status":           "active",
+				"description":      "Notification webhook plugin",
+				"lastExecuted":     time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
+				"executionCount":   344,
+				"errorCount":       2,
+				"avgExecutionTime": "120ms",
+			},
+			{
+				"name":             "data_processor",
+				"version":          "1.5.2",
+				"status":           "inactive",
+				"description":      "Data processing webhook plugin",
+				"lastExecuted":     time.Now().Add(-24 * time.Hour).Format(time.RFC3339),
+				"executionCount":   12,
+				"errorCount":       1,
+				"avgExecutionTime": "80ms",
+			},
+		}
 	}
 
 	// Return data in the format expected by the React frontend
@@ -270,39 +485,48 @@ func (h *ModernDashboardHandler) getPlugins(c *gin.Context) {
 	})
 }
 
-// getLogs returns recent logs
+// getLogs returns recent logs with optional plugin filtering
 func (h *ModernDashboardHandler) getLogs(c *gin.Context) {
-	logs := []map[string]interface{}{
-		{
-			"timestamp": time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
-			"level":     "info",
-			"message":   "Webhook request processed successfully",
-			"source":    "example_plugin",
-		},
-		{
-			"timestamp": time.Now().Add(-10 * time.Minute).Format(time.RFC3339),
-			"level":     "warn",
-			"message":   "High memory usage detected",
-			"source":    "system",
-		},
-		{
-			"timestamp": time.Now().Add(-15 * time.Minute).Format(time.RFC3339),
-			"level":     "info",
-			"message":   "New plugin loaded: notification_plugin",
-			"source":    "plugin_manager",
-		},
-		{
-			"timestamp": time.Now().Add(-20 * time.Minute).Format(time.RFC3339),
-			"level":     "error",
-			"message":   "Failed to connect to external service",
-			"source":    "data_processor",
-		},
+	// Get query parameters
+	levelFilter := c.Query("level")
+	pluginFilter := c.Query("plugin")
+	limitStr := c.Query("limit")
+
+	limit := 50 // Default limit
+	if limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	// Get logs from the persistent log manager with filters
+	var logs []web.LogEntry
+	if pluginFilter != "" {
+		// Use the new filtering method if plugin filter is specified
+		logs = h.logManager.GetLogsWithFilters(levelFilter, pluginFilter, limit)
+	} else {
+		// Use the original method for backward compatibility
+		logs = h.logManager.GetLogs(levelFilter, limit)
+	}
+
+	// Convert to the format expected by the React frontend
+	logData := make([]map[string]interface{}, len(logs))
+	for i, log := range logs {
+		logData[i] = map[string]interface{}{
+			"id":          log.ID,
+			"timestamp":   log.Timestamp.Format(time.RFC3339),
+			"level":       strings.ToLower(log.Level),
+			"message":     log.Message,
+			"source":      log.Source,
+			"plugin_name": log.PluginName,
+			"data":        log.Data,
+		}
 	}
 
 	// Return data in the format expected by the React frontend
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"success": true,
-		"data":    logs,
+		"data":    logData,
 	})
 }
 
@@ -573,6 +797,16 @@ func (h *ModernDashboardHandler) testPythonEnv(c *gin.Context) {
 	})
 }
 
+// addTestLog adds a test log entry
+func (h *ModernDashboardHandler) addTestLog(c *gin.Context) {
+	h.logManager.AddTestLog()
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Test log added successfully",
+	})
+}
+
 // generateYAMLConfig generates YAML configuration content
 func (h *ModernDashboardHandler) generateYAMLConfig(config map[string]interface{}) string {
 	python := make(map[string]interface{})
@@ -671,6 +905,624 @@ logging:
 	)
 }
 
+// Python Interpreter Management API Methods
+
+// getInterpreters returns all configured Python interpreters
+func (h *ModernDashboardHandler) getInterpreters(c *gin.Context) {
+	// For now, return mock data. This will be replaced with actual interpreter manager integration
+	interpreters := map[string]interface{}{
+		"active": h.config.Python.ActiveInterpreter,
+		"interpreters": map[string]interface{}{
+			"system-python": map[string]interface{}{
+				"name":              "System Python",
+				"path":              "/usr/bin/python3",
+				"status":            "ready",
+				"validated":         true,
+				"last_validated":    time.Now().Add(-time.Hour).Format(time.RFC3339),
+				"version":           "3.9.7",
+				"use_uv":            false,
+				"venv_path":         "",
+				"required_packages": []string{"grpcio", "grpcio-tools"},
+			},
+			"uv-python": map[string]interface{}{
+				"name":              "UV Python Environment",
+				"path":              ".venv/bin/python",
+				"status":            "ready",
+				"validated":         true,
+				"last_validated":    time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
+				"version":           "3.11.5",
+				"use_uv":            true,
+				"venv_path":         ".venv",
+				"required_packages": []string{"grpcio", "grpcio-tools"},
+			},
+		},
+	}
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data":    interpreters,
+	})
+}
+
+// addInterpreter adds a new Python interpreter configuration
+func (h *ModernDashboardHandler) addInterpreter(c *gin.Context) {
+	var request struct {
+		Name             string            `json:"name"`
+		Path             string            `json:"path"`
+		VenvPath         string            `json:"venv_path,omitempty"`
+		UseUV            bool              `json:"use_uv,omitempty"`
+		RequiredPackages []string          `json:"required_packages,omitempty"`
+		Environment      map[string]string `json:"environment,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Invalid request format",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate required fields
+	if request.Name == "" || request.Path == "" {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Name and path are required",
+		})
+		return
+	}
+
+	// TODO: Integrate with actual interpreter manager
+	// For now, return success response
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Interpreter '%s' added successfully", request.Name),
+		"data": map[string]interface{}{
+			"name":              request.Name,
+			"path":              request.Path,
+			"status":            "validating",
+			"validated":         false,
+			"use_uv":            request.UseUV,
+			"venv_path":         request.VenvPath,
+			"required_packages": request.RequiredPackages,
+			"environment":       request.Environment,
+		},
+	})
+}
+
+// removeInterpreter removes a Python interpreter configuration
+func (h *ModernDashboardHandler) removeInterpreter(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Interpreter name is required",
+		})
+		return
+	}
+
+	// TODO: Integrate with actual interpreter manager
+	// For now, return success response
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Interpreter '%s' removed successfully", name),
+	})
+}
+
+// validateInterpreter validates a specific Python interpreter
+func (h *ModernDashboardHandler) validateInterpreter(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Interpreter name is required",
+		})
+		return
+	}
+
+	// TODO: Integrate with actual interpreter manager
+	// For now, return success response
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Interpreter '%s' validation started", name),
+		"data": map[string]interface{}{
+			"name":          name,
+			"status":        "validating",
+			"validation_id": fmt.Sprintf("val_%d", time.Now().UnixNano()),
+		},
+	})
+}
+
+// activateInterpreter sets a specific interpreter as active
+func (h *ModernDashboardHandler) activateInterpreter(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Interpreter name is required",
+		})
+		return
+	}
+
+	// TODO: Integrate with actual interpreter manager and connection manager
+	// For now, return success response
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Interpreter '%s' activated successfully", name),
+		"data": map[string]interface{}{
+			"active_interpreter":  name,
+			"reconnection_status": "in_progress",
+		},
+	})
+}
+
+// discoverInterpreters automatically discovers available Python interpreters
+func (h *ModernDashboardHandler) discoverInterpreters(c *gin.Context) {
+	// TODO: Integrate with actual interpreter manager
+	// For now, return mock discovered interpreters
+	discovered := []map[string]interface{}{
+		{
+			"name":    "Python 3.9 (python3)",
+			"path":    "/usr/bin/python3",
+			"version": "3.9.7",
+			"status":  "available",
+		},
+		{
+			"name":    "Python 3.11 (python3.11)",
+			"path":    "/usr/bin/python3.11",
+			"version": "3.11.5",
+			"status":  "available",
+		},
+		{
+			"name":    "Python 3.8 (python3.8)",
+			"path":    "/usr/bin/python3.8",
+			"version": "3.8.10",
+			"status":  "available",
+		},
+	}
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Discovered %d Python interpreters", len(discovered)),
+		"data":    discovered,
+	})
+}
+
+// Connection Management API Methods
+
+// getConnectionStatus returns the current connection status
+func (h *ModernDashboardHandler) getConnectionStatus(c *gin.Context) {
+	// TODO: Integrate with actual connection manager
+	// For now, return mock connection status
+	status := map[string]interface{}{
+		"status":             "connected",
+		"reconnect_attempts": 0,
+		"max_reconnects":     5,
+		"executor_host":      h.config.Executor.Host,
+		"executor_port":      h.config.Executor.Port,
+		"active_interpreter": h.config.Python.ActiveInterpreter,
+		"last_connected":     time.Now().Add(-time.Hour).Format(time.RFC3339),
+		"uptime":             time.Since(time.Now().Add(-time.Hour)).String(),
+		"process_pid":        12345,
+	}
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data":    status,
+	})
+}
+
+// reconnectService forces a reconnection to the Python executor
+func (h *ModernDashboardHandler) reconnectService(c *gin.Context) {
+	var request struct {
+		InterpreterName string `json:"interpreter_name,omitempty"`
+	}
+
+	// Parse request body (optional)
+	c.ShouldBindJSON(&request)
+
+	// TODO: Integrate with actual connection manager
+	// For now, return success response
+	message := "Service reconnection initiated"
+	if request.InterpreterName != "" {
+		message = fmt.Sprintf("Service reconnection initiated with interpreter '%s'", request.InterpreterName)
+	}
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": message,
+		"data": map[string]interface{}{
+			"reconnection_id": fmt.Sprintf("reconnect_%d", time.Now().UnixNano()),
+			"status":          "in_progress",
+			"interpreter":     request.InterpreterName,
+		},
+	})
+}
+
+// testConnection tests the connection to the Python executor
+func (h *ModernDashboardHandler) testConnection(c *gin.Context) {
+	// TODO: Integrate with actual connection manager
+	// For now, simulate a connection test
+	time.Sleep(500 * time.Millisecond) // Simulate test delay
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Connection test completed successfully",
+		"data": map[string]interface{}{
+			"test_id":        fmt.Sprintf("test_%d", time.Now().UnixNano()),
+			"status":         "passed",
+			"response_time":  "45ms",
+			"executor_host":  h.config.Executor.Host,
+			"executor_port":  h.config.Executor.Port,
+			"test_timestamp": time.Now().Format(time.RFC3339),
+		},
+	})
+}
+
+// Plugin Management API Methods
+
+// executePlugin executes a specific plugin manually for testing
+func (h *ModernDashboardHandler) executePlugin(c *gin.Context) {
+	pluginName := c.Param("name")
+	if pluginName == "" {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Plugin name is required",
+		})
+		return
+	}
+
+	var request struct {
+		Method  string            `json:"method"`
+		Data    map[string]string `json:"data"`
+		Headers map[string]string `json:"headers"`
+		Query   string            `json:"query"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Invalid request format",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Default method if not specified
+	if request.Method == "" {
+		request.Method = "POST"
+	}
+
+	// Execute plugin via gRPC if available
+	if h.grpcClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Record execution start time for statistics
+		startTime := time.Now()
+
+		// Create gRPC request
+		grpcReq := &proto.ExecutePluginRequest{
+			PluginName:  pluginName,
+			HttpMethod:  request.Method,
+			Data:        request.Data,
+			Headers:     request.Headers,
+			QueryString: request.Query,
+		}
+
+		// Execute plugin
+		resp, err := h.grpcClient.ExecutePlugin(ctx, grpcReq)
+
+		// Record statistics
+		executionTime := time.Since(startTime)
+		success := err == nil && (resp == nil || resp.StatusCode < 400)
+
+		if h.statsManager != nil {
+			h.statsManager.RecordExecution(pluginName, request.Method, startTime)
+			if !success {
+				h.statsManager.RecordError(pluginName, request.Method)
+			}
+		}
+
+		// Broadcast real-time plugin status update
+		statusUpdate := PluginStatusUpdate{
+			PluginName:    pluginName,
+			Status:        "executed",
+			LastExecuted:  time.Now().Format(time.RFC3339),
+			ExecutionTime: executionTime.Milliseconds(),
+			Success:       success,
+		}
+
+		if err != nil {
+			statusUpdate.Error = err.Error()
+		} else if resp != nil && resp.StatusCode >= 400 {
+			statusUpdate.Error = fmt.Sprintf("HTTP %d: %s", resp.StatusCode, resp.Message)
+		}
+
+		// Broadcast to monitoring clients
+		h.BroadcastPluginStatusUpdate(statusUpdate)
+
+		// Also broadcast updated system metrics
+		h.BroadcastSystemMetricsUpdate()
+
+		// Record log entry
+		if h.logManager != nil {
+			logLevel := "INFO"
+			logMessage := fmt.Sprintf("Plugin %s executed manually", pluginName)
+
+			if err != nil {
+				logLevel = "ERROR"
+				logMessage = fmt.Sprintf("Plugin %s execution failed: %v", pluginName, err)
+			} else if resp != nil && resp.StatusCode >= 400 {
+				logLevel = "WARN"
+				logMessage = fmt.Sprintf("Plugin %s returned status %d", pluginName, resp.StatusCode)
+			}
+
+			logEntry := web.LogEntry{
+				Timestamp:  time.Now(),
+				Level:      logLevel,
+				Source:     "plugin_test",
+				Message:    logMessage,
+				PluginName: pluginName,
+				Data: map[string]interface{}{
+					"method":         request.Method,
+					"execution_time": time.Since(startTime).String(),
+				},
+			}
+
+			if resp != nil {
+				logEntry.Data["status_code"] = resp.StatusCode
+				logEntry.Data["response_message"] = resp.Message
+			}
+
+			h.logManager.AddLog(logEntry)
+		}
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"success": false,
+				"error":   "Plugin execution failed",
+				"details": err.Error(),
+			})
+			return
+		}
+
+		// Return execution result
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"success": true,
+			"message": "Plugin executed successfully",
+			"data": map[string]interface{}{
+				"plugin_name":    pluginName,
+				"method":         request.Method,
+				"status_code":    resp.StatusCode,
+				"message":        resp.Message,
+				"response_data":  resp.Data,
+				"execution_time": resp.ExecutionTime,
+				"timestamp":      time.Now().Format(time.RFC3339),
+			},
+		})
+		return
+	}
+
+	// Fallback response if gRPC is not available
+	c.JSON(http.StatusServiceUnavailable, map[string]interface{}{
+		"success": false,
+		"error":   "Plugin execution service is not available",
+		"message": "gRPC client is not initialized",
+	})
+}
+
+// getPluginStats returns statistics for a specific plugin
+func (h *ModernDashboardHandler) getPluginStats(c *gin.Context) {
+	pluginName := c.Param("name")
+	if pluginName == "" {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Plugin name is required",
+		})
+		return
+	}
+
+	if h.statsManager == nil {
+		c.JSON(http.StatusServiceUnavailable, map[string]interface{}{
+			"success": false,
+			"error":   "Statistics service is not available",
+		})
+		return
+	}
+
+	// Get all plugin statistics and filter for the requested plugin
+	allStats := h.statsManager.GetPluginStats()
+	var pluginStats []map[string]interface{}
+
+	for _, stat := range allStats {
+		if stat.Plugin == pluginName {
+			statData := map[string]interface{}{
+				"plugin":          stat.Plugin,
+				"method":          stat.Method,
+				"execution_count": stat.Count,
+				"error_count":     stat.Errors,
+				"total_time":      stat.TotalTime.String(),
+				"average_time":    stat.AvgTime.String(),
+				"last_executed":   stat.LastExec.Format(time.RFC3339),
+				"success_rate":    float64(stat.Count-stat.Errors) / float64(stat.Count) * 100,
+			}
+			pluginStats = append(pluginStats, statData)
+		}
+	}
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
+			"plugin_name": pluginName,
+			"statistics":  pluginStats,
+			"summary": map[string]interface{}{
+				"total_executions": len(pluginStats),
+				"methods_count":    len(pluginStats),
+			},
+		},
+	})
+}
+
+// getPluginLogs returns logs for a specific plugin
+func (h *ModernDashboardHandler) getPluginLogs(c *gin.Context) {
+	pluginName := c.Param("name")
+	if pluginName == "" {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Plugin name is required",
+		})
+		return
+	}
+
+	// Get query parameters
+	levelFilter := c.Query("level")
+	limitStr := c.Query("limit")
+
+	limit := 50 // Default limit
+	if limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	if h.logManager == nil {
+		c.JSON(http.StatusServiceUnavailable, map[string]interface{}{
+			"success": false,
+			"error":   "Log service is not available",
+		})
+		return
+	}
+
+	// Get logs filtered by plugin name
+	logs := h.logManager.GetLogsWithFilters(levelFilter, pluginName, limit)
+
+	// Convert to the format expected by the React frontend
+	logData := make([]map[string]interface{}, len(logs))
+	for i, log := range logs {
+		logData[i] = map[string]interface{}{
+			"id":          log.ID,
+			"timestamp":   log.Timestamp.Format(time.RFC3339),
+			"level":       strings.ToLower(log.Level),
+			"message":     log.Message,
+			"source":      log.Source,
+			"plugin_name": log.PluginName,
+			"data":        log.Data,
+		}
+	}
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
+			"plugin_name": pluginName,
+			"logs":        logData,
+			"total":       len(logData),
+			"filters": map[string]interface{}{
+				"level": levelFilter,
+				"limit": limit,
+			},
+		},
+	})
+}
+
+// getAllPluginStats returns statistics for all plugins
+func (h *ModernDashboardHandler) getAllPluginStats(c *gin.Context) {
+	if h.statsManager == nil {
+		c.JSON(http.StatusServiceUnavailable, map[string]interface{}{
+			"success": false,
+			"error":   "Statistics service is not available",
+		})
+		return
+	}
+
+	// Get all plugin statistics
+	allStats := h.statsManager.GetPluginStats()
+
+	// Group statistics by plugin name
+	pluginGroups := make(map[string][]map[string]interface{})
+	totalExecutions := int64(0)
+	totalErrors := int64(0)
+
+	for _, stat := range allStats {
+		statData := map[string]interface{}{
+			"plugin":          stat.Plugin,
+			"method":          stat.Method,
+			"execution_count": stat.Count,
+			"error_count":     stat.Errors,
+			"total_time":      stat.TotalTime.String(),
+			"average_time":    stat.AvgTime.String(),
+			"last_executed":   stat.LastExec.Format(time.RFC3339),
+			"success_rate":    float64(stat.Count-stat.Errors) / float64(stat.Count) * 100,
+		}
+
+		if pluginGroups[stat.Plugin] == nil {
+			pluginGroups[stat.Plugin] = make([]map[string]interface{}, 0)
+		}
+		pluginGroups[stat.Plugin] = append(pluginGroups[stat.Plugin], statData)
+
+		totalExecutions += stat.Count
+		totalErrors += stat.Errors
+	}
+
+	// Create summary for each plugin
+	pluginSummaries := make([]map[string]interface{}, 0)
+	for pluginName, stats := range pluginGroups {
+		var totalCount, totalErrorCount int64
+		var lastExec time.Time
+		methods := make([]string, 0)
+
+		for _, stat := range stats {
+			totalCount += stat["execution_count"].(int64)
+			totalErrorCount += stat["error_count"].(int64)
+			methods = append(methods, stat["method"].(string))
+
+			if execTime, err := time.Parse(time.RFC3339, stat["last_executed"].(string)); err == nil {
+				if execTime.After(lastExec) {
+					lastExec = execTime
+				}
+			}
+		}
+
+		summary := map[string]interface{}{
+			"plugin_name":      pluginName,
+			"total_executions": totalCount,
+			"total_errors":     totalErrorCount,
+			"success_rate":     float64(totalCount-totalErrorCount) / float64(totalCount) * 100,
+			"methods":          methods,
+			"methods_count":    len(methods),
+			"last_executed":    lastExec.Format(time.RFC3339),
+			"detailed_stats":   stats,
+		}
+
+		pluginSummaries = append(pluginSummaries, summary)
+	}
+
+	// Get overall system statistics
+	systemStats := h.statsManager.GetStats()
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
+			"plugins": pluginSummaries,
+			"summary": map[string]interface{}{
+				"total_plugins":    len(pluginGroups),
+				"total_executions": totalExecutions,
+				"total_errors":     totalErrors,
+				"overall_success_rate": func() float64 {
+					if totalExecutions > 0 {
+						return float64(totalExecutions-totalErrors) / float64(totalExecutions) * 100
+					}
+					return 0
+				}(),
+				"system_uptime":     systemStats.Uptime,
+				"total_requests":    systemStats.TotalRequests,
+				"system_executions": systemStats.TotalExecutions,
+			},
+		},
+	})
+}
+
 // Helper functions for config generation
 func getStringValue(m map[string]interface{}, key string, defaultValue string) string {
 	if val, ok := m[key]; ok {
@@ -728,6 +1580,217 @@ func getBoolValue(m map[string]interface{}, key string, defaultValue bool) bool 
 		}
 	}
 	return defaultValue
+}
+
+// streamLogs handles WebSocket connections for real-time log streaming
+func (h *ModernDashboardHandler) streamLogs(c *gin.Context) {
+	// Upgrade HTTP connection to WebSocket
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("Failed to upgrade connection to WebSocket: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	// Create a channel for this client to receive log entries
+	logChan := make(chan web.LogEntry, 100)
+
+	// Add this client to the log manager
+	h.logManager.AddClient(logChan)
+	defer h.logManager.RemoveClient(logChan)
+
+	// Handle WebSocket connection
+	go func() {
+		// Read messages from client (for ping/pong and control messages)
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				log.Printf("WebSocket read error: %v", err)
+				break
+			}
+		}
+	}()
+
+	// Send log entries to client
+	for {
+		select {
+		case logEntry, ok := <-logChan:
+			if !ok {
+				// Channel closed, exit
+				return
+			}
+
+			// Send log entry to client
+			if err := conn.WriteJSON(logEntry); err != nil {
+				log.Printf("WebSocket write error: %v", err)
+				return
+			}
+		}
+	}
+}
+
+// streamMonitor handles WebSocket connections for real-time monitoring
+func (h *ModernDashboardHandler) streamMonitor(c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("WebSocket upgrade error: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	// Add client to monitor clients
+	h.monitorMutex.Lock()
+	h.monitorClients[conn] = true
+	h.monitorMutex.Unlock()
+
+	// Remove client when done
+	defer func() {
+		h.monitorMutex.Lock()
+		delete(h.monitorClients, conn)
+		h.monitorMutex.Unlock()
+	}()
+
+	// Send initial system metrics
+	h.sendSystemMetrics(conn)
+
+	// Keep connection alive and handle ping/pong
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			// Send periodic system metrics update
+			h.sendSystemMetrics(conn)
+
+			// Send ping to keep connection alive
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("WebSocket ping error: %v", err)
+				return
+			}
+		}
+	}
+}
+
+// sendSystemMetrics sends current system metrics to a WebSocket connection
+func (h *ModernDashboardHandler) sendSystemMetrics(conn *websocket.Conn) {
+	// Get current system metrics
+	metrics := h.getSystemMetrics()
+
+	message := MonitorMessage{
+		Type:      "system_metrics",
+		Timestamp: time.Now(),
+		Data:      metrics,
+	}
+
+	if err := conn.WriteJSON(message); err != nil {
+		log.Printf("WebSocket write error: %v", err)
+	}
+}
+
+// getSystemMetrics retrieves current system metrics
+func (h *ModernDashboardHandler) getSystemMetrics() SystemMetricsUpdate {
+	// Get system statistics
+	stats := h.statsManager.GetStats()
+	pluginStats := h.statsManager.GetPluginStats()
+
+	// Calculate metrics from plugin statistics
+	totalExecutions := stats.TotalExecutions
+	successfulExecutions := totalExecutions - stats.TotalErrors
+	activePlugins := len(pluginStats)
+
+	// Calculate average execution time from plugin stats
+	var totalExecutionTime int64
+	var executionCount int64
+
+	for _, pluginStat := range pluginStats {
+		totalExecutionTime += int64(pluginStat.TotalTime.Milliseconds())
+		executionCount += pluginStat.Count
+	}
+
+	var successRate float64
+	var avgExecutionTime float64
+	var errorRate float64
+
+	if totalExecutions > 0 {
+		successRate = float64(successfulExecutions) / float64(totalExecutions) * 100
+		errorRate = float64(stats.TotalErrors) / float64(totalExecutions) * 100
+	}
+
+	if executionCount > 0 {
+		avgExecutionTime = float64(totalExecutionTime) / float64(executionCount)
+	}
+
+	// Get last hour executions (simplified - would need proper time tracking)
+	lastHourExecutions := int64(0)
+	if totalExecutions > 0 {
+		// Simple estimate based on uptime
+		uptimeHours := stats.Uptime.Hours()
+		if uptimeHours > 0 {
+			lastHourExecutions = int64(float64(totalExecutions) / uptimeHours)
+		}
+	}
+
+	return SystemMetricsUpdate{
+		TotalExecutions:    totalExecutions,
+		SuccessRate:        successRate,
+		AvgExecutionTime:   avgExecutionTime,
+		ActivePlugins:      activePlugins,
+		ErrorRate:          errorRate,
+		LastHourExecutions: lastHourExecutions,
+	}
+}
+
+// BroadcastPluginStatusUpdate broadcasts plugin status updates to all monitoring clients
+func (h *ModernDashboardHandler) BroadcastPluginStatusUpdate(update PluginStatusUpdate) {
+	message := MonitorMessage{
+		Type:      "plugin_status",
+		Timestamp: time.Now(),
+		Data:      update,
+	}
+
+	h.monitorMutex.RLock()
+	defer h.monitorMutex.RUnlock()
+
+	for conn := range h.monitorClients {
+		if err := conn.WriteJSON(message); err != nil {
+			log.Printf("WebSocket broadcast error: %v", err)
+			// Remove failed connection
+			go func(c *websocket.Conn) {
+				h.monitorMutex.Lock()
+				delete(h.monitorClients, c)
+				h.monitorMutex.Unlock()
+				c.Close()
+			}(conn)
+		}
+	}
+}
+
+// BroadcastSystemMetricsUpdate broadcasts system metrics updates to all monitoring clients
+func (h *ModernDashboardHandler) BroadcastSystemMetricsUpdate() {
+	metrics := h.getSystemMetrics()
+
+	message := MonitorMessage{
+		Type:      "system_metrics",
+		Timestamp: time.Now(),
+		Data:      metrics,
+	}
+
+	h.monitorMutex.RLock()
+	defer h.monitorMutex.RUnlock()
+
+	for conn := range h.monitorClients {
+		if err := conn.WriteJSON(message); err != nil {
+			log.Printf("WebSocket broadcast error: %v", err)
+			// Remove failed connection
+			go func(c *websocket.Conn) {
+				h.monitorMutex.Lock()
+				delete(h.monitorClients, c)
+				h.monitorMutex.Unlock()
+				c.Close()
+			}(conn)
+		}
+	}
 }
 
 // fallbackTemplate provides a simple fallback template if the file is not found

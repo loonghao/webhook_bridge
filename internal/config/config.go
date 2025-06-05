@@ -51,8 +51,44 @@ type PythonConfig struct {
 	// Auto-install missing dependencies
 	AutoInstall bool `yaml:"auto_install" default:"false"`
 
+	// Multiple interpreter configurations
+	Interpreters map[string]InterpreterConfig `yaml:"interpreters,omitempty"`
+
+	// Active interpreter name (key from Interpreters map)
+	ActiveInterpreter string `yaml:"active_interpreter,omitempty"`
+
 	// Required packages for webhook execution
 	RequiredPackages []string `yaml:"required_packages"`
+}
+
+// InterpreterConfig represents a specific Python interpreter configuration
+type InterpreterConfig struct {
+	// Display name for this interpreter
+	Name string `yaml:"name"`
+
+	// Path to the Python interpreter executable
+	Path string `yaml:"path"`
+
+	// Virtual environment path for this interpreter
+	VenvPath string `yaml:"venv_path,omitempty"`
+
+	// Whether this interpreter uses UV
+	UseUV bool `yaml:"use_uv,omitempty"`
+
+	// Additional packages required for this interpreter
+	RequiredPackages []string `yaml:"required_packages,omitempty"`
+
+	// Environment variables to set when using this interpreter
+	Environment map[string]string `yaml:"environment,omitempty"`
+
+	// Whether this interpreter is validated and ready to use
+	Validated bool `yaml:"validated,omitempty"`
+
+	// Last validation timestamp
+	LastValidated string `yaml:"last_validated,omitempty"`
+
+	// Validation error message if any
+	ValidationError string `yaml:"validation_error,omitempty"`
 }
 
 // UVConfig represents UV virtual environment configuration

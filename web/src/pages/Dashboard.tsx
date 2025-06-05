@@ -1,6 +1,7 @@
 import { Activity, Server, Users, Zap, RefreshCw, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { SystemHealthBanner } from '@/components/SystemHealthBanner'
 import { useDashboard } from '@/hooks/useDashboard'
 
 export function Dashboard() {
@@ -13,6 +14,9 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* System Health Banner */}
+      <SystemHealthBanner showDetails={true} />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>

@@ -1,16 +1,48 @@
 import {
   BarChart3,
   Home,
+  ScrollText,
   Settings,
-  Zap
+  Zap,
+  Code,
+  Wifi,
+  Puzzle,
+  TestTube,
+  Cog
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
-const navigation = [
-  { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'System Status', href: '/status', icon: BarChart3 },
-  { name: 'Configuration', href: '/config', icon: Settings },
+const navigationGroups = [
+  {
+    title: 'Overview',
+    items: [
+      { name: 'Dashboard', href: '/', icon: Home },
+      { name: 'System Status', href: '/status', icon: BarChart3 },
+    ]
+  },
+  {
+    title: 'Plugin Management',
+    items: [
+      { name: 'Plugins', href: '/plugins', icon: Puzzle },
+      { name: 'Plugin Manager', href: '/plugin-manager', icon: Cog },
+    ]
+  },
+  {
+    title: 'System',
+    items: [
+      { name: 'Python Interpreters', href: '/interpreters', icon: Code },
+      { name: 'Connection Status', href: '/connection', icon: Wifi },
+      { name: 'Logs', href: '/logs', icon: ScrollText },
+    ]
+  },
+  {
+    title: 'Tools',
+    items: [
+      { name: 'Configuration', href: '/config', icon: Settings },
+      { name: 'API Test', href: '/api-test', icon: TestTube },
+    ]
+  }
 ]
 
 export function Sidebar() {
@@ -29,26 +61,35 @@ export function Sidebar() {
       </div>
       
       <nav className="px-4 pb-4">
-        <ul className="space-y-1">
-          {navigation.map((item) => (
-            <li key={item.name}>
-              <NavLink
-                to={item.href}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                  )
-                }
-              >
-                <item.icon className="h-4 w-4" />
-                <span>{item.name}</span>
-              </NavLink>
-            </li>
+        <div className="space-y-6">
+          {navigationGroups.map((group) => (
+            <div key={group.title}>
+              <h3 className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {group.title}
+              </h3>
+              <ul className="space-y-1">
+                {group.items.map((item) => (
+                  <li key={item.name}>
+                    <NavLink
+                      to={item.href}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-accent text-accent-foreground'
+                            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                        )
+                      }
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.name}</span>
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       </nav>
     </div>
   )

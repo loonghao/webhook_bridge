@@ -15,26 +15,58 @@ server:
   # Enable automatic port assignment
   auto_port: true
 
-# Python Interpreter Configuration
+# Enhanced Python Interpreter Configuration
 python:
   # Python interpreter discovery strategy
   # Options: auto, uv, path, custom
   strategy: "auto"
-  
+
   # Custom Python interpreter path (used when strategy is "custom")
   interpreter_path: ""
-  
-  # UV virtual environment settings
+
+  # Active interpreter name (from interpreters map below)
+  active_interpreter: "system-python"
+
+  # Multiple interpreter configurations
+  interpreters:
+    system-python:
+      name: "System Python 3.9"
+      path: "/usr/bin/python3"
+      venv_path: ".venv"
+      use_uv: false
+      required_packages:
+        - "grpcio"
+        - "grpcio-tools"
+        - "requests"
+      environment:
+        PYTHONPATH: "/custom/path"
+      validated: true
+      last_validated: "2024-01-15T10:30:00Z"
+
+    uv-python:
+      name: "UV Python Environment"
+      path: ".venv/bin/python"
+      venv_path: ".venv"
+      use_uv: true
+      required_packages:
+        - "grpcio"
+        - "grpcio-tools"
+        - "fastapi"
+        - "uvicorn"
+      validated: true
+      last_validated: "2024-01-15T10:35:00Z"
+
+  # UV virtual environment settings (legacy)
   uv:
     enabled: true
     project_path: ""  # Path to Python project with pyproject.toml
     venv_name: ".venv"
-  
+
   # Additional plugin directories to search
   plugin_dirs:
     - "example_plugins"
     - "custom_plugins"
-  
+
   # Environment validation settings
   validation:
     enabled: true
@@ -42,11 +74,11 @@ python:
     required_capabilities: []
     strict_mode: false
     cache_timeout: 5  # minutes
-  
+
   # Auto-install missing dependencies
   auto_install: false
-  
-  # Required packages for webhook execution
+
+  # Required packages for webhook execution (legacy)
   required_packages:
     - "grpcio"
     - "grpcio-tools"

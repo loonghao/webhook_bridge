@@ -85,3 +85,4 @@ Thumbs.db
 .pytest_cache
 __pycache__
 .nox
+logs/

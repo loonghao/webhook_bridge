@@ -1,5 +1,28 @@
-// API Response Types
+// Unified API Response Types
 export interface ApiResponse<T = any> {
+  success: boolean
+  data?: T
+  error?: {
+    code: string
+    message: string
+    details?: string
+  }
+  message?: string
+  timestamp: string
+  request_id?: string
+}
+
+export interface PaginatedResponse<T = any> extends ApiResponse<T> {
+  pagination?: {
+    page: number
+    page_size: number
+    total: number
+    total_pages: number
+  }
+}
+
+// Legacy API Response (for backward compatibility)
+export interface LegacyApiResponse<T = any> {
   success: boolean
   data?: T
   error?: string
@@ -50,6 +73,38 @@ export interface PluginInfo {
   description: string
   lastExecuted?: string
   executionCount: number
+  errorCount?: number
+  avgExecutionTime?: string
+  path?: string
+  supportedMethods?: string[]
+  isAvailable?: boolean
+  lastModified?: string
+}
+
+// Plugin Execution Request
+export interface PluginExecutionRequest {
+  plugin: string
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  data: Record<string, any>
+}
+
+// Plugin Execution Result
+export interface PluginExecutionResult {
+  success: boolean
+  data?: any
+  error?: string
+  executionTime?: number
+  timestamp: string
+}
+
+// Plugin Stats
+export interface PluginStats {
+  plugin: string
+  method: string
+  count: number
+  errors: number
+  lastExecution: string
+  avgTime: string
 }
 
 // Worker Info
@@ -68,6 +123,7 @@ export interface LogEntry {
   level: 'info' | 'warn' | 'error' | 'debug'
   message: string
   source?: string
+  plugin?: string
   details?: any
 }
 

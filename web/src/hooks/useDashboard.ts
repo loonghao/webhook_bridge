@@ -55,7 +55,7 @@ export function useDashboard(autoRefresh = true, refreshInterval = 30000) {
         ...prev,
         stats: stats.status === 'fulfilled' ? stats.value : null,
         status: status.status === 'fulfilled' ? status.value : null,
-        plugins: plugins.status === 'fulfilled' ? plugins.value : [],
+        plugins: plugins.status === 'fulfilled' ? (plugins.value.success ? plugins.value.data || [] : []) : [],
         workers: workers.status === 'fulfilled' ? workers.value : [],
         logs: logs.status === 'fulfilled' ? logs.value : [],
         activity: activity.status === 'fulfilled' ? activity.value : [],

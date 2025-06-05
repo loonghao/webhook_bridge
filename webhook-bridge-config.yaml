@@ -1,26 +1,46 @@
+# Webhook Bridge Configuration
+# Generated on 2025-06-02T13:17:34+08:00
+
 server:
   host: "0.0.0.0"
   port: 8000
   mode: "debug"
-  auto_port: true
+
+python:
+  strategy: "auto"
+  interpreter_path: ""
+
+  uv:
+    enabled: true
+    project_path: "."
+    venv_name: ".venv"
+
+  plugin_dirs:
+    - "./plugins"
+    - "./webhook_bridge/plugins"
+    - "./example_plugins"
+
+  validation:
+    enabled: true
+    min_python_version: "3.8"
+    required_capabilities:
+      - "sys"
+      - "os"
+      - "json"
+    strict_mode: false
+    cache_timeout: 5
+
+  auto_install: false
+
+  required_packages:
+    - "grpcio"
+    - "grpcio-tools"
 
 executor:
   host: "localhost"
   port: 50051
   timeout: 30
 
-python:
-  interpreter: "python"
-  auto_download_uv: true
-  venv_path: ".venv"
-
 logging:
-  level: "info"
+  level: "debug"
   format: "text"
-  file: ""
-
-directories:
-  working_dir: "."
-  log_dir: "logs"
-  plugin_dir: "plugins"
-  data_dir: "data"
