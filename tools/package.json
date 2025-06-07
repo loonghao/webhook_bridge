@@ -1,0 +1,28 @@
+{
+  "name": "react-debug-mcp",
+  "version": "1.0.0",
+  "description": "专门为 React/Next.js 开发调试设计的 MCP 服务器",
+  "type": "module",
+  "main": "react-debug-mcp.js",
+  "bin": {
+    "react-debug-mcp": "react-debug-mcp.js"
+  },
+  "scripts": {
+    "start": "node react-debug-mcp.js",
+    "install-global": "npm install -g .",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "puppeteer": "^22.15.0"
+  },
+  "keywords": [
+    "mcp",
+    "react",
+    "nextjs",
+    "debug",
+    "development"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

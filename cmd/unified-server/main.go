@@ -16,6 +16,7 @@ import (
 	"github.com/loonghao/webhook_bridge/internal/config"
 	"github.com/loonghao/webhook_bridge/internal/grpc"
 	"github.com/loonghao/webhook_bridge/internal/service"
+	"github.com/loonghao/webhook_bridge/internal/web/modern"
 )
 
 func main() {
@@ -142,16 +143,8 @@ func setupRoutes(router *api.Router, cfg *config.Config, services *Services) {
 	// Setup basic routes
 	router.SetupRoutes()
 
-	// Create and register Dashboard API handler
-	dashboardHandler := handlers.NewDashboardHandler(
-		cfg,
-		services.grpcClient,
-		services.workerPool,
-		services.logManager,
-		services.statsManager,
-		services.connectionMgr,
-	)
-	router.RegisterHandler(api.DashboardPrefix, dashboardHandler)
+	// Note: Using modern dashboard handler instead of basic dashboard handler
+	// to avoid route conflicts and provide better functionality
 
 	// Create and register Webhook API handler
 	webhookHandler := handlers.NewWebhookHandler(
@@ -163,9 +156,9 @@ func setupRoutes(router *api.Router, cfg *config.Config, services *Services) {
 	router.RegisterHandler(api.APIv1Prefix, webhookHandler)
 	router.RegisterHandler(api.APILatestPrefix, webhookHandler)
 
-	// TODO: Setup modern dashboard web interface
-	// dashboardWeb := modern.NewDashboard(cfg)
-	// dashboardWeb.SetupRoutes(router.GetEngine())
+	// Setup modern dashboard web interface
+	dashboardWeb := modern.NewModernDashboardHandler(cfg)
+	dashboardWeb.RegisterRoutes(router.GetEngine())
 
 	log.Printf("✅ All routes configured successfully")
 	log.Printf("📋 Available endpoints:")

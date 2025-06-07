@@ -78,7 +78,7 @@ The Docker container expects the following directory structure:
 | `WEBHOOK_BRIDGE_PLUGINS_PATH` | Plugin search paths (colon-separated) | `/app/plugins:/app/example_plugins` |
 | `WEBHOOK_BRIDGE_LOG_PATH` | Log directory | `/app/logs` |
 | `WEBHOOK_BRIDGE_DATA_PATH` | Data directory | `/app/data` |
-| `WEBHOOK_BRIDGE_WEB_PATH` | Web dashboard path | `/app/web/static/js/dist` |
+| `WEBHOOK_BRIDGE_WEB_PATH` | Web dashboard path | `/app/web-nextjs/dist` |
 | `WEBHOOK_BRIDGE_PYTHON_PATH` | Python executor path | `/app/python_executor` |
 
 ### Server Configuration

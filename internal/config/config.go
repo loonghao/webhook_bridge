@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -13,11 +14,13 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server      ServerConfig      `yaml:"server"`
-	Python      PythonConfig      `yaml:"python"`
-	Executor    ExecutorConfig    `yaml:"executor"`
-	Logging     LoggingConfig     `yaml:"logging"`
-	Directories DirectoriesConfig `yaml:"directories"`
+	Server            ServerConfig            `yaml:"server"`
+	Python            PythonConfig            `yaml:"python"`
+	Executor          ExecutorConfig          `yaml:"executor"`
+	Logging           LoggingConfig           `yaml:"logging"`
+	Directories       DirectoriesConfig       `yaml:"directories"`
+	Storage           StorageConfig           `yaml:"storage"`
+	ExecutionTracking ExecutionTrackingConfig `yaml:"execution_tracking"`
 }
 
 // ServerConfig represents HTTP server configuration
@@ -143,6 +146,58 @@ type DirectoriesConfig struct {
 	DataDir    string `yaml:"data_dir" default:"data"`      // Data directory relative to working dir
 }
 
+// StorageConfig represents storage configuration
+type StorageConfig struct {
+	Type       string           `yaml:"type"`
+	SQLite     SQLiteConfig     `yaml:"sqlite"`
+	MySQL      MySQLConfig      `yaml:"mysql"`
+	PostgreSQL PostgreSQLConfig `yaml:"postgresql"`
+}
+
+// SQLiteConfig represents SQLite storage configuration
+type SQLiteConfig struct {
+	DatabasePath      string `yaml:"database_path"`
+	MaxConnections    int    `yaml:"max_connections"`
+	RetentionDays     int    `yaml:"retention_days"`
+	EnableWAL         bool   `yaml:"enable_wal"`
+	EnableForeignKeys bool   `yaml:"enable_foreign_keys"`
+}
+
+// MySQLConfig represents MySQL storage configuration
+type MySQLConfig struct {
+	Host           string `yaml:"host"`
+	Port           int    `yaml:"port"`
+	Database       string `yaml:"database"`
+	Username       string `yaml:"username"`
+	Password       string `yaml:"password"`
+	MaxConnections int    `yaml:"max_connections"`
+	RetentionDays  int    `yaml:"retention_days"`
+}
+
+// PostgreSQLConfig represents PostgreSQL storage configuration
+type PostgreSQLConfig struct {
+	Host           string `yaml:"host"`
+	Port           int    `yaml:"port"`
+	Database       string `yaml:"database"`
+	Username       string `yaml:"username"`
+	Password       string `yaml:"password"`
+	SSLMode        string `yaml:"ssl_mode"`
+	MaxConnections int    `yaml:"max_connections"`
+	RetentionDays  int    `yaml:"retention_days"`
+}
+
+// ExecutionTrackingConfig represents execution tracking configuration
+type ExecutionTrackingConfig struct {
+	Enabled                    bool          `yaml:"enabled"`
+	TrackInput                 bool          `yaml:"track_input"`
+	TrackOutput                bool          `yaml:"track_output"`
+	TrackErrors                bool          `yaml:"track_errors"`
+	MaxInputSize               int           `yaml:"max_input_size"`
+	MaxOutputSize              int           `yaml:"max_output_size"`
+	CleanupInterval            time.Duration `yaml:"cleanup_interval"`
+	MetricsAggregationInterval time.Duration `yaml:"metrics_aggregation_interval"`
+}
+
 // Load loads configuration from file or environment variables
 func Load() (*Config, error) {
 	cfg := &Config{}
@@ -200,6 +255,24 @@ func (c *Config) setDefaults() {
 	c.Directories.ConfigDir = ""
 	c.Directories.PluginDir = "plugins"
 	c.Directories.DataDir = "data"
+
+	// Storage defaults
+	c.Storage.Type = "sqlite"
+	c.Storage.SQLite.DatabasePath = "data/executions.db"
+	c.Storage.SQLite.MaxConnections = 10
+	c.Storage.SQLite.RetentionDays = 30
+	c.Storage.SQLite.EnableWAL = true
+	c.Storage.SQLite.EnableForeignKeys = true
+
+	// Execution tracking defaults
+	c.ExecutionTracking.Enabled = true
+	c.ExecutionTracking.TrackInput = true
+	c.ExecutionTracking.TrackOutput = true
+	c.ExecutionTracking.TrackErrors = true
+	c.ExecutionTracking.MaxInputSize = 1048576  // 1MB
+	c.ExecutionTracking.MaxOutputSize = 1048576 // 1MB
+	c.ExecutionTracking.CleanupInterval = 24 * time.Hour
+	c.ExecutionTracking.MetricsAggregationInterval = time.Hour
 }
 
 // loadFromFile loads configuration from YAML file

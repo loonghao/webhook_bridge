@@ -852,7 +852,7 @@ func (d *DashboardCommands) Build(args []string) error {
 		}
 	}
 
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	if _, err := os.Stat(filepath.Join(webDir, "tsconfig.json")); os.IsNotExist(err) {
 		return fmt.Errorf("❌ Error: Must run from project root directory (tsconfig.json not found)")
 	}
@@ -885,7 +885,7 @@ func (d *DashboardCommands) Build(args []string) error {
 	// Clean if requested
 	if clean {
 		printColored("🧹 Cleaning build directory...", ColorYellow)
-		distDir := filepath.Join("static", "js", "dist")
+		distDir := filepath.Join("dist")
 		if _, err := os.Stat(distDir); err == nil {
 			if err := os.RemoveAll(distDir); err != nil {
 				return fmt.Errorf("failed to clean dist directory: %w", err)
@@ -904,7 +904,7 @@ func (d *DashboardCommands) Build(args []string) error {
 	}
 
 	// Create dist directory if it doesn't exist
-	distDir := filepath.Join("static", "js", "dist")
+	distDir := filepath.Join("dist")
 	if err := os.MkdirAll(distDir, 0755); err != nil {
 		return fmt.Errorf("failed to create dist directory: %w", err)
 	}
@@ -913,21 +913,21 @@ func (d *DashboardCommands) Build(args []string) error {
 	if watch {
 		printColored("👀 Starting TypeScript watch mode...", ColorYellow)
 		printColored("Press Ctrl+C to stop", ColorYellow)
-		return runCommand("npm", "run", "build:watch")
+		return runCommand("npm", "run", "dev")
 	} else if production {
 		printColored("🏗️ Building for production...", ColorYellow)
-		if err := runCommand("npm", "run", "build:prod"); err != nil {
+		if err := runCommand("npm", "run", "build"); err != nil {
 			return fmt.Errorf("❌ Production build failed: %w", err)
 		}
 		printColored("✅ Production build completed", ColorGreen)
-		printColored("📁 Output: web/static/js/dist/", ColorGreen)
+		printColored("📁 Output: web-nextjs/dist/", ColorGreen)
 	} else {
 		printColored("🏗️ Building TypeScript dashboard...", ColorYellow)
 		if err := runCommand("npm", "run", "build"); err != nil {
 			return fmt.Errorf("❌ Build failed: %w", err)
 		}
 		printColored("✅ Build completed successfully", ColorGreen)
-		printColored("📁 Output: web/static/js/dist/", ColorGreen)
+		printColored("📁 Output: web-nextjs/dist/", ColorGreen)
 	}
 
 	printColored("🎉 Dashboard build process completed!", ColorGreen)
@@ -952,7 +952,7 @@ func (d *DashboardCommands) Dev(args []string) error {
 
 // Install installs dashboard dependencies
 func (d *DashboardCommands) Install(args []string) error {
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -964,7 +964,7 @@ func (d *DashboardCommands) Install(args []string) error {
 	}()
 
 	if err := os.Chdir(webDir); err != nil {
-		return fmt.Errorf("failed to change to web directory: %w", err)
+		return fmt.Errorf("failed to change to web-nextjs directory: %w", err)
 	}
 
 	printColored("📦 Installing dashboard dependencies...", ColorYellow)
@@ -985,7 +985,7 @@ func (d *DashboardCommands) Lint(args []string) error {
 		}
 	}
 
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -997,7 +997,7 @@ func (d *DashboardCommands) Lint(args []string) error {
 	}()
 
 	if err := os.Chdir(webDir); err != nil {
-		return fmt.Errorf("failed to change to web directory: %w", err)
+		return fmt.Errorf("failed to change to web-nextjs directory: %w", err)
 	}
 
 	printColored("🔍 Running TypeScript linting...", ColorYellow)
@@ -1019,7 +1019,7 @@ func (d *DashboardCommands) Lint(args []string) error {
 
 // TypeCheck runs TypeScript type checking
 func (d *DashboardCommands) TypeCheck(args []string) error {
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -1031,7 +1031,7 @@ func (d *DashboardCommands) TypeCheck(args []string) error {
 	}()
 
 	if err := os.Chdir(webDir); err != nil {
-		return fmt.Errorf("failed to change to web directory: %w", err)
+		return fmt.Errorf("failed to change to web-nextjs directory: %w", err)
 	}
 
 	printColored("🔍 Running TypeScript type checking...", ColorYellow)
@@ -1047,14 +1047,14 @@ func (d *DashboardCommands) TypeCheck(args []string) error {
 func (d *DashboardCommands) Clean(args []string) error {
 	printColored("🧹 Cleaning dashboard build artifacts...", ColorYellow)
 
-	distDir := filepath.Join("web", "static", "js", "dist")
+	distDir := filepath.Join("web-nextjs", "dist")
 	if _, err := os.Stat(distDir); err == nil {
 		if err := os.RemoveAll(distDir); err != nil {
 			return fmt.Errorf("failed to clean dist directory: %w", err)
 		}
 	}
 
-	nodeModulesDir := filepath.Join("web", "node_modules")
+	nodeModulesDir := filepath.Join("web-nextjs", "node_modules")
 	if _, err := os.Stat(nodeModulesDir); err == nil {
 		printColored("🗑️ Removing node_modules...", ColorYellow)
 		if err := os.RemoveAll(nodeModulesDir); err != nil {
@@ -1077,7 +1077,7 @@ func (d *DashboardCommands) Serve(args []string) error {
 		}
 	}
 
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -1089,7 +1089,7 @@ func (d *DashboardCommands) Serve(args []string) error {
 	}()
 
 	if err := os.Chdir(webDir); err != nil {
-		return fmt.Errorf("failed to change to web directory: %w", err)
+		return fmt.Errorf("failed to change to web-nextjs directory: %w", err)
 	}
 
 	printColored(fmt.Sprintf("🌐 Serving dashboard on http://localhost:%s", port), ColorGreen)

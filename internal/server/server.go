@@ -12,7 +12,10 @@ import (
 
 	"github.com/loonghao/webhook_bridge/api/proto"
 	"github.com/loonghao/webhook_bridge/internal/config"
+	"github.com/loonghao/webhook_bridge/internal/execution"
 	"github.com/loonghao/webhook_bridge/internal/grpc"
+	"github.com/loonghao/webhook_bridge/internal/storage"
+	"github.com/loonghao/webhook_bridge/internal/storage/sqlite"
 	"github.com/loonghao/webhook_bridge/internal/web/modern"
 	"github.com/loonghao/webhook_bridge/internal/worker"
 	"github.com/loonghao/webhook_bridge/pkg/version"
@@ -20,10 +23,12 @@ import (
 
 // Server represents the webhook bridge server
 type Server struct {
-	config     *config.Config
-	grpcClient *grpc.Client
-	modernDash *modern.ModernDashboardHandler
-	workerPool *worker.Pool
+	config           *config.Config
+	grpcClient       *grpc.Client
+	modernDash       *modern.ModernDashboardHandler
+	workerPool       *worker.Pool
+	executionTracker *execution.ExecutionTracker
+	storage          storage.ExecutionStorage
 
 	// Metrics
 	requestCount  int64
@@ -34,6 +39,36 @@ type Server struct {
 
 // New creates a new server instance
 func New(cfg *config.Config) *Server {
+	// Initialize storage
+	var executionStorage storage.ExecutionStorage
+
+	switch cfg.Storage.Type {
+	case "sqlite":
+		executionStorage = sqlite.NewSQLiteStorage(&cfg.Storage.SQLite)
+	default:
+		log.Printf("⚠️  Unsupported storage type: %s", cfg.Storage.Type)
+		log.Printf("🔄 Execution tracking will be disabled")
+		executionStorage = nil
+	}
+
+	// Initialize execution tracker
+	var tracker *execution.ExecutionTracker
+	if executionStorage != nil {
+		trackerConfig := &execution.TrackerConfig{
+			Enabled:                    cfg.ExecutionTracking.Enabled,
+			TrackInput:                 cfg.ExecutionTracking.TrackInput,
+			TrackOutput:                cfg.ExecutionTracking.TrackOutput,
+			TrackErrors:                cfg.ExecutionTracking.TrackErrors,
+			MaxInputSize:               cfg.ExecutionTracking.MaxInputSize,
+			MaxOutputSize:              cfg.ExecutionTracking.MaxOutputSize,
+			CleanupInterval:            cfg.ExecutionTracking.CleanupInterval,
+			RetentionDays:              cfg.Storage.SQLite.RetentionDays,
+			MetricsAggregationInterval: cfg.ExecutionTracking.MetricsAggregationInterval,
+		}
+
+		tracker = execution.NewExecutionTracker(executionStorage, trackerConfig)
+	}
+
 	// Create gRPC client
 	grpcClient := grpc.NewClient(&cfg.Executor)
 
@@ -44,16 +79,36 @@ func New(cfg *config.Config) *Server {
 	workerPool := worker.NewPool(4) // Default 4 workers
 
 	return &Server{
-		config:     cfg,
-		grpcClient: grpcClient,
-		modernDash: modernDash,
-		workerPool: workerPool,
-		startTime:  time.Now(),
+		config:           cfg,
+		grpcClient:       grpcClient,
+		modernDash:       modernDash,
+		workerPool:       workerPool,
+		executionTracker: tracker,
+		storage:          executionStorage,
+		startTime:        time.Now(),
 	}
 }
 
 // Start initializes the gRPC connection and worker pool
 func (s *Server) Start() error {
+	// Initialize storage
+	if s.storage != nil {
+		ctx := context.Background()
+		if err := s.storage.Initialize(ctx); err != nil {
+			log.Printf("⚠️  Failed to initialize storage: %v", err)
+			s.storage = nil
+			s.executionTracker = nil
+		} else {
+			log.Printf("✅ Execution storage initialized successfully")
+
+			// Start cleanup worker
+			if s.executionTracker != nil {
+				go s.executionTracker.StartCleanupWorker(ctx)
+				log.Printf("✅ Execution cleanup worker started")
+			}
+		}
+	}
+
 	// Setup logging and statistics for gRPC client
 	if s.modernDash != nil {
 		logManager := s.modernDash.GetLogManager()
@@ -73,8 +128,8 @@ func (s *Server) Start() error {
 		ctx := context.Background()
 		s.workerPool.Start(ctx)
 
-		// Register job handlers
-		s.workerPool.RegisterHandler(worker.NewWebhookJobHandler(s.grpcClient))
+		// Register job handlers with execution tracking
+		s.workerPool.RegisterHandler(worker.NewTrackedWebhookJobHandler(s.grpcClient, s.executionTracker))
 		s.workerPool.RegisterHandler(worker.NewBatchJobHandler(s.grpcClient))
 		s.workerPool.RegisterHandler(worker.NewScheduledJobHandler(s.grpcClient))
 		s.workerPool.RegisterHandler(worker.NewHealthCheckJobHandler(s.grpcClient))
@@ -111,6 +166,9 @@ func (s *Server) SetupRoutes(router *gin.Engine) {
 	router.GET("/workers", s.getWorkerStats)
 	router.POST("/workers/jobs", s.submitJob)
 
+	// Execution tracking endpoints
+	s.setupExecutionHistoryRoutes(router)
+
 	// API v1 routes
 	v1 := router.Group("/api/v1")
 	v1.Use(s.apiMiddleware())
@@ -138,8 +196,7 @@ func (s *Server) SetupRoutes(router *gin.Engine) {
 	// API documentation endpoint
 	router.GET("/api", s.serveRoot)
 
-	// 404 handler
-	router.NoRoute(s.handleNotFound)
+	// Note: NoRoute handler is registered by ModernDashboardHandler to serve SPA routes
 }
 
 // setupMiddleware configures global middleware
@@ -545,6 +602,30 @@ func (s *Server) executePlugin(c *gin.Context) {
 	}
 
 	c.JSON(statusCode, responseData)
+}
+
+// setupExecutionHistoryRoutes sets up execution history API routes
+func (s *Server) setupExecutionHistoryRoutes(router *gin.Engine) {
+	api := router.Group("/api/v1/executions")
+	api.Use(s.apiMiddleware())
+
+	// Get execution history list
+	api.GET("", s.handleGetExecutions)
+
+	// Get specific execution details
+	api.GET("/:id", s.handleGetExecution)
+
+	// Get execution statistics
+	api.GET("/stats", s.handleGetExecutionStats)
+
+	// Get plugin execution statistics
+	api.GET("/stats/:plugin", s.handleGetPluginStats)
+
+	// Cleanup old records
+	api.DELETE("/cleanup", s.handleCleanupExecutions)
+
+	// Get storage information
+	api.GET("/storage/info", s.handleGetStorageInfo)
 }
 
 // HTTPServer wraps the HTTP server for service integration

@@ -54,8 +54,8 @@ node_modules/
 package-lock.json
 
 # Frontend build outputs
-web/dist/
-web/static/
+web-nextjs/dist/
+web-nextjs/.next/
 static/
 
 # =============================================================================

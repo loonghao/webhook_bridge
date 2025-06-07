@@ -188,8 +188,9 @@ def dev(session: nox.Session) -> None:
         config_content = """# Test configuration for local webhook-bridge
 server:
   host: "127.0.0.1"
-  port: 8000
+  port: 0  # 0 = auto-assign free port
   mode: "debug"
+  auto_port: true
 
 logging:
   level: "debug"
@@ -200,8 +201,9 @@ plugins:
 
 executor:
   host: "127.0.0.1"
-  port: 50051
+  port: 0  # 0 = auto-assign free port
   timeout: 30
+  auto_port: true
 
 python:
   strategy: "auto"
@@ -220,15 +222,10 @@ dashboard:
     plugins_dir = Path("example_plugins")
     plugins_dir.mkdir(exist_ok=True)
 
-    # Open dashboard in browser
-    dashboard_url = "http://127.0.0.1:8000/dashboard"
-    session.log(f"🌐 Opening dashboard: {dashboard_url}")
-    webbrowser.open_new_tab(dashboard_url)
-
     # Start the server
     session.log("🎯 Starting webhook-bridge server...")
-    session.log("   API: http://127.0.0.1:8000")
-    session.log("   Dashboard: http://127.0.0.1:8000/dashboard")
+    session.log("   Server will auto-assign available ports")
+    session.log("   Dashboard URL will be displayed after startup")
     session.log("   Press Ctrl+C to stop")
 
     try:

@@ -24,9 +24,9 @@ This guide covers the comprehensive cleanup system for webhook-bridge developmen
 - **Package files**: `poetry.lock` (when appropriate)
 
 ### 🌐 Frontend Artifacts
-- **Build outputs**: `web/dist/`, `web/static/`, `static/`
+- **Build outputs**: `web-nextjs/dist/`, `web-nextjs/.next/`, `static/`
 - **Dependencies**: `package-lock.json` (root level)
-- **Node modules**: Preserved in `web/node_modules/`
+- **Node modules**: Preserved in `web-nextjs/node_modules/`
 
 ### 📝 Runtime Data
 - **Logs**: `logs/`, `*.log`
@@ -100,7 +100,8 @@ dist/
 !dist/python-deps/
 
 # Frontend builds
-web/dist/
+web-nextjs/dist/
+web-nextjs/.next/
 static/
 package-lock.json
 ```
@@ -201,7 +202,7 @@ uvx nox -s clean-local
 - **Configuration templates**: `config.example.yaml` preserved
 - **Documentation**: All `docs/` content preserved
 - **Python dependencies**: `dist/python-deps/` preserved
-- **Web dependencies**: `web/node_modules/` preserved
+- **Web dependencies**: `web-nextjs/node_modules/` preserved
 
 ### ⚠️ Warnings
 - Scripts show warnings for files that couldn't be removed

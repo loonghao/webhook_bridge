@@ -409,7 +409,7 @@ func (lm *PersistentLogManager) LogMiddleware() gin.HandlerFunc {
 func shouldSkipLogging(path string) bool {
 	skipPaths := []string{
 		"/assets/",
-		"/favicon.ico",
+		// "/favicon.ico", // Temporarily enable favicon logging for debugging
 		"/api/dashboard/logs/stream", // Skip WebSocket connections
 	}
 

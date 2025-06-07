@@ -18,7 +18,7 @@ services:
       - WEBHOOK_BRIDGE_PLUGINS_PATH=/app/plugins:/app/example_plugins
       - WEBHOOK_BRIDGE_LOG_PATH=/app/logs
       - WEBHOOK_BRIDGE_DATA_PATH=/app/data
-      - WEBHOOK_BRIDGE_WEB_PATH=/app/web/static/js/dist
+      - WEBHOOK_BRIDGE_WEB_PATH=/app/web-nextjs/dist
       - WEBHOOK_BRIDGE_PYTHON_PATH=/app/python_executor
       # Server configuration
       - WEBHOOK_BRIDGE_HOST=0.0.0.0

@@ -70,8 +70,8 @@ remove_safely ".nox" "Nox cache"
 echo "🌐 Cleaning frontend artifacts..."
 
 # Remove Node.js artifacts
-remove_safely "web/dist" "Frontend build output"
-remove_safely "web/static" "Frontend static files"
+remove_safely "web-nextjs/dist" "Frontend build output"
+remove_safely "web-nextjs/.next" "Next.js build cache"
 remove_safely "static" "Static files directory"
 remove_safely "package-lock.json" "Package lock file (root)"
 

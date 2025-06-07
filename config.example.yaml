@@ -251,3 +251,45 @@ webhook:
     queue:
       size: 1000
       workers: 10
+
+# Storage configuration for execution tracking
+storage:
+  type: "sqlite"  # sqlite, mysql, postgresql
+
+  sqlite:
+    database_path: "data/executions.db"
+    max_connections: 10
+    retention_days: 30
+    enable_wal: true
+    enable_foreign_keys: true
+
+  # Future support for other databases
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "webhook_bridge"
+    username: "webhook_user"
+    password: "webhook_pass"
+    max_connections: 20
+    retention_days: 90
+
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "webhook_bridge"
+    username: "webhook_user"
+    password: "webhook_pass"
+    ssl_mode: "disable"
+    max_connections: 20
+    retention_days: 90
+
+# Execution tracking configuration
+execution_tracking:
+  enabled: true
+  track_input: true
+  track_output: true
+  track_errors: true
+  max_input_size: 1048576   # 1MB
+  max_output_size: 1048576  # 1MB
+  cleanup_interval: "24h"
+  metrics_aggregation_interval: "1h"

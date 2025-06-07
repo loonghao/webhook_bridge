@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/loonghao/webhook_bridge/internal/cli"
-	_ "github.com/loonghao/webhook_bridge/web" // Import to ensure embed directives are executed
+	_ "github.com/loonghao/webhook_bridge/web-nextjs" // Import to ensure embed directives are executed
 )
 
 var (

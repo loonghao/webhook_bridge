@@ -4,7 +4,7 @@ import (
 	"html/template"
 	"net/http"
 
-	webpkg "github.com/loonghao/webhook_bridge/web"
+	webpkg "github.com/loonghao/webhook_bridge/web-nextjs"
 )
 
 // Path constants for web resources
@@ -76,9 +76,12 @@ func GetIndexTemplate() (*template.Template, error) {
 		return tmpl, nil
 	}
 
-	// Fallback to direct embedded resources from web package
-	// Use the embedded assets directly from the web package
-	tmpl, err := template.New("dashboard").Parse(webpkg.IndexHTML)
+	// Fallback to direct embedded resources from Next.js package
+	indexHTML, err := webpkg.GetIndexHTML()
+	if err != nil {
+		return nil, err
+	}
+	tmpl, err := template.New("dashboard").Parse(indexHTML)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +93,8 @@ func GetFaviconData() ([]byte, error) {
 	if Assets != nil {
 		return Assets.GetFaviconData(), nil
 	}
-	// Fallback to direct embedded resources from web package
-	return webpkg.FaviconData, nil
+	// Try to get favicon from Next.js package
+	return webpkg.GetFaviconData()
 }
 
 // GetJSFile returns the embedded JavaScript file
@@ -99,8 +102,12 @@ func GetJSFile() []byte {
 	if Assets != nil {
 		return Assets.GetJSFile()
 	}
-	// Fallback to direct embedded resources from web package
-	return webpkg.JSFile
+	// Fallback to Next.js main JS file
+	jsData, err := webpkg.GetMainJS()
+	if err != nil {
+		return []byte{}
+	}
+	return jsData
 }
 
 // GetCSSFile returns the embedded CSS file
@@ -108,6 +115,10 @@ func GetCSSFile() []byte {
 	if Assets != nil {
 		return Assets.GetCSSFile()
 	}
-	// Fallback to direct embedded resources from web package
-	return webpkg.CSSFile
+	// Fallback to Next.js main CSS file
+	cssData, err := webpkg.GetMainCSS()
+	if err != nil {
+		return []byte{}
+	}
+	return cssData
 }

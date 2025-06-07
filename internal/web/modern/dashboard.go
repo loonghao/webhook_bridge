@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -21,6 +22,7 @@ import (
 	"github.com/loonghao/webhook_bridge/internal/config"
 	"github.com/loonghao/webhook_bridge/internal/grpc"
 	"github.com/loonghao/webhook_bridge/internal/web"
+	webpkg "github.com/loonghao/webhook_bridge/web-nextjs"
 )
 
 // WebSocket upgrader with CORS support
@@ -76,30 +78,30 @@ type SystemMetricsUpdate struct {
 func NewModernDashboardHandler(cfg *config.Config) *ModernDashboardHandler {
 	// Try to use embedded template first
 	var tmpl *template.Template
-	var err error
 
-	// Try to get embedded template from web package
-	if embeddedTmpl, embeddedErr := web.GetIndexTemplate(); embeddedErr == nil && embeddedTmpl != nil {
-		tmpl = embeddedTmpl
-	} else {
-		// Fallback to file system
-		indexPaths := []string{
-			filepath.Join("web", "dist", "index.html"),
-			"web/dist/index.html",
-			filepath.Join("web", "index.html"),
-			"web/index.html",
-		}
-
-		for _, path := range indexPaths {
-			if tmpl, err = template.ParseFiles(path); err == nil {
-				break
-			}
-		}
-
-		if err != nil {
-			// Final fallback to embedded template
+	// Force use Next.js template directly
+	fmt.Printf("🔧 Loading Next.js template...\n")
+	log.Printf("🔧 Loading Next.js template...")
+	if indexHTML, htmlErr := webpkg.GetIndexHTML(); htmlErr == nil {
+		fmt.Printf("✅ Got Next.js HTML, size: %d bytes\n", len(indexHTML))
+		log.Printf("✅ Got Next.js HTML, size: %d bytes", len(indexHTML))
+		if parsedTmpl, parseErr := template.New("dashboard").Parse(indexHTML); parseErr == nil {
+			fmt.Printf("✅ Successfully parsed Next.js template\n")
+			log.Printf("✅ Successfully parsed Next.js template")
+			tmpl = parsedTmpl
+		} else {
+			fmt.Printf("❌ Failed to parse Next.js template: %v\n", parseErr)
+			log.Printf("❌ Failed to parse Next.js template: %v", parseErr)
+			fmt.Printf("⚠️ Using fallback template\n")
+			log.Printf("⚠️ Using fallback template")
 			tmpl = template.Must(template.New("dashboard").Parse(fallbackTemplate))
 		}
+	} else {
+		fmt.Printf("❌ Failed to get Next.js HTML: %v\n", htmlErr)
+		log.Printf("❌ Failed to get Next.js HTML: %v", htmlErr)
+		fmt.Printf("⚠️ Using fallback template\n")
+		log.Printf("⚠️ Using fallback template")
+		tmpl = template.Must(template.New("dashboard").Parse(fallbackTemplate))
 	}
 
 	// Initialize PersistentLogManager with configuration
@@ -197,10 +199,62 @@ func (h *ModernDashboardHandler) RegisterRoutes(router *gin.Engine) {
 
 		// Test endpoints
 		api.POST("/test-log", h.addTestLog)
+
+		// Debug endpoints
+		api.GET("/debug/filesystem", h.debugFilesystem)
+		api.GET("/debug/css-status", h.debugCSSStatus)
 	}
 
-	// Static assets - serve from embedded resources first, then fallback to filesystem
-	// Add embedded asset handlers for specific files
+	// Static assets - serve from embedded Next.js resources
+	// Handle Next.js static files (next/static/*)
+	router.GET("/next/static/*filepath", func(c *gin.Context) {
+		filepath := c.Param("filepath")
+		log.Printf("DEBUG: Static asset request for: %s", filepath)
+
+		// Get the Next.js filesystem
+		nextjsFS := webpkg.GetNextJSFS()
+
+		// Construct the full path
+		fullPath := "next/static" + filepath
+		log.Printf("DEBUG: Trying to read file: %s", fullPath)
+
+		// Try to read the file from embedded filesystem
+		if data, err := fs.ReadFile(nextjsFS, fullPath); err == nil {
+			// Determine content type based on file extension
+			var contentType string
+			if strings.HasSuffix(filepath, ".js") {
+				contentType = "application/javascript"
+			} else if strings.HasSuffix(filepath, ".css") {
+				contentType = "text/css"
+			} else if strings.HasSuffix(filepath, ".woff2") {
+				contentType = "font/woff2"
+			} else if strings.HasSuffix(filepath, ".woff") {
+				contentType = "font/woff"
+			} else {
+				contentType = "application/octet-stream"
+			}
+
+			log.Printf("DEBUG: Successfully serving %s with content-type: %s", fullPath, contentType)
+			c.Header("Content-Type", contentType)
+			c.Header("Cache-Control", "public, max-age=31536000") // 1 year cache for static assets
+			c.Data(http.StatusOK, contentType, data)
+			return
+		} else {
+			log.Printf("DEBUG: File not found: %s, error: %v", fullPath, err)
+		}
+
+		c.Status(http.StatusNotFound)
+	})
+
+	// Legacy Next.js route for backward compatibility - redirect to new path
+	router.GET("/_next/static/*filepath", func(c *gin.Context) {
+		filepath := c.Param("filepath")
+		log.Printf("DEBUG: Legacy _next route accessed, redirecting: %s", filepath)
+		// Redirect to the new path
+		c.Redirect(http.StatusMovedPermanently, "/next/static"+filepath)
+	})
+
+	// Legacy assets route for backward compatibility
 	router.GET("/assets/*filepath", func(c *gin.Context) {
 		filepath := c.Param("filepath")
 
@@ -273,6 +327,23 @@ func (h *ModernDashboardHandler) RegisterRoutes(router *gin.Engine) {
 
 // dashboard serves the main dashboard page
 func (h *ModernDashboardHandler) dashboard(c *gin.Context) {
+	fmt.Printf("🎯 Dashboard handler called for path: %s\n", c.Request.URL.Path)
+	log.Printf("🎯 Dashboard handler called for path: %s", c.Request.URL.Path)
+
+	// Force load Next.js HTML directly every time to bypass template issues
+	if indexHTML, err := webpkg.GetIndexHTML(); err == nil {
+		fmt.Printf("✅ Serving Next.js HTML directly, size: %d bytes\n", len(indexHTML))
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, indexHTML)
+		return
+	} else {
+		fmt.Printf("❌ Failed to get Next.js HTML: %v\n", err)
+		log.Printf("❌ Failed to get Next.js HTML: %v", err)
+	}
+
+	// Fallback to template if direct HTML fails
+	log.Printf("🔧 Template name: %s", h.template.Name())
+
 	data := map[string]interface{}{
 		"title":   "Webhook Bridge - Modern Dashboard",
 		"version": "2.0.0-hybrid",
@@ -281,9 +352,11 @@ func (h *ModernDashboardHandler) dashboard(c *gin.Context) {
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	if err := h.template.Execute(c.Writer, data); err != nil {
+		log.Printf("❌ Template execution error: %v", err)
 		c.String(http.StatusInternalServerError, "Error rendering template: %v", err)
 		return
 	}
+	log.Printf("✅ Template executed successfully")
 }
 
 // getStatus returns system status
@@ -1620,8 +1693,24 @@ func (h *ModernDashboardHandler) streamLogs(c *gin.Context) {
 				return
 			}
 
+			// Convert log entry to the format expected by the frontend
+			message := MonitorMessage{
+				Type:      "log_entry",
+				Timestamp: time.Now(),
+				Data: map[string]interface{}{
+					"id":          logEntry.ID,
+					"timestamp":   logEntry.Timestamp.Format(time.RFC3339),
+					"level":       strings.ToLower(logEntry.Level),
+					"message":     logEntry.Message,
+					"source":      logEntry.Source,
+					"plugin_name": logEntry.PluginName,
+					"component":   logEntry.PluginName, // For compatibility
+					"data":        logEntry.Data,
+				},
+			}
+
 			// Send log entry to client
-			if err := conn.WriteJSON(logEntry); err != nil {
+			if err := conn.WriteJSON(message); err != nil {
 				log.Printf("WebSocket write error: %v", err)
 				return
 			}
@@ -1817,3 +1906,174 @@ const fallbackTemplate = `<!DOCTYPE html>
     <script src="/static/js/modern-dashboard.js"></script>
 </body>
 </html>`
+
+// debugFilesystem returns the structure of the embedded filesystem for debugging
+func (h *ModernDashboardHandler) debugFilesystem(c *gin.Context) {
+	nextjsFS := webpkg.GetNextJSFS()
+
+	// Function to recursively list directory contents
+	var listDir func(path string, maxDepth int) map[string]interface{}
+	listDir = func(path string, maxDepth int) map[string]interface{} {
+		result := make(map[string]interface{})
+
+		if maxDepth <= 0 {
+			return result
+		}
+
+		entries, err := fs.ReadDir(nextjsFS, path)
+		if err != nil {
+			result["error"] = err.Error()
+			return result
+		}
+
+		for _, entry := range entries {
+			entryPath := path + "/" + entry.Name()
+			if path == "." || path == "" {
+				entryPath = entry.Name()
+			}
+
+			if entry.IsDir() {
+				result[entry.Name()] = map[string]interface{}{
+					"type":     "directory",
+					"contents": listDir(entryPath, maxDepth-1),
+				}
+			} else {
+				// Get file info
+				info, err := entry.Info()
+				fileInfo := map[string]interface{}{
+					"type": "file",
+					"size": 0,
+				}
+				if err == nil {
+					fileInfo["size"] = info.Size()
+					fileInfo["modified"] = info.ModTime().Format(time.RFC3339)
+				}
+				result[entry.Name()] = fileInfo
+			}
+		}
+
+		return result
+	}
+
+	// List the filesystem structure with a depth limit
+	structure := listDir(".", 4)
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success":    true,
+		"filesystem": structure,
+		"timestamp":  time.Now().Format(time.RFC3339),
+	})
+}
+
+// debugCSSStatus returns detailed CSS loading status and diagnostics
+func (h *ModernDashboardHandler) debugCSSStatus(c *gin.Context) {
+	nextjsFS := webpkg.GetNextJSFS()
+
+	// Check CSS file existence and details
+	cssInfo := make(map[string]interface{})
+
+	// Check if CSS directory exists
+	cssDir := "next/static/css"
+	if entries, err := fs.ReadDir(nextjsFS, cssDir); err == nil {
+		cssFiles := make([]map[string]interface{}, 0)
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".css") {
+				filePath := cssDir + "/" + entry.Name()
+				fileInfo := map[string]interface{}{
+					"name": entry.Name(),
+					"path": filePath,
+				}
+
+				// Try to read file info
+				if info, err := entry.Info(); err == nil {
+					fileInfo["size"] = info.Size()
+					fileInfo["modified"] = info.ModTime().Format(time.RFC3339)
+				}
+
+				// Try to read file content (first 100 chars)
+				if data, err := fs.ReadFile(nextjsFS, filePath); err == nil {
+					content := string(data)
+					if len(content) > 100 {
+						content = content[:100] + "..."
+					}
+					fileInfo["preview"] = content
+					fileInfo["readable"] = true
+				} else {
+					fileInfo["readable"] = false
+					fileInfo["error"] = err.Error()
+				}
+
+				cssFiles = append(cssFiles, fileInfo)
+			}
+		}
+		cssInfo["files"] = cssFiles
+		cssInfo["directory_accessible"] = true
+	} else {
+		cssInfo["directory_accessible"] = false
+		cssInfo["directory_error"] = err.Error()
+	}
+
+	// Check legacy directory
+	legacyCSSDir := "_next/static/css"
+	if entries, err := fs.ReadDir(nextjsFS, legacyCSSDir); err == nil {
+		cssInfo["legacy_directory_exists"] = true
+		cssInfo["legacy_file_count"] = len(entries)
+	} else {
+		cssInfo["legacy_directory_exists"] = false
+		cssInfo["legacy_error"] = err.Error()
+	}
+
+	// Test assets.go functions
+	assetsInfo := make(map[string]interface{})
+
+	// Test GetMainCSS
+	if cssData, err := webpkg.GetMainCSS(); err == nil {
+		assetsInfo["get_main_css"] = map[string]interface{}{
+			"success": true,
+			"size":    len(cssData),
+			"preview": string(cssData[:min(100, len(cssData))]) + "...",
+		}
+	} else {
+		assetsInfo["get_main_css"] = map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}
+	}
+
+	// Test GetIndexHTML
+	if htmlData, err := webpkg.GetIndexHTML(); err == nil {
+		// Look for CSS references in HTML
+		cssRefs := []string{}
+		lines := strings.Split(htmlData, "\n")
+		for _, line := range lines {
+			if strings.Contains(line, ".css") {
+				cssRefs = append(cssRefs, strings.TrimSpace(line))
+			}
+		}
+		assetsInfo["get_index_html"] = map[string]interface{}{
+			"success":        true,
+			"size":           len(htmlData),
+			"css_references": cssRefs,
+		}
+	} else {
+		assetsInfo["get_index_html"] = map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}
+	}
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success":     true,
+		"css_info":    cssInfo,
+		"assets_info": assetsInfo,
+		"timestamp":   time.Now().Format(time.RFC3339),
+	})
+}
+
+// Helper function for min
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
