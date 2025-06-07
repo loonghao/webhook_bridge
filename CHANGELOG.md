@@ -1,3 +1,26 @@
+## v2.2.0 (2025-06-01)
+
+### Feat
+
+- optimize CI test flow and timeout settings
+- enhance container startup detection and error diagnostics
+- resolve Go version mismatch issues and optimize CI/CD pipeline
+- update architecture flowchart to reflect hybrid Go/Python design
+- enhance GoReleaser and Docker deployment
+
+### Fix
+
+- synchronize Python executor port configuration
+- improve Docker entrypoint configuration path logic
+- add docker-entrypoint.sh to GoReleaser extra_files
+- standardize Go version configuration across all CI workflows
+- resolve Go version mismatch in CI environments
+- resolve CI docker-compose and protobuf generation issues
+- improve Docker Python environment setup for reliable builds
+- resolve Docker build Go version mismatch
+- resolve documentation build issues and Go module dependencies
+- add protoc installation to Docker test workflows
+
 ## v2.1.0 (2025-06-01)
 
 ### Feat
