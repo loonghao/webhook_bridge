@@ -87,7 +87,7 @@ COPY api/ api/
 COPY example_plugins/ example_plugins/
 
 # Copy dashboard files
-COPY web/static/js/dist/ web/static/js/dist/
+COPY web-nextjs/dist/ web-nextjs/dist/
 
 # Copy configuration and entrypoint script
 COPY config.yaml ./
@@ -104,7 +104,7 @@ ENV WEBHOOK_BRIDGE_CONFIG_PATH="/app/config"
 ENV WEBHOOK_BRIDGE_PLUGINS_PATH="/app/plugins:/app/example_plugins"
 ENV WEBHOOK_BRIDGE_LOG_PATH="/app/logs"
 ENV WEBHOOK_BRIDGE_DATA_PATH="/app/data"
-ENV WEBHOOK_BRIDGE_WEB_PATH="/app/web/static/js/dist"
+ENV WEBHOOK_BRIDGE_WEB_PATH="/app/web-nextjs/dist"
 ENV WEBHOOK_BRIDGE_PYTHON_PATH="/app/python_executor"
 
 # Create non-root user

@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 215 20.2% 65.1%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 222.2 84% 4.9%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215.4 16.3% 56.9%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --ring: 216 34% 17%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom styles for modern dashboard */
+.modern-sidebar {
+  background: linear-gradient(to bottom, #0f172a, #1e293b, #334155);
+  border-right: 1px solid #475569;
+}
+
+.modern-sidebar-header {
+  background: linear-gradient(to right, #2563eb, #7c3aed);
+  color: white;
+}
+
+.modern-sidebar-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  color: #cbd5e1;
+}
+
+.modern-sidebar-nav-item:hover {
+  color: white;
+  background-color: rgba(51, 65, 85, 0.5);
+}
+
+.modern-sidebar-nav-item.active {
+  background: linear-gradient(to right, rgba(37, 99, 235, 0.2), rgba(124, 58, 237, 0.2));
+  color: white;
+  border-right: 2px solid #3b82f6;
+}
+
+.modern-header {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dark .modern-header {
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom: 1px solid #334155;
+}
+
+.modern-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+}
+
+.dark .modern-card {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid #334155;
+}
+
+.modern-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.modern-stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.modern-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+}
+
+.modern-stat-card.blue::before {
+  background: linear-gradient(to right, #3b82f6, #8b5cf6);
+}
+
+.modern-stat-card.green::before {
+  background: linear-gradient(to right, #10b981, #059669);
+}
+
+.modern-stat-card.purple::before {
+  background: linear-gradient(to right, #8b5cf6, #a855f7);
+}
+
+.modern-stat-card.orange::before {
+  background: linear-gradient(to right, #f59e0b, #ef4444);
+}
+
+.modern-button {
+  background: linear-gradient(to right, #2563eb, #7c3aed);
+  color: white;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.modern-button:hover {
+  background: linear-gradient(to right, #1d4ed8, #6d28d9);
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.25);
+}
+
+.modern-glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+
+
+

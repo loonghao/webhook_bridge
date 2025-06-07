@@ -28,8 +28,8 @@ func NewServeCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringP("env", "e", "dev", "Environment (dev, prod)")
-	cmd.Flags().String("port", "8000", "Server port")
-	cmd.Flags().String("executor-port", "50051", "Python executor port")
+	cmd.Flags().String("port", "0", "Server port (0 = auto-assign)")
+	cmd.Flags().String("executor-port", "0", "Python executor port (0 = auto-assign)")
 	cmd.Flags().String("config", "", "Configuration file path")
 
 	return cmd
@@ -53,6 +53,11 @@ func runServe(cmd *cobra.Command, args []string) error {
 	cfg, err := loadConfiguration(configPath, env, port, executorPort, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	// Assign ports automatically if needed
+	if err := cfg.AssignPorts(); err != nil {
+		return fmt.Errorf("failed to assign ports: %w", err)
 	}
 
 	// Validate configuration
@@ -100,9 +105,9 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// Start server in a goroutine
 	go func() {
 		fmt.Printf("🚀 Webhook bridge server started successfully on %s\n", httpServer.Addr)
-		fmt.Printf("🌐 Dashboard: http://localhost:%s/dashboard\n", port)
-		fmt.Printf("📊 API: http://localhost:%s/api/v1\n", port)
-		fmt.Printf("❤️  Health: http://localhost:%s/health\n", port)
+		fmt.Printf("🌐 Dashboard: http://localhost:%d/dashboard\n", cfg.Server.Port)
+		fmt.Printf("📊 API: http://localhost:%d/api/v1\n", cfg.Server.Port)
+		fmt.Printf("❤️  Health: http://localhost:%d/health\n", cfg.Server.Port)
 
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
@@ -159,7 +164,7 @@ func loadConfiguration(configPath, env, port, executorPort string, verbose bool)
 	}
 
 	// Override with command line parameters
-	if port != "" {
+	if port != "" && port != "0" {
 		if verbose {
 			fmt.Printf("🔧 Overriding server port: %s\n", port)
 		}
@@ -167,9 +172,15 @@ func loadConfiguration(configPath, env, port, executorPort string, verbose bool)
 			cfg.Server.Port = portInt
 			cfg.Server.AutoPort = false
 		}
+	} else if port == "0" {
+		if verbose {
+			fmt.Printf("🔧 Enabling auto-port assignment for server\n")
+		}
+		cfg.Server.Port = 0
+		cfg.Server.AutoPort = true
 	}
 
-	if executorPort != "" {
+	if executorPort != "" && executorPort != "0" {
 		if verbose {
 			fmt.Printf("🔧 Overriding executor port: %s\n", executorPort)
 		}
@@ -177,6 +188,12 @@ func loadConfiguration(configPath, env, port, executorPort string, verbose bool)
 			cfg.Executor.Port = portInt
 			cfg.Executor.AutoPort = false
 		}
+	} else if executorPort == "0" {
+		if verbose {
+			fmt.Printf("🔧 Enabling auto-port assignment for executor\n")
+		}
+		cfg.Executor.Port = 0
+		cfg.Executor.AutoPort = true
 	}
 
 	// Set environment-specific defaults

@@ -31,7 +31,7 @@ class WebhookBridgeManager:
         self.verbose = verbose
         self.config_path = config_path
         self.install_dir = self._get_install_dir()
-        self.binary_path = self.install_dir / self._get_binary_name()
+        self.binary_path = self._find_binary_path()
 
     def _get_install_dir(self) -> Path:
         """Get the installation directory."""
@@ -48,6 +48,34 @@ class WebhookBridgeManager:
         if os.name == "nt":
             return f"{self.BINARY_NAME}.exe"
         return self.BINARY_NAME
+
+    def _find_binary_path(self) -> Path:
+        """Find the binary path, checking multiple locations."""
+        binary_name = self._get_binary_name()
+
+        # 1. Check current working directory (for local development)
+        local_binary = Path.cwd() / binary_name
+        if local_binary.exists():
+            self._log(f"Found local binary: {local_binary}")
+            return local_binary
+
+        # 2. Check if binary is in the same directory as this Python package
+        package_dir = Path(__file__).parent.parent
+        package_binary = package_dir / binary_name
+        if package_binary.exists():
+            self._log(f"Found package binary: {package_binary}")
+            return package_binary
+
+        # 3. Check system PATH
+        system_binary = shutil.which(binary_name)
+        if system_binary:
+            self._log(f"Found system binary: {system_binary}")
+            return Path(system_binary)
+
+        # 4. Fall back to installation directory
+        install_binary = self.install_dir / binary_name
+        self._log(f"Using install directory: {install_binary}")
+        return install_binary
 
     def _get_platform_info(self) -> tuple[str, str]:
         """Get platform and architecture information."""
@@ -184,7 +212,11 @@ class WebhookBridgeManager:
     def run(self, port: int = 8000, host: str = "0.0.0.0", daemon: bool = False) -> int:
         """Run the webhook bridge server."""
         if not self.binary_path.exists():
-            print("❌ Webhook bridge is not installed. Run 'webhook-bridge install' first.")
+            print(f"❌ Webhook bridge binary not found at: {self.binary_path}")
+            print("   Available options:")
+            print("   1. Run 'webhook-bridge install' to download the binary")
+            print("   2. Build locally with 'uvx nox -s build-local'")
+            print("   3. Ensure binary is in PATH or current directory")
             return 1
 
         cmd = [str(self.binary_path)]
@@ -193,7 +225,10 @@ class WebhookBridgeManager:
         if self.config_path:
             cmd.extend(["--config", str(self.config_path)])
 
-        # Set environment variables for host and port
+        # Add host and port arguments
+        cmd.extend(["--host", host, "--port", str(port)])
+
+        # Set environment variables as backup
         env = os.environ.copy()
         env["WEBHOOK_BRIDGE_HOST"] = host
         env["WEBHOOK_BRIDGE_PORT"] = str(port)
@@ -206,6 +241,7 @@ class WebhookBridgeManager:
                 return 0
             else:
                 print(f"🚀 Starting webhook bridge server on {host}:{port}")
+                print(f"   Binary: {self.binary_path}")
                 print("   Press Ctrl+C to stop")
                 return subprocess.run(cmd, env=env, check=False).returncode
 

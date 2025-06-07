@@ -301,6 +301,9 @@ jobs:
           api/proto/webhook.proto
         # Generate Python protobuf code
         python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. api/proto/webhook.proto
+        # Create necessary __init__.py files for Python package structure
+        echo '"""API package for webhook bridge."""' > api/__init__.py
+        echo '"""Protocol buffer definitions for webhook bridge."""' > api/proto/__init__.py
         
     - name: Download Linux binary
       uses: actions/download-artifact@v4

@@ -1,35 +1,31 @@
+# =============================================================================
+# Python
+# =============================================================================
+
 # Byte-compiled / optimized / DLL files
 *.py[cod]
 __pycache__/
 *.so
-
-# PyCharm project files
-.idea/
-
-# Vim / Notepad++ temp files
-*~
 *.egg-info
 
-# PyInstaller output
-build/
-dist/
-*.spec
-
-# PyBuilder output
-.build/
-result/
-
-# Coverage output
-.coverage
+# Virtual environments
 /venv/
 .venv/
+.env
 
-# Docs
-docs/_build/
-site/
-/run_pycharm.bat
-/coverage.xml
-/plugins/
+# Python testing and coverage
+.coverage
+coverage.xml
+.pytest_cache
+.ruff_cache
+.nox/
+
+# Python package management
+poetry.lock
+
+# =============================================================================
+# Go
+# =============================================================================
 
 # Go build artifacts
 *.exe
@@ -40,16 +36,52 @@ site/
 *.test
 coverage.out
 coverage.html
-build/
 
-# Protocol Buffer generated files
+# Go build directories
+build/
+dist/
+!dist/python-deps/
+
+# Go module cache
+go.sum
+
+# =============================================================================
+# Node.js / Frontend
+# =============================================================================
+
+# Node.js dependencies
+node_modules/
+package-lock.json
+
+# Frontend build outputs
+web-nextjs/dist/
+web-nextjs/.next/
+static/
+
+# =============================================================================
+# Protocol Buffers
+# =============================================================================
+
+# Generated protobuf files
 *.pb.go
 *_grpc.pb.go
 *_pb2.py
 *_pb2_grpc.py
 
-# Node.js dependencies (if any)
-node_modules/
+# =============================================================================
+# Development and Testing
+# =============================================================================
+
+# Test configuration files
+config.test.yaml
+config.quick.yaml
+config.dev.yaml
+config.local.yaml
+
+# Runtime directories
+logs/
+data/
+plugins/
 
 # Temporary files
 *.tmp
@@ -57,31 +89,101 @@ node_modules/
 *.log
 *.pid
 
-# OS generated files
+# Security scan results
+*.sarif
+gosec.sarif
+
+# =============================================================================
+# IDE and Editor
+# =============================================================================
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Vim / Neovim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# =============================================================================
+# OS Generated Files
+# =============================================================================
+
+# macOS
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
+
+# Windows
 ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# IDE files
-*.swp
-*.swo
+# Linux
 *~
+
+# =============================================================================
+# Environment and Configuration
+# =============================================================================
 
 # Environment files
 .env
 .env.local
 .env.*.local
 
-
 # Task management system
 .shrimp-config.json
 
-#
-.ruff_cache
-.pytest_cache
-__pycache__
-.nox
+# Local configuration overrides
+config.local.*
+
+# =============================================================================
+# Documentation
+# =============================================================================
+
+# Documentation build outputs
+docs/_build/
+site/
+
+# =============================================================================
+# Deployment and CI/CD
+# =============================================================================
+
+# Docker
+.dockerignore
+
+# Kubernetes
+*.kubeconfig
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# =============================================================================
+# Miscellaneous
+# =============================================================================
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Archive files (unless specifically needed)
+*.tar.gz
+*.zip
+*.7z
+
+# Large files that shouldn't be in git
+*.iso
+*.dmg

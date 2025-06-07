@@ -15,13 +15,36 @@ import (
 
 // Client represents a gRPC client for communicating with Python executor
 type Client struct {
-	config     *config.ExecutorConfig
-	conn       *grpc.ClientConn
-	client     proto.WebhookExecutorClient
-	timeout    time.Duration
-	connected  bool
-	retryCount int
-	maxRetries int
+	config       *config.ExecutorConfig
+	conn         *grpc.ClientConn
+	client       proto.WebhookExecutorClient
+	timeout      time.Duration
+	connected    bool
+	retryCount   int
+	maxRetries   int
+	logManager   LogManager   // Interface for logging
+	statsManager StatsManager // Interface for statistics
+}
+
+// LogManager interface for plugin execution logging
+type LogManager interface {
+	AddLog(entry LogEntry)
+}
+
+// StatsManager interface for plugin execution statistics
+type StatsManager interface {
+	RecordExecution(plugin, method string, startTime time.Time)
+	RecordError(plugin, method string)
+}
+
+// LogEntry represents a log entry (simplified interface)
+type LogEntry struct {
+	Timestamp  time.Time
+	Level      string
+	Source     string
+	Message    string
+	PluginName string
+	Data       map[string]interface{}
 }
 
 // NewClient creates a new gRPC client
@@ -33,6 +56,16 @@ func NewClient(cfg *config.ExecutorConfig) *Client {
 		retryCount: 0,
 		maxRetries: 3,
 	}
+}
+
+// SetLogManager sets the log manager for plugin execution logging
+func (c *Client) SetLogManager(logManager LogManager) {
+	c.logManager = logManager
+}
+
+// SetStatsManager sets the stats manager for plugin execution statistics
+func (c *Client) SetStatsManager(statsManager StatsManager) {
+	c.statsManager = statsManager
 }
 
 // Connect establishes connection to the Python executor service
@@ -92,9 +125,31 @@ func (c *Client) Reconnect() error {
 	return c.Connect()
 }
 
-// ExecutePlugin executes a plugin via gRPC with retry logic
+// ExecutePlugin executes a plugin via gRPC with retry logic and logging/stats
 func (c *Client) ExecutePlugin(ctx context.Context, req *proto.ExecutePluginRequest) (*proto.ExecutePluginResponse, error) {
-	return c.executeWithRetry(func() (interface{}, error) {
+	// Record execution start time for statistics
+	startTime := time.Now()
+	pluginName := req.PluginName
+	method := req.HttpMethod
+
+	// Log execution start
+	if c.logManager != nil {
+		c.logManager.AddLog(LogEntry{
+			Timestamp:  startTime,
+			Level:      "INFO",
+			Source:     "grpc_client",
+			Message:    fmt.Sprintf("Starting plugin execution: %s [%s]", pluginName, method),
+			PluginName: pluginName,
+			Data: map[string]interface{}{
+				"method":      method,
+				"plugin_name": pluginName,
+				"request_id":  fmt.Sprintf("%d", startTime.UnixNano()),
+			},
+		})
+	}
+
+	// Execute plugin with retry logic
+	resp, err := c.executeWithRetry(func() (interface{}, error) {
 		if c.client == nil {
 			return nil, fmt.Errorf("gRPC client not connected")
 		}
@@ -105,6 +160,53 @@ func (c *Client) ExecutePlugin(ctx context.Context, req *proto.ExecutePluginRequ
 
 		return c.client.ExecutePlugin(ctx, req)
 	})
+
+	// Record execution statistics
+	if c.statsManager != nil {
+		c.statsManager.RecordExecution(pluginName, method, startTime)
+		if err != nil || (resp != nil && resp.StatusCode >= 400) {
+			c.statsManager.RecordError(pluginName, method)
+		}
+	}
+
+	// Log execution result
+	if c.logManager != nil {
+		executionTime := time.Since(startTime)
+		logLevel := "INFO"
+		logMessage := fmt.Sprintf("Plugin execution completed: %s [%s] in %v", pluginName, method, executionTime)
+
+		logData := map[string]interface{}{
+			"method":         method,
+			"plugin_name":    pluginName,
+			"execution_time": executionTime.String(),
+			"request_id":     fmt.Sprintf("%d", startTime.UnixNano()),
+		}
+
+		if err != nil {
+			logLevel = "ERROR"
+			logMessage = fmt.Sprintf("Plugin execution failed: %s [%s] - %v", pluginName, method, err)
+			logData["error"] = err.Error()
+		} else if resp != nil {
+			logData["status_code"] = resp.StatusCode
+			logData["response_message"] = resp.Message
+
+			if resp.StatusCode >= 400 {
+				logLevel = "WARN"
+				logMessage = fmt.Sprintf("Plugin execution returned error status: %s [%s] - %d", pluginName, method, resp.StatusCode)
+			}
+		}
+
+		c.logManager.AddLog(LogEntry{
+			Timestamp:  time.Now(),
+			Level:      logLevel,
+			Source:     "grpc_client",
+			Message:    logMessage,
+			PluginName: pluginName,
+			Data:       logData,
+		})
+	}
+
+	return resp, err
 }
 
 // executeWithRetry executes a gRPC call with automatic retry on connection failures

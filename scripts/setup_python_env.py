@@ -6,11 +6,13 @@ This script ensures that the Python environment is properly configured
 for running the Python executor.
 """
 
-import os
-import sys
-import subprocess
+# Import built-in modules
 import logging
+import os
 from pathlib import Path
+import subprocess
+import sys
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -56,6 +58,7 @@ def install_requirements():
 def check_grpc_installation():
     """Check if gRPC is properly installed."""
     try:
+        # Import third-party modules
         import grpc
         logger.info(f"gRPC version: {grpc.__version__}")
         return True
@@ -71,6 +74,7 @@ def check_webhook_bridge_module():
         if str(current_dir) not in sys.path:
             sys.path.insert(0, str(current_dir))
         
+        # Import local modules
         from webhook_bridge.filesystem import get_plugins
         from webhook_bridge.plugin import BasePlugin
         logger.info("webhook_bridge module imported successfully")

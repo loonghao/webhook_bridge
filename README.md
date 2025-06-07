@@ -273,7 +273,7 @@ logging:
 
 dashboard:
   enabled: true
-  path: "/web/static/js/dist"
+  path: "/web-nextjs/dist"
 ```
 
 ### Command Line Options
@@ -606,9 +606,9 @@ webhook_bridge/
 │   └── web/              # Web dashboard handlers
 ├── python_executor/       # Python gRPC server
 ├── webhook_bridge/        # Python package (legacy compatibility)
-├── web/                   # React dashboard
-│   ├── src/              # React source code
-│   └── static/js/dist/   # Built dashboard assets
+├── web-nextjs/            # Next.js dashboard
+│   ├── app/              # Next.js App Router pages
+│   └── dist/             # Built dashboard assets
 ├── example_plugins/       # Example Python plugins
 ├── api/proto/            # Protocol buffer definitions
 ├── docs/                 # Documentation
