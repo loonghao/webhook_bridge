@@ -245,7 +245,8 @@ func generateProto() {
 	}
 
 	// Check if protobuf files already exist and are newer than source
-	if fileExists("api/proto/webhook.pb.go") && fileExists("api/proto/webhook_grpc.pb.go") {
+	if fileExists("api/proto/webhook.pb.go") && fileExists("api/proto/webhook_grpc.pb.go") &&
+		fileExists("api/proto/webhook_pb2.py") && fileExists("api/proto/webhook_pb2_grpc.py") {
 		fmt.Println("✅ Protobuf files already exist and are up to date")
 		return
 	}
@@ -263,6 +264,7 @@ func generateProto() {
 	}
 
 	// Generate Go protobuf files
+	fmt.Println("Generating Go protobuf files...")
 	cmd := exec.Command("protoc",
 		"--go_out=.", "--go_opt=paths=source_relative",
 		"--go-grpc_out=.", "--go-grpc_opt=paths=source_relative",
@@ -275,6 +277,33 @@ func generateProto() {
 		fmt.Printf("Error generating Go protobuf: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Generate Python protobuf files
+	fmt.Println("Generating Python protobuf files...")
+	pythonCmd := exec.Command("python", "-m", "grpc_tools.protoc",
+		"-I.", "--python_out=.", "--grpc_python_out=.",
+		"api/proto/webhook.proto")
+
+	pythonCmd.Stdout = os.Stdout
+	pythonCmd.Stderr = os.Stderr
+
+	if err := pythonCmd.Run(); err != nil {
+		fmt.Printf("Warning: Failed to generate Python protobuf files: %v\n", err)
+		fmt.Println("This is optional for Go-only builds, but required for Python executor")
+	} else {
+		fmt.Println("✅ Python protobuf files generated successfully")
+	}
+
+	// Create necessary __init__.py files for Python package structure
+	fmt.Println("Creating Python package structure...")
+	createInitFile := func(path, content string) {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			fmt.Printf("Warning: Failed to create %s: %v\n", path, err)
+		}
+	}
+
+	createInitFile("api/__init__.py", `"""API package for webhook bridge."""`)
+	createInitFile("api/proto/__init__.py", `"""Protocol buffer definitions for webhook bridge."""`)
 
 	fmt.Println("✅ Protobuf files generated successfully")
 }
@@ -549,7 +578,13 @@ func checkGoMod() bool {
 }
 
 func checkProtobuf() bool {
-	return fileExists("api/proto/webhook.proto")
+	return fileExists("api/proto/webhook.proto") &&
+		fileExists("api/proto/webhook.pb.go") &&
+		fileExists("api/proto/webhook_grpc.pb.go") &&
+		fileExists("api/proto/webhook_pb2.py") &&
+		fileExists("api/proto/webhook_pb2_grpc.py") &&
+		fileExists("api/__init__.py") &&
+		fileExists("api/proto/__init__.py")
 }
 
 func checkTools() bool {

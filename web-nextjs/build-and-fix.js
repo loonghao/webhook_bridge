@@ -16,12 +16,29 @@ if (fs.existsSync(nextDir)) {
     // Remove existing next directory if it exists
     if (fs.existsSync(newNextDir)) {
         console.log('🗑️  Removing existing next directory...');
-        fs.rmSync(newNextDir, { recursive: true, force: true });
+        try {
+            fs.rmSync(newNextDir, { recursive: true, force: true });
+        } catch (err) {
+            console.log(`⚠️  Warning: Could not remove existing next directory: ${err.message}`);
+            // Try to continue anyway
+        }
     }
-    
-    // Rename _next to next
-    fs.renameSync(nextDir, newNextDir);
-    console.log('✅ Successfully renamed _next to next');
+
+    // Copy _next to next (more reliable on Windows than rename)
+    try {
+        console.log('📁 Copying _next directory to next...');
+        fs.cpSync(nextDir, newNextDir, { recursive: true });
+        console.log('✅ Successfully copied _next to next');
+
+        // Remove the original _next directory
+        console.log('🗑️  Removing original _next directory...');
+        fs.rmSync(nextDir, { recursive: true, force: true });
+        console.log('✅ Successfully removed original _next directory');
+    } catch (err) {
+        console.log(`❌ Failed to copy/rename _next directory: ${err.message}`);
+        console.log('💡 This might be due to file locks on Windows. Try closing any file explorers or editors that might be accessing the dist directory.');
+        process.exit(1);
+    }
     
     // Update HTML files to use new path
     console.log('🔄 Updating HTML files to use new paths...');
