@@ -8,7 +8,8 @@ import { Layout } from '@/components/Layout'
 import { apiClient } from '@/services/api'
 import { monitorWebSocket } from '@/services/websocket'
 import { checkBridgeHealth, getBridgeHealthScore, getBridgeConnectionSummary, BridgeStatus } from '@/lib/bridgeStatus'
-import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Wifi } from 'lucide-react'
+import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Wifi, Brain, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 
 interface TestResult {
   name: string
@@ -174,11 +175,20 @@ export default function DebugPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Debug & Integration Test</h1>
-          <p className="text-muted-foreground">
-            Test API connectivity and data transformation
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Debug & Integration Test</h1>
+            <p className="text-muted-foreground">
+              Test API connectivity and data transformation
+            </p>
+          </div>
+          <Link href="/debug/stagewise">
+            <Button variant="outline" className="flex items-center space-x-2">
+              <Brain className="h-4 w-4" />
+              <span>AI Stagewise Debug</span>
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </Link>
         </div>
 
         {/* Environment Info */}

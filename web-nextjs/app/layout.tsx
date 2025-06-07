@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { StagewiseProvider } from '@/components/StagewiseProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,9 +18,16 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} bg-background text-foreground antialiased`}>
-        <div id="root">
-          {children}
-        </div>
+        <StagewiseProvider config={{
+          captureConsole: true,
+          captureNetwork: true,
+          enablePerformanceMetrics: true,
+          maxLogEntries: 1000
+        }}>
+          <div id="root">
+            {children}
+          </div>
+        </StagewiseProvider>
       </body>
     </html>
   )
