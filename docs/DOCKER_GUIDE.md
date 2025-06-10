@@ -28,7 +28,7 @@ This guide explains how to deploy webhook-bridge using Docker and Docker Compose
    ```
 
 5. **Access the dashboard**:
-   Open http://localhost:8000 in your browser
+   Open http://localhost:8080 in your browser
 
 ### Using Docker directly
 
@@ -42,7 +42,7 @@ mkdir -p config plugins logs data
 # Run the container
 docker run -d \
   --name webhook-bridge \
-  -p 8000:8000 \
+  -p 8080:8080 \
   -p 50051:50051 \
   -v $(pwd)/config:/app/config \
   -v $(pwd)/plugins:/app/plugins \
@@ -86,7 +86,7 @@ The Docker container expects the following directory structure:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `WEBHOOK_BRIDGE_HOST` | Server bind address | `0.0.0.0` |
-| `WEBHOOK_BRIDGE_PORT` | HTTP server port | `8000` |
+| `WEBHOOK_BRIDGE_PORT` | HTTP server port | `8080` |
 | `WEBHOOK_BRIDGE_GRPC_PORT` | gRPC server port | `50051` |
 | `WEBHOOK_BRIDGE_MODE` | Server mode (debug/release) | `release` |
 
@@ -129,7 +129,7 @@ The container includes built-in health checks:
 docker ps
 
 # Manual health check
-docker exec webhook-bridge wget --no-verbose --tries=1 --spider http://localhost:8000/health
+docker exec webhook-bridge wget --no-verbose --tries=1 --spider http://localhost:8080/health
 ```
 
 ## 📊 Monitoring and Logs
@@ -147,9 +147,9 @@ docker logs -f webhook-bridge
 ```
 
 ### Access metrics
-- Health endpoint: http://localhost:8000/health
-- Dashboard: http://localhost:8000/
-- API endpoints: http://localhost:8000/api/
+- Health endpoint: http://localhost:8080/health
+- Dashboard: http://localhost:8080/
+- API endpoints: http://localhost:8080/api/
 
 ## 🔧 Configuration Examples
 
@@ -160,7 +160,7 @@ Create `config/webhook-bridge.yaml`:
 ```yaml
 server:
   host: "0.0.0.0"
-  port: 8000
+  port: 8080
   mode: "release"
 
 logging:
@@ -182,7 +182,7 @@ python:
 ```yaml
 server:
   host: "0.0.0.0"
-  port: 8000
+  port: 8080
   mode: "release"
 
 database:
@@ -214,7 +214,7 @@ services:
   webhook-bridge:
     image: ghcr.io/loonghao/webhook-bridge:latest
     ports:
-      - "8000:8000"
+      - "8080:8080"
       - "50051:50051"
     volumes:
       - webhook_config:/app/config
@@ -261,7 +261,7 @@ spec:
       - name: webhook-bridge
         image: ghcr.io/loonghao/webhook-bridge:latest
         ports:
-        - containerPort: 8000
+        - containerPort: 8080
         - containerPort: 50051
         env:
         - name: WEBHOOK_BRIDGE_MODE
@@ -312,7 +312,7 @@ spec:
 3. **Port conflicts**:
    ```bash
    # Use different ports
-   docker run -p 8080:8000 -p 50052:50051 ...
+   docker run -p 8081:8080 -p 50052:50051 ...
    ```
 
 4. **Plugin not found**:
@@ -330,7 +330,7 @@ Run container in debug mode:
 
 ```bash
 docker run -it --rm \
-  -p 8000:8000 \
+  -p 8080:8080 \
   -p 50051:50051 \
   -v $(pwd)/config:/app/config \
   -e WEBHOOK_BRIDGE_MODE=debug \

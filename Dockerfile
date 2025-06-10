@@ -16,7 +16,6 @@ RUN go mod download
 COPY cmd/ cmd/
 COPY internal/ internal/
 COPY api/ api/
-COPY pkg/ pkg/
 
 # Build the unified application
 ARG VERSION=2.0.0-unified
@@ -24,9 +23,9 @@ ARG GIT_COMMIT=unknown
 ARG BUILD_DATE=unknown
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags "-X github.com/loonghao/webhook_bridge/pkg/version.Version=${VERSION} \
-              -X github.com/loonghao/webhook_bridge/pkg/version.GitCommit=${GIT_COMMIT} \
-              -X github.com/loonghao/webhook_bridge/pkg/version.BuildDate=${BUILD_DATE}" \
+    -ldflags "-X main.version=${VERSION} \
+              -X main.buildTime=${BUILD_DATE} \
+              -X main.goVersion=$(go version | cut -d' ' -f3)" \
     -o webhook-bridge ./cmd/webhook-bridge
 
 # Stage 2: Python environment
@@ -81,7 +80,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY --from=go-builder /app/webhook-bridge /usr/local/bin/
 
 # Copy Python source code
-COPY webhook_bridge/ webhook_bridge/
 COPY python_executor/ python_executor/
 COPY api/ api/
 COPY example_plugins/ example_plugins/
@@ -124,6 +122,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 VOLUME ["/app/config", "/app/plugins", "/app/logs", "/app/data"]
 
 # Default command (can be overridden)
-# Use unified service to automatically manage Python executor and Go server
+# Use start command to automatically manage Python executor and Go server
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["webhook-bridge", "unified"]
+CMD ["webhook-bridge", "start"]

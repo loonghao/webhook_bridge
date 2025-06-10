@@ -340,10 +340,10 @@ start_go_server() {
     fi
 
     log "✅ All pre-startup checks passed, starting Go server..."
-    log "🚀 Executing: webhook-bridge server --config $CONFIG_FILE"
+    log "🚀 Executing: webhook-bridge serve --config $CONFIG_FILE"
 
     # Start Go server (this will block)
-    exec webhook-bridge server --config "$CONFIG_FILE"
+    exec webhook-bridge serve --config "$CONFIG_FILE"
 }
 
 # Function to handle shutdown
@@ -400,8 +400,8 @@ display_startup_info() {
 # Main execution
 display_startup_info "$@"
 
-# Check if we should use unified service or legacy mode
-if [ "$1" = "webhook-bridge" ] && [ "$2" = "unified" ]; then
+# Check if we should use start command or legacy mode
+if [ "$1" = "webhook-bridge" ] && [ "$2" = "start" ]; then
     log "🚀 Starting unified service mode..."
 
     # Validate initial configuration
@@ -421,8 +421,8 @@ if [ "$1" = "webhook-bridge" ] && [ "$2" = "unified" ]; then
     fi
 
     # Start unified service (this will block and manage everything)
-    log "🚀 Executing unified service: webhook-bridge unified --config $CONFIG_FILE"
-    exec webhook-bridge unified --config "$CONFIG_FILE"
+    log "🚀 Executing unified service: webhook-bridge start --config $CONFIG_FILE"
+    exec webhook-bridge start --config "$CONFIG_FILE"
 
 elif [ "$1" = "webhook-bridge" ]; then
     log "🚀 Starting webhook-bridge with custom command: $*"

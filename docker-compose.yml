@@ -10,7 +10,7 @@ services:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
         BUILD_DATE: ${BUILD_DATE:-unknown}
     ports:
-      - "8000:8000"   # Go HTTP server
+      - "8080:8080"   # Unified HTTP server
       - "50051:50051" # Python gRPC server
     environment:
       # Core configuration
@@ -22,7 +22,7 @@ services:
       - WEBHOOK_BRIDGE_PYTHON_PATH=/app/python_executor
       # Server configuration
       - WEBHOOK_BRIDGE_HOST=0.0.0.0
-      - WEBHOOK_BRIDGE_PORT=8000
+      - WEBHOOK_BRIDGE_PORT=8080
       - WEBHOOK_BRIDGE_MODE=release
       # Python configuration
       - PYTHONPATH=/app
@@ -39,7 +39,7 @@ services:
       - ./config.yaml:/app/config.yaml:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -51,22 +51,18 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8080:8080"
       - "50051:50051"
     environment:
       - WEBHOOK_BRIDGE_HOST=0.0.0.0
-      - WEBHOOK_BRIDGE_PORT=8000
+      - WEBHOOK_BRIDGE_PORT=8080
       - WEBHOOK_BRIDGE_MODE=debug
     volumes:
       - .:/app
       - ./config.yaml:/app/config.yaml
     profiles:
       - dev
-    command: >
-      sh -c "
-        python python_executor/main.py --log-level DEBUG &
-        webhook-bridge-server
-      "
+    command: ["webhook-bridge", "start", "--mode", "debug", "--verbose"]
 
   # Separate services for development
   python-executor:
@@ -88,10 +84,10 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8080:8080"
     environment:
       - WEBHOOK_BRIDGE_HOST=0.0.0.0
-      - WEBHOOK_BRIDGE_PORT=8000
+      - WEBHOOK_BRIDGE_PORT=8080
       - WEBHOOK_BRIDGE_MODE=debug
     volumes:
       - ./config.yaml:/app/config.yaml
@@ -99,7 +95,7 @@ services:
       - dev-separate
     depends_on:
       - python-executor
-    command: webhook-bridge-server
+    command: ["webhook-bridge", "serve", "--mode", "debug"]
 
   # Optional: Redis for caching (if needed)
   redis:
