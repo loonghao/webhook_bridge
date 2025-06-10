@@ -82,14 +82,14 @@ export function useStagewise(initialConfig?: Partial<StagewiseConfig>): Stagewis
   useEffect(() => {
     if (!config.captureNetwork) return
 
-    originalFetch.current = window.fetch
-    
-    window.fetch = async (...args) => {
+    originalFetch.current = window.fetch.bind(window)
+
+    window.fetch = async (...args: Parameters<typeof fetch>): Promise<Response> => {
       const requestId = uuidv4()
       const startTime = new Date()
       const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
       const method = args[1]?.method || 'GET'
-      
+
       const request: NetworkRequest = {
         id: requestId,
         url,
@@ -98,11 +98,11 @@ export function useStagewise(initialConfig?: Partial<StagewiseConfig>): Stagewis
         requestHeaders: args[1]?.headers as Record<string, string>,
         requestBody: args[1]?.body
       }
-      
+
       try {
         const response = await originalFetch.current!(...args)
         const endTime = new Date()
-        
+
         const updatedRequest: NetworkRequest = {
           ...request,
           status: response.status,
@@ -111,7 +111,7 @@ export function useStagewise(initialConfig?: Partial<StagewiseConfig>): Stagewis
           endTime,
           duration: endTime.getTime() - startTime.getTime()
         }
-        
+
         setNetworkRequests(prev => [...prev, updatedRequest])
         return response
       } catch (error) {
@@ -122,7 +122,7 @@ export function useStagewise(initialConfig?: Partial<StagewiseConfig>): Stagewis
           duration: endTime.getTime() - startTime.getTime(),
           error: error instanceof Error ? error.message : String(error)
         }
-        
+
         setNetworkRequests(prev => [...prev, updatedRequest])
         throw error
       }

@@ -604,3 +604,123 @@ func openBrowser(url string) error {
 
 	return cmd.Start()
 }
+
+// setupConfiguration sets up configuration for the given environment
+func setupConfiguration(env string, verbose bool) error {
+	configFile := "config.yaml"
+
+	// Check if config file exists
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		if verbose {
+			fmt.Printf("📝 Creating configuration for %s environment...\n", env)
+		}
+
+		var sourceConfig string
+		switch env {
+		case "prod":
+			sourceConfig = "config.prod.yaml"
+		case "dev":
+			sourceConfig = "config.dev.yaml"
+		default:
+			sourceConfig = "config.example.yaml"
+		}
+
+		// Copy configuration file
+		if err := copyFile(sourceConfig, configFile); err != nil {
+			return fmt.Errorf("failed to copy configuration: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	sourceFile, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, sourceFile, 0600)
+}
+
+// startPythonExecutor starts Python executor (simplified version for dashboard)
+func startPythonExecutor(ctx context.Context, port string, verbose bool) (*exec.Cmd, error) {
+	// Find Python executable in virtual environment
+	var pythonPath string
+	if runtime.GOOS == "windows" {
+		pythonPath = filepath.Join(".venv", "Scripts", "python.exe")
+	} else {
+		pythonPath = filepath.Join(".venv", "bin", "python")
+	}
+
+	// Check if Python executable exists
+	if _, err := os.Stat(pythonPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("Python virtual environment not found. Run 'webhook-bridge build' first")
+	}
+
+	// Prepare command arguments
+	args := []string{"python_executor/main.py", "--plugin-dirs", "example_plugins"}
+	if port != "" {
+		args = append(args, "--port", port)
+	}
+
+	// Create command
+	cmd := exec.CommandContext(ctx, pythonPath, args...)
+	cmd.Dir = "."
+
+	if verbose {
+		fmt.Println("🐍 Starting Python executor...")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	// Start the process
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start Python executor: %w", err)
+	}
+
+	return cmd, nil
+}
+
+// startGoServer starts Go server (simplified version for dashboard)
+func startGoServer(ctx context.Context, serverPort, executorPort string, verbose bool) (*exec.Cmd, error) {
+	// Find Go server executable
+	var serverPath string
+	if runtime.GOOS == "windows" {
+		serverPath = filepath.Join("build", "webhook-bridge-server.exe")
+	} else {
+		serverPath = filepath.Join("build", "webhook-bridge-server")
+	}
+
+	// Check if server executable exists
+	if _, err := os.Stat(serverPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("Go server executable not found. Run 'webhook-bridge build' first")
+	}
+
+	// Create command
+	cmd := exec.CommandContext(ctx, serverPath)
+	cmd.Dir = "."
+
+	// Set environment variables for port overrides
+	env := os.Environ()
+	if serverPort != "" {
+		env = append(env, "WEBHOOK_BRIDGE_PORT="+serverPort)
+	}
+	if executorPort != "" {
+		env = append(env, "WEBHOOK_BRIDGE_EXECUTOR_PORT="+executorPort)
+	}
+	cmd.Env = env
+
+	if verbose {
+		fmt.Println("🚀 Starting Go server...")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	// Start the process
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start Go server: %w", err)
+	}
+
+	return cmd, nil
+}

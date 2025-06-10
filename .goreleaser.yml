@@ -10,15 +10,12 @@ before:
   hooks:
     # Setup development environment and build dashboard
     - go run dev.go dev-setup
-    - go run dev.go dashboard install
-    - go run dev.go dashboard build --production
+    - cd web-nextjs && npm ci && npm run build
     # Generate protobuf files before building
     - go run dev.go proto
-    # Prepare platform-specific Python dependencies
-    - go run dev.go prepare-python-deps
 
 builds:
-  # Main CLI binary (unified command-line interface)
+  # Unified CLI binary (all-in-one command-line interface)
   - id: webhook-bridge
     main: ./cmd/webhook-bridge
     binary: webhook-bridge
@@ -45,78 +42,12 @@ builds:
       - -s -w
       - -X main.version={{.Version}}
       - -X main.buildTime={{.Date}}
-      - -X github.com/loonghao/webhook_bridge/pkg/version.Version={{.Version}}
-      - -X github.com/loonghao/webhook_bridge/pkg/version.GitCommit={{.Commit}}
-      - -X github.com/loonghao/webhook_bridge/pkg/version.BuildDate={{.Date}}
-
-  # Main server binary
-  - id: webhook-bridge-server
-    main: ./cmd/server
-    binary: webhook-bridge-server
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-      - arm
-    goarm:
-      - 6
-      - 7
-    ignore:
-      # Skip ARM builds for Windows and macOS for now
-      - goos: windows
-        goarch: arm
-      - goos: windows
-        goarch: arm64
-      - goos: darwin
-        goarch: arm
-    ldflags:
-      - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
-      - -X main.buildSource=goreleaser
-      - -X github.com/loonghao/webhook_bridge/pkg/version.Version={{.Version}}
-      - -X github.com/loonghao/webhook_bridge/pkg/version.GitCommit={{.Commit}}
-      - -X github.com/loonghao/webhook_bridge/pkg/version.BuildDate={{.Date}}
-
-  # Python manager binary
-  - id: python-manager
-    main: ./cmd/python-manager
-    binary: python-manager
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-      - arm
-    goarm:
-      - 6
-      - 7
-    ignore:
-      - goos: windows
-        goarch: arm
-      - goos: windows
-        goarch: arm64
-      - goos: darwin
-        goarch: arm
-    ldflags:
-      - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
-      - -X main.buildSource=goreleaser
+      - -X main.goVersion={{.Env.GOVERSION}}
 
 archives:
   - id: webhook-bridge
     builds:
       - webhook-bridge
-      - webhook-bridge-server
-      - python-manager
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -135,14 +66,9 @@ archives:
       - config.yaml
       - example_plugins/**/*
       - python_executor/**/*
-      - webhook_bridge/**/*
       - scripts/setup_python_env.py
-      - web/dist/**/*
+      - web-nextjs/dist/**/*
       - docs/**/*
-      # Platform-specific Python dependencies
-      - src: "dist/python-deps/{{ .Os }}_{{ .Arch }}/**/*"
-        dst: "python_deps/"
-        strip_parent: true
 
 checksum:
   name_template: 'checksums.txt'
@@ -223,8 +149,6 @@ brews:
       system "#{bin}/webhook-bridge --version"
     install: |
       bin.install "webhook-bridge"
-      bin.install "webhook-bridge-server"
-      bin.install "python-manager"
 
 # Scoop bucket (for Windows users)
 scoops:
@@ -258,11 +182,9 @@ dockers:
       - go.sum
       - cmd/
       - internal/
-      - pkg/
       - api/
-      - web/static/js/dist/
+      - web-nextjs/dist/
       - python_executor/
-      - webhook_bridge/
       - config.yaml
       - docker-entrypoint.sh
       - example_plugins/

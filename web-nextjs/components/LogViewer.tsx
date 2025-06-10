@@ -62,7 +62,7 @@ function LogViewerContent({ className }: LogViewerProps) {
   // Initial fetch
   useEffect(() => {
     fetchLogs()
-  }, [levelFilter, sourceFilter])
+  }, [levelFilter, sourceFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // WebSocket connection management
   useEffect(() => {

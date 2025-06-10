@@ -22,15 +22,26 @@ import {
   createActivityEntries
 } from './dataTransformers'
 
-// API base URL configuration
+// API base URL configuration with dynamic port detection
 const getApiBase = () => {
   if (typeof window !== 'undefined') {
-    // Client-side: use environment variable or default to backend URL
+    // Client-side: check for runtime configuration first
+    const runtimeConfig = (window as any).__WEBHOOK_BRIDGE_CONFIG__
+    if (runtimeConfig?.apiBaseUrl) {
+      return `${runtimeConfig.apiBaseUrl}/api/dashboard`
+    }
+
+    // Use environment variable if available
     if (process.env.NEXT_PUBLIC_API_BASE_URL) {
       return `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/dashboard`
     }
 
-    // Default to backend server (port 8080) when running in development
+    // For embedded deployment: use same origin (same port as frontend)
+    if (window.location.pathname.startsWith('/')) {
+      return '/api/dashboard'
+    }
+
+    // Fallback to default backend port for development
     const protocol = window.location.protocol
     const hostname = window.location.hostname
     const backendPort = '8080' // Backend server port
@@ -43,39 +54,133 @@ const getApiBase = () => {
 const API_BASE = getApiBase()
 
 class ApiClient {
+  private retryConfig = {
+    maxRetries: 3,
+    baseDelay: 1000,
+    maxDelay: 5000
+  }
+
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${API_BASE}${endpoint}`
+    const startTime = Date.now()
+
+    // Log request start for stagewise
+    if (typeof window !== 'undefined' && (window as any).__stagewise_log) {
+      (window as any).__stagewise_log('api_request_start', {
+        url,
+        method: options?.method || 'GET',
+        timestamp: new Date().toISOString()
+      })
+    }
 
     try {
-      const response = await fetch(url, {
+      const response = await this.requestWithRetry(url, {
         headers: {
           'Content-Type': 'application/json',
+          'X-Request-ID': this.generateRequestId(),
           ...options?.headers,
         },
         ...options,
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorText = await response.text()
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { message: errorText }
+        }
+
+        const error = new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`)
+        ;(error as any).status = response.status
+        ;(error as any).data = errorData
+        throw error
       }
 
       const data = await response.json()
+      const duration = Date.now() - startTime
+
+      // Log successful request for stagewise
+      if (typeof window !== 'undefined' && (window as any).__stagewise_log) {
+        (window as any).__stagewise_log('api_request_success', {
+          url,
+          method: options?.method || 'GET',
+          status: response.status,
+          duration,
+          timestamp: new Date().toISOString()
+        })
+      }
 
       // Handle backend API response format
       if (data && typeof data === 'object' && 'success' in data) {
         if (!data.success) {
           throw new Error(data.message || data.error || 'API request failed')
         }
-        // Return the data field if it exists, otherwise return the whole response
         return data.data !== undefined ? data.data : data
       }
 
-      // Return raw data if not in standard API format
       return data
     } catch (error) {
+      const duration = Date.now() - startTime
+
+      // Log failed request for stagewise
+      if (typeof window !== 'undefined' && (window as any).__stagewise_log) {
+        (window as any).__stagewise_log('api_request_error', {
+          url,
+          method: options?.method || 'GET',
+          error: error instanceof Error ? error.message : String(error),
+          duration,
+          timestamp: new Date().toISOString()
+        })
+      }
+
       console.error(`API request failed: ${url}`, error)
       throw error
     }
+  }
+
+  private async requestWithRetry(url: string, options: RequestInit): Promise<Response> {
+    let lastError: Error
+
+    for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
+      try {
+        return await fetch(url, options)
+      } catch (error) {
+        lastError = error as Error
+
+        if (attempt === this.retryConfig.maxRetries) {
+          break
+        }
+
+        // Only retry on network errors, not HTTP errors
+        if (this.isRetryableError(error)) {
+          const delay = Math.min(
+            this.retryConfig.baseDelay * Math.pow(2, attempt),
+            this.retryConfig.maxDelay
+          )
+
+          console.warn(`Request failed, retrying in ${delay}ms (attempt ${attempt + 1}/${this.retryConfig.maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        } else {
+          break
+        }
+      }
+    }
+
+    throw lastError!
+  }
+
+  private isRetryableError(error: any): boolean {
+    // Retry on network errors, timeouts, and 5xx server errors
+    return error.name === 'TypeError' || // Network error
+           error.code === 'ECONNREFUSED' ||
+           error.code === 'ENOTFOUND' ||
+           error.code === 'TIMEOUT'
+  }
+
+  private generateRequestId(): string {
+    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 
   // Dashboard endpoints

@@ -1,0 +1,87 @@
+name: Stagewise Optimization Check
+
+on:
+  pull_request:
+    paths:
+      - 'web-nextjs/**'
+  push:
+    branches: [main, develop]
+
+jobs:
+  stagewise-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: web-nextjs/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: web-nextjs
+      run: npm ci
+    
+    - name: Build production (without stagewise)
+      working-directory: web-nextjs
+      run: npm run build:production
+      env:
+        NEXT_PUBLIC_ENABLE_STAGEWISE: false
+    
+    - name: Analyze production build
+      working-directory: web-nextjs
+      run: npm run analyze
+      env:
+        ANALYZE: true
+        NEXT_PUBLIC_ENABLE_STAGEWISE: false
+    
+    - name: Build debug version (with stagewise)
+      working-directory: web-nextjs
+      run: npm run build:debug
+      env:
+        NEXT_PUBLIC_ENABLE_STAGEWISE: true
+        NEXT_PUBLIC_DEBUG_MODE: true
+    
+    - name: Analyze debug build
+      working-directory: web-nextjs
+      run: npm run analyze
+      env:
+        ANALYZE: true
+        NEXT_PUBLIC_ENABLE_STAGEWISE: true
+    
+    - name: Compare build sizes
+      working-directory: web-nextjs
+      run: |
+        echo "## Build Size Comparison" >> $GITHUB_STEP_SUMMARY
+        echo "| Build Type | Size | Stagewise Impact |" >> $GITHUB_STEP_SUMMARY
+        echo "|------------|------|------------------|" >> $GITHUB_STEP_SUMMARY
+        
+        PROD_SIZE=$(du -sh dist | cut -f1)
+        echo "| Production | $PROD_SIZE | Disabled |" >> $GITHUB_STEP_SUMMARY
+        
+        # Build debug version and compare
+        npm run build:debug
+        DEBUG_SIZE=$(du -sh dist | cut -f1)
+        echo "| Debug | $DEBUG_SIZE | Enabled |" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Upload analysis artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: stagewise-analysis
+        path: |
+          web-nextjs/dist/stagewise-analysis.json
+          web-nextjs/dist/
+        retention-days: 7
+    
+    - name: Check for stagewise in production
+      working-directory: web-nextjs
+      run: |
+        if grep -r "stagewise" dist/ --exclude="*.json" --exclude="*.map"; then
+          echo "❌ Found stagewise references in production build"
+          exit 1
+        else
+          echo "✅ No stagewise references found in production build"
+        fi

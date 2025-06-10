@@ -106,6 +106,35 @@ func GetIndexHTML() (string, error) {
 	return html, nil
 }
 
+// GetPageHTML returns the HTML content for a specific page path
+func GetPageHTML(path string) (string, error) {
+	// Normalize the path
+	if path == "/" || path == "" {
+		path = "index.html"
+	} else {
+		// Remove leading slash and add index.html
+		path = strings.TrimPrefix(path, "/")
+		if !strings.HasSuffix(path, ".html") {
+			path = path + "/index.html"
+		}
+	}
+
+	// Try to read the specific page HTML file
+	filePath := "dist/" + path
+	data, err := NextJSAssets.ReadFile(filePath)
+	if err != nil {
+		// Fallback to main index.html if specific page not found
+		return GetIndexHTML()
+	}
+
+	// Convert Next.js static export HTML to work with our server
+	html := string(data)
+
+	// Path replacement is handled by build-and-fix.js during build process
+	// HTML files already contain correct /next/static/ paths
+	return html, nil
+}
+
 // GetMainCSS returns the main CSS file content
 func GetMainCSS() ([]byte, error) {
 	// Next.js generates CSS files with hashes, so we need to find the CSS file

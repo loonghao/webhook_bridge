@@ -1,8 +1,9 @@
 'use client'
 
-import React, { createContext, useContext, ReactNode } from 'react'
+import React, { createContext, useContext, ReactNode, useEffect } from 'react'
 import { useStagewise } from '@/hooks/useStagewise'
 import type { StagewiseContext } from '@/types/stagewise'
+import { initializeStagewiseManager, cleanupStagewise } from '@/lib/stagewise-utils'
 
 const StagewiseContext = createContext<StagewiseContext | null>(null)
 
@@ -19,8 +20,90 @@ interface StagewiseProviderProps {
   }
 }
 
+// Environment-aware configuration
+const getEnvironmentConfig = () => {
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  const isDebugMode = process.env.NEXT_PUBLIC_DEBUG_MODE === 'true'
+  const enableStagewise = process.env.NEXT_PUBLIC_ENABLE_STAGEWISE === 'true'
+
+  // Production optimization: disable stagewise unless explicitly enabled
+  if (!isDevelopment && !enableStagewise && !isDebugMode) {
+    return {
+      enabled: false,
+      captureConsole: false,
+      captureNetwork: false,
+      captureErrors: false,
+      enablePerformanceMetrics: false,
+      maxLogEntries: 0
+    }
+  }
+
+  // Development or debug mode: full features
+  return {
+    enabled: true,
+    captureConsole: isDevelopment || isDebugMode,
+    captureNetwork: isDevelopment || isDebugMode,
+    captureErrors: true, // Always capture errors for debugging
+    enablePerformanceMetrics: isDevelopment || isDebugMode,
+    maxLogEntries: isDevelopment ? 1000 : 100 // Reduced for production
+  }
+}
+
 export function StagewiseProvider({ children, config }: StagewiseProviderProps) {
-  const stagewise = useStagewise(config)
+  const envConfig = getEnvironmentConfig()
+
+  // Merge environment config with user config, prioritizing environment settings for production
+  const finalConfig = {
+    ...config,
+    ...envConfig,
+    // Allow user config to override only in development
+    ...(process.env.NODE_ENV === 'development' ? config : {})
+  }
+
+  const stagewise = useStagewise(finalConfig)
+
+  // Initialize cleanup manager
+  useEffect(() => {
+    if (envConfig.enabled) {
+      const manager = initializeStagewiseManager()
+
+      return () => {
+        cleanupStagewise()
+      }
+    }
+  }, [envConfig.enabled])
+
+  // In production with stagewise disabled, provide a no-op context
+  if (!envConfig.enabled) {
+    const noOpStagewise: StagewiseContext = {
+      session: null,
+      config: finalConfig,
+      networkRequests: [],
+      consoleEntries: [],
+      performanceMetrics: [],
+      startSession: () => {},
+      endSession: () => {},
+      cancelSession: () => {},
+      startStage: () => '',
+      endStage: () => {},
+      skipStage: () => {},
+      startStep: () => '',
+      endStep: () => {},
+      skipStep: () => {},
+      logData: () => {},
+      logMessage: () => {},
+      captureScreenshot: async () => {},
+      exportSession: () => '{}',
+      importSession: () => {},
+      clearHistory: () => {}
+    }
+
+    return (
+      <StagewiseContext.Provider value={noOpStagewise}>
+        {children}
+      </StagewiseContext.Provider>
+    )
+  }
 
   return (
     <StagewiseContext.Provider value={stagewise}>

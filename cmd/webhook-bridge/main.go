@@ -33,18 +33,25 @@ and manage your webhook bridge service.`,
 
 	// Add subcommands
 	rootCmd.AddCommand(
-		cli.NewServeCommand(),   // Standalone server (no dependencies)
+		// Core commands
+		cli.NewStartCommand(),   // Start all services (frontend, backend, Python executor)
+		cli.NewServeCommand(),   // Standalone server (no Python dependencies)
 		cli.NewServiceCommand(), // System service management
-		cli.NewBuildCommand(),
-		cli.NewStartCommand(), // Full development mode
-		cli.NewStopCommand(),
-		cli.NewStatusCommand(),
-		cli.NewDashboardCommand(),
-		cli.NewDeployCommand(),
-		cli.NewTestCommand(),
-		cli.NewCleanCommand(),
-		cli.NewConfigCommand(),
-		cli.NewVersionCommand(),
+
+		// Management commands
+		cli.NewStopCommand(),   // Stop services
+		cli.NewStatusCommand(), // Show service status
+		cli.NewConfigCommand(), // Configuration management
+
+		// Development tools
+		cli.NewPythonCommand(),    // Python environment management
+		cli.NewBuildCommand(),     // Build command
+		cli.NewTestCommand(),      // Test command
+		cli.NewCleanCommand(),     // Clean command
+		cli.NewDashboardCommand(), // Dashboard management
+
+		// Other
+		cli.NewVersionCommand(), // Version information
 	)
 
 	// Global flags

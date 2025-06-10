@@ -97,13 +97,33 @@ class WebSocketManager {
   private scheduleReconnect(): void {
     this.reconnectAttempts++
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
-    
+
     console.log(`Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`)
-    
+
+    // Log reconnection attempt for stagewise
+    if (typeof window !== 'undefined' && (window as any).__stagewise_log) {
+      (window as any).__stagewise_log('websocket_reconnect_attempt', {
+        url: this.url,
+        attempt: this.reconnectAttempts,
+        delay,
+        timestamp: new Date().toISOString()
+      })
+    }
+
     setTimeout(() => {
       if (this.reconnectAttempts <= this.maxReconnectAttempts) {
         this.connect().catch(error => {
           console.error('Reconnection failed:', error)
+
+          // Log reconnection failure for stagewise
+          if (typeof window !== 'undefined' && (window as any).__stagewise_log) {
+            (window as any).__stagewise_log('websocket_reconnect_failed', {
+              url: this.url,
+              attempt: this.reconnectAttempts,
+              error: error instanceof Error ? error.message : String(error),
+              timestamp: new Date().toISOString()
+            })
+          }
         })
       }
     }, delay)

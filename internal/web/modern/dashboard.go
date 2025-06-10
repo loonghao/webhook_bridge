@@ -2,6 +2,7 @@ package modern
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -182,6 +183,8 @@ func (h *ModernDashboardHandler) RegisterRoutes(router *gin.Engine) {
 
 		// Plugin management endpoints
 		api.POST("/plugins/:name/execute", h.executePlugin)
+		api.POST("/plugins/:name/enable", h.enablePlugin)
+		api.POST("/plugins/:name/disable", h.disablePlugin)
 		api.GET("/plugins/:name/stats", h.getPluginStats)
 		api.GET("/plugins/:name/logs", h.getPluginLogs)
 		api.GET("/plugins/stats", h.getAllPluginStats)
@@ -327,18 +330,38 @@ func (h *ModernDashboardHandler) RegisterRoutes(router *gin.Engine) {
 
 // dashboard serves the main dashboard page
 func (h *ModernDashboardHandler) dashboard(c *gin.Context) {
-	fmt.Printf("🎯 Dashboard handler called for path: %s\n", c.Request.URL.Path)
-	log.Printf("🎯 Dashboard handler called for path: %s", c.Request.URL.Path)
+	path := c.Request.URL.Path
+	fmt.Printf("🎯 Dashboard handler called for path: %s\n", path)
+	log.Printf("🎯 Dashboard handler called for path: %s", path)
 
-	// Force load Next.js HTML directly every time to bypass template issues
-	if indexHTML, err := webpkg.GetIndexHTML(); err == nil {
-		fmt.Printf("✅ Serving Next.js HTML directly, size: %d bytes\n", len(indexHTML))
+	// Check if this is a static file request that should be handled by static file handlers
+	if strings.HasPrefix(path, "/next/static/") || strings.HasPrefix(path, "/_next/static/") || strings.HasPrefix(path, "/assets/") {
+		fmt.Printf("🚫 Static file request detected, should not be handled by dashboard: %s\n", path)
+		log.Printf("🚫 Static file request detected, should not be handled by dashboard: %s", path)
+
+		// Try to handle static files directly here as fallback
+		if strings.HasPrefix(path, "/next/static/") {
+			h.handleStaticFile(c, path)
+			return
+		}
+
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	// Load the correct Next.js HTML file based on the path
+	if pageHTML, err := webpkg.GetPageHTML(path); err == nil {
+		// Inject runtime configuration into the HTML
+		runtimeConfig := h.generateRuntimeConfig(c)
+		injectedHTML := h.injectRuntimeConfig(pageHTML, runtimeConfig)
+
+		fmt.Printf("✅ Serving Next.js page HTML for path '%s', size: %d bytes (with runtime config)\n", path, len(injectedHTML))
 		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, indexHTML)
+		c.String(http.StatusOK, injectedHTML)
 		return
 	} else {
-		fmt.Printf("❌ Failed to get Next.js HTML: %v\n", err)
-		log.Printf("❌ Failed to get Next.js HTML: %v", err)
+		fmt.Printf("❌ Failed to get Next.js page HTML for path '%s': %v\n", path, err)
+		log.Printf("❌ Failed to get Next.js page HTML for path '%s': %v", path, err)
 	}
 
 	// Fallback to template if direct HTML fails
@@ -357,6 +380,54 @@ func (h *ModernDashboardHandler) dashboard(c *gin.Context) {
 		return
 	}
 	log.Printf("✅ Template executed successfully")
+}
+
+// handleStaticFile handles static file requests as fallback
+func (h *ModernDashboardHandler) handleStaticFile(c *gin.Context, path string) {
+	// Extract filepath from path
+	var filepath string
+	if strings.HasPrefix(path, "/next/static/") {
+		filepath = strings.TrimPrefix(path, "/next/static")
+	} else {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	log.Printf("DEBUG: Fallback static asset request for: %s", filepath)
+
+	// Get the Next.js filesystem
+	nextjsFS := webpkg.GetNextJSFS()
+
+	// Construct the full path
+	fullPath := "next/static" + filepath
+	log.Printf("DEBUG: Trying to read file: %s", fullPath)
+
+	// Try to read the file from embedded filesystem
+	if data, err := fs.ReadFile(nextjsFS, fullPath); err == nil {
+		// Determine content type based on file extension
+		var contentType string
+		if strings.HasSuffix(filepath, ".js") {
+			contentType = "application/javascript"
+		} else if strings.HasSuffix(filepath, ".css") {
+			contentType = "text/css"
+		} else if strings.HasSuffix(filepath, ".woff2") {
+			contentType = "font/woff2"
+		} else if strings.HasSuffix(filepath, ".woff") {
+			contentType = "font/woff"
+		} else {
+			contentType = "application/octet-stream"
+		}
+
+		log.Printf("DEBUG: Successfully serving %s with content-type: %s", fullPath, contentType)
+		c.Header("Content-Type", contentType)
+		c.Header("Cache-Control", "public, max-age=31536000") // 1 year cache for static assets
+		c.Data(http.StatusOK, contentType, data)
+		return
+	} else {
+		log.Printf("DEBUG: File not found: %s, error: %v", fullPath, err)
+	}
+
+	c.Status(http.StatusNotFound)
 }
 
 // getStatus returns system status
@@ -878,6 +949,49 @@ func (h *ModernDashboardHandler) addTestLog(c *gin.Context) {
 		"success": true,
 		"message": "Test log added successfully",
 	})
+}
+
+// generateRuntimeConfig generates runtime configuration for frontend injection
+func (h *ModernDashboardHandler) generateRuntimeConfig(c *gin.Context) map[string]interface{} {
+	// Get the current server address
+	protocol := "http"
+	if c.Request.TLS != nil {
+		protocol = "https"
+	}
+
+	host := c.Request.Host
+	apiBaseUrl := fmt.Sprintf("%s://%s", protocol, host)
+
+	return map[string]interface{}{
+		"apiBaseUrl":  apiBaseUrl,
+		"wsBaseUrl":   strings.Replace(apiBaseUrl, "http", "ws", 1),
+		"serverPort":  h.config.Server.Port,
+		"version":     "2.0.0-hybrid",
+		"buildTime":   time.Now().Format(time.RFC3339),
+		"environment": h.config.Server.Mode,
+	}
+}
+
+// injectRuntimeConfig injects runtime configuration into HTML
+func (h *ModernDashboardHandler) injectRuntimeConfig(html string, config map[string]interface{}) string {
+	configJSON, _ := json.Marshal(config)
+	configScript := fmt.Sprintf(`<script>window.__WEBHOOK_BRIDGE_CONFIG__ = %s;</script>`, string(configJSON))
+
+	// Inject before closing head tag
+	if strings.Contains(html, "</head>") {
+		return strings.Replace(html, "</head>", configScript+"\n</head>", 1)
+	}
+
+	// Fallback: inject at the beginning of body
+	if strings.Contains(html, "<body") {
+		bodyStart := strings.Index(html, ">")
+		if bodyStart != -1 {
+			return html[:bodyStart+1] + "\n" + configScript + html[bodyStart+1:]
+		}
+	}
+
+	// Last resort: prepend to HTML
+	return configScript + "\n" + html
 }
 
 // generateYAMLConfig generates YAML configuration content
@@ -1592,6 +1706,106 @@ func (h *ModernDashboardHandler) getAllPluginStats(c *gin.Context) {
 				"total_requests":    systemStats.TotalRequests,
 				"system_executions": systemStats.TotalExecutions,
 			},
+		},
+	})
+}
+
+// enablePlugin enables a specific plugin
+func (h *ModernDashboardHandler) enablePlugin(c *gin.Context) {
+	pluginName := c.Param("name")
+	if pluginName == "" {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Plugin name is required",
+		})
+		return
+	}
+
+	// For now, we'll simulate enabling the plugin
+	// In a real implementation, this would interact with the plugin management system
+	log.Printf("Enabling plugin: %s", pluginName)
+
+	// Record log entry
+	if h.logManager != nil {
+		logEntry := web.LogEntry{
+			Timestamp:  time.Now(),
+			Level:      "INFO",
+			Source:     "plugin_management",
+			Message:    fmt.Sprintf("Plugin %s enabled", pluginName),
+			PluginName: pluginName,
+			Data: map[string]interface{}{
+				"action": "enable",
+			},
+		}
+		h.logManager.AddLog(logEntry)
+	}
+
+	// Broadcast plugin status update
+	statusUpdate := PluginStatusUpdate{
+		PluginName:   pluginName,
+		Status:       "active",
+		LastExecuted: time.Now().Format(time.RFC3339),
+		Success:      true,
+	}
+	h.BroadcastPluginStatusUpdate(statusUpdate)
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Plugin %s enabled successfully", pluginName),
+		"data": map[string]interface{}{
+			"plugin_name": pluginName,
+			"status":      "active",
+			"timestamp":   time.Now().Format(time.RFC3339),
+		},
+	})
+}
+
+// disablePlugin disables a specific plugin
+func (h *ModernDashboardHandler) disablePlugin(c *gin.Context) {
+	pluginName := c.Param("name")
+	if pluginName == "" {
+		c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Plugin name is required",
+		})
+		return
+	}
+
+	// For now, we'll simulate disabling the plugin
+	// In a real implementation, this would interact with the plugin management system
+	log.Printf("Disabling plugin: %s", pluginName)
+
+	// Record log entry
+	if h.logManager != nil {
+		logEntry := web.LogEntry{
+			Timestamp:  time.Now(),
+			Level:      "INFO",
+			Source:     "plugin_management",
+			Message:    fmt.Sprintf("Plugin %s disabled", pluginName),
+			PluginName: pluginName,
+			Data: map[string]interface{}{
+				"action": "disable",
+			},
+		}
+		h.logManager.AddLog(logEntry)
+	}
+
+	// Broadcast plugin status update
+	statusUpdate := PluginStatusUpdate{
+		PluginName:   pluginName,
+		Status:       "inactive",
+		LastExecuted: time.Now().Format(time.RFC3339),
+		Success:      true,
+	}
+	h.BroadcastPluginStatusUpdate(statusUpdate)
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Plugin %s disabled successfully", pluginName),
+		"data": map[string]interface{}{
+			"plugin_name": pluginName,
+			"status":      "inactive",
+			"timestamp":   time.Now().Format(time.RFC3339),
 		},
 	})
 }

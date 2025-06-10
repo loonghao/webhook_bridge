@@ -4,7 +4,7 @@
 
 # Webhook Bridge
 
-A high-performance webhook integration platform with **hybrid Go/Python architecture**. Features a blazing-fast Go HTTP server with flexible Python plugin execution environment.
+A high-performance webhook integration platform with **unified architecture**. Features a single executable that combines Go's performance with Python's flexibility through integrated service management.
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/loonghao/webhook_bridge)](https://golang.org/)
 [![Python Version](https://img.shields.io/pypi/pyversions/webhook-bridge)](https://pypi.org/project/webhook-bridge/)
@@ -24,91 +24,97 @@ flowchart TB
         D[Other Webhooks]
     end
 
-    subgraph "Webhook Bridge - Hybrid Architecture"
-        subgraph "Go HTTP Server (Port 8000)"
-            E[Gin Router]
-            F[Request Validation]
-            G[Load Balancer]
+    subgraph "Webhook Bridge - Unified Architecture"
+        subgraph "Single Executable (webhook-bridge.exe)"
+            E[Unified CLI]
+            F[Go HTTP Server]
+            G[Python Executor Manager]
             H[Web Dashboard]
         end
 
-        subgraph "Python Executor (Port 50051)"
-            I[gRPC Server]
+        subgraph "Service Components"
+            I[Python Executor Service]
             J[Plugin Loader]
             K[Plugin Manager]
+            L[gRPC Communication]
         end
 
         subgraph "Plugin System"
-            L[Custom Plugins]
-            M[Example Plugins]
-            N[Legacy Plugins]
+            M[Custom Plugins]
+            N[Example Plugins]
+            O[Legacy Plugins]
         end
     end
 
     subgraph "Outputs"
-        O[Internal Integration]
-        P[API Responses]
-        Q[Logs & Metrics]
+        P[Internal Integration]
+        Q[API Responses]
+        R[Logs & Metrics]
     end
 
-    A -.->|HTTP POST| E
-    B -.->|HTTP POST| E
-    C -.->|HTTP POST| E
-    D -.->|HTTP POST| E
+    A -.->|HTTP POST| F
+    B -.->|HTTP POST| F
+    C -.->|HTTP POST| F
+    D -.->|HTTP POST| F
 
     E --> F
-    F --> G
-    G -->|gRPC| I
-    E --> H
+    E --> G
+    F --> H
+    G -->|Auto-start| I
+    F -->|gRPC| L
+    L --> I
 
     I --> J
     J --> K
-    K --> L
     K --> M
     K --> N
+    K --> O
 
-    L --> O
-    M --> O
-    N --> O
+    M --> P
+    N --> P
+    O --> P
 
-    G --> P
-    K --> Q
+    F --> Q
+    K --> R
 
     style A fill:#FCA326
     style B fill:#24292e
     style C fill:#362D59
     style D fill:#95A5A6
-    style E fill:#00D4AA
-    style F fill:#3498DB
-    style G fill:#2ECC71
-    style H fill:#E74C3C
+    style E fill:#FF6B6B
+    style F fill:#00D4AA
+    style G fill:#E74C3C
+    style H fill:#3498DB
     style I fill:#9B59B6
     style J fill:#F39C12
     style K fill:#E67E22
-    style L fill:#FF6B6B
-    style M fill:#4ECDC4
-    style N fill:#95A5A6
-    style O fill:#1ABC9C
-    style P fill:#34495E
-    style Q fill:#7F8C8D
+    style L fill:#2ECC71
+    style M fill:#FF6B6B
+    style N fill:#4ECDC4
+    style O fill:#95A5A6
+    style P fill:#1ABC9C
+    style Q fill:#34495E
+    style R fill:#7F8C8D
 ```
 
-## 🚀 **v2.0.0+ - Hybrid Architecture Revolution**
+## 🚀 **v2.0.0+ - Unified Architecture Revolution**
 
-**Breaking Change**: Webhook Bridge has been completely rewritten with a hybrid Go/Python architecture for maximum performance and flexibility.
+**Breaking Change**: Webhook Bridge has been completely rewritten with a unified architecture that combines multiple executables into a single, powerful binary.
 
-### **🏗️ Hybrid Architecture**
-- **⚡ Go HTTP Server**: Blazing-fast server built with Gin framework (Port 8000)
-- **🐍 Python Executor**: Flexible plugin execution environment via gRPC (Port 50051)
-- **🔗 gRPC Communication**: Type-safe, high-performance inter-service communication
+### **🏗️ Unified Architecture**
+- **📦 Single Executable**: One binary (`webhook-bridge.exe`) for all functionality
+- **⚡ Integrated Go Server**: High-performance HTTP server with built-in service management
+- **🐍 Managed Python Executor**: Automatic Python service startup and management
+- **🔗 Seamless Communication**: Internal gRPC communication between components
 - **🎨 Modern Dashboard**: Beautiful React-based web interface with Tailwind CSS
 - **📦 Multi-platform Binaries**: Native binaries for Linux, Windows, and macOS
 - **🐳 Docker Ready**: Production-ready containerized deployment
 
 ## Features
 
+- 📦 **Unified Binary**: Single executable for all operations - no more multiple processes
 - ⚡ **High Performance**: Go HTTP server with concurrent request handling
-- 🔌 **Plugin System**: Dynamic Python plugin loading and execution via gRPC
+- 🔌 **Plugin System**: Dynamic Python plugin loading with automatic executor management
 - 🌐 **RESTful API**: Support for GET, POST, PUT, DELETE HTTP methods
 - 🎛️ **Modern Dashboard**: React-based web interface for management and monitoring
 - 🛠️ **Flexible Configuration**: YAML configuration with environment variable support
@@ -122,18 +128,18 @@ flowchart TB
 
 ### **🎯 Quick Start (Recommended)**
 
-Download and run the pre-built binary:
+Download and run the unified binary:
 ```bash
 # Download latest release for your platform
 # Linux AMD64
 wget https://github.com/loonghao/webhook_bridge/releases/latest/download/webhook_bridge_Linux_x86_64.tar.gz
 tar -xzf webhook_bridge_Linux_x86_64.tar.gz
 
-# Start the server
-./webhook-bridge-server
+# Start the unified service (Python executor + Go server)
+./webhook-bridge unified --port 8080
 
-# Or use the unified CLI
-./webhook-bridge serve
+# Or use the standalone server mode
+./webhook-bridge serve --port 8080
 ```
 
 ### **� Docker (Recommended for Production)**
@@ -187,14 +193,14 @@ pip install webhook-bridge
 ### **1. Start the Server**
 
 ```bash
-# Method 1: Direct server start (fastest)
-./webhook-bridge-server
+# Method 1: Unified service (recommended - Python executor + Go server)
+./webhook-bridge unified --port 8080
 
-# Method 2: Using unified CLI
-./webhook-bridge serve
+# Method 2: Standalone server (Go server only)
+./webhook-bridge serve --port 8080
 
 # Method 3: Development mode with auto-reload
-./webhook-bridge serve --config config.dev.yaml
+./webhook-bridge start --verbose
 
 # Method 4: Docker (production ready)
 docker-compose up -d
@@ -226,19 +232,23 @@ curl "http://localhost:8000/api/v1/plugins"
 curl "http://localhost:8000/api/v1/system/info"
 ```
 
-### **4. Available Binaries**
+### **4. Unified Binary Commands**
 
-The release package includes multiple binaries for different use cases:
+The single binary provides all functionality through subcommands:
 
 ```bash
-# Main server (Go HTTP server + Python executor management)
-./webhook-bridge-server       # Production server
+# Unified service (recommended - all-in-one)
+./webhook-bridge unified --port 8080    # Python executor + Go server
 
-# Unified CLI tool (recommended for development)
-./webhook-bridge              # CLI with serve, build, test commands
+# Individual components
+./webhook-bridge serve --port 8080      # Go server only
+./webhook-bridge server --port 8080     # Backend server with gRPC client
+./webhook-bridge python info            # Python environment management
 
-# Python executor (standalone gRPC server)
-./python-manager              # For advanced deployments
+# Development and management
+./webhook-bridge start                  # Full development mode
+./webhook-bridge build                  # Build project
+./webhook-bridge status                 # Check service status
 ```
 
 📖 **详细CLI使用指南**:
@@ -279,25 +289,26 @@ dashboard:
 ### Command Line Options
 
 ```bash
-# Server options
-webhook-bridge-server --help
+# Unified service options
+webhook-bridge unified --help
 webhook-bridge serve --help
+webhook-bridge python --help
 ```
 
-#### Core Server Configuration
+#### Unified Service Configuration
 - `--config`: Configuration file path (default: "config.yaml")
 - `--host`: Host to bind the server to (default: "0.0.0.0")
-- `--port`: HTTP server port (default: 8000)
-- `--grpc-port`: Python executor gRPC port (default: 50051)
+- `--port`: HTTP server port (default: 8080)
 - `--log-level`: Logging level (debug/info/warn/error)
+- `--mode`: Server mode (debug/release)
+- `--no-python`: Skip Python executor startup (API-only mode)
 
-#### Python Executor Configuration
-- `--python-strategy`: Python discovery strategy (auto/uv/path/custom)
-- `--python-path`: Custom Python interpreter path
-- `--plugin-dirs`: Plugin directories (comma-separated)
+#### Python Management
+- `webhook-bridge python info`: Show Python environment information
+- `webhook-bridge python validate`: Validate Python environment
+- `webhook-bridge python install [packages]`: Install Python packages
 
 #### Development Options
-- `--dev`: Enable development mode with auto-reload
 - `--verbose`: Enable verbose logging
 - `--debug`: Enable debug mode
 
@@ -328,26 +339,25 @@ export WEBHOOK_BRIDGE_LOG_PATH="/app/logs"
 
 #### Basic Usage
 ```bash
-# Start server with default settings
-./webhook-bridge-server
+# Start unified service with default settings
+./webhook-bridge unified
 
 # Start with custom configuration
-./webhook-bridge-server --config config.prod.yaml
+./webhook-bridge unified --config config.prod.yaml
 
 # Start on specific host and port
-./webhook-bridge-server --host 127.0.0.1 --port 9000
+./webhook-bridge unified --host 127.0.0.1 --port 9000
 ```
 
 #### Production Deployment
 ```bash
-# Production server with custom config
-./webhook-bridge-server --config config.prod.yaml --log-level info
+# Production unified service with custom config
+./webhook-bridge unified --config config.prod.yaml --log-level info --mode release
 
 # Docker production deployment
 docker run -d \
   --name webhook-bridge \
-  -p 8000:8000 \
-  -p 50051:50051 \
+  -p 8080:8080 \
   -v ./config:/app/config \
   -v ./plugins:/app/plugins \
   -v ./logs:/app/logs \
@@ -359,27 +369,27 @@ docker-compose up -d
 
 #### Development Mode
 ```bash
-# Development with auto-reload
-./webhook-bridge serve --dev --verbose
+# Development with verbose logging
+./webhook-bridge unified --verbose
 
-# Development with custom Python path
-./webhook-bridge serve --python-path /usr/local/bin/python3.11 --debug
+# Development mode with auto-reload
+./webhook-bridge start --verbose
 
-# Separate services for debugging
-./python-manager &  # Terminal 1
-./webhook-bridge-server --grpc-port 50051  # Terminal 2
+# API-only mode (no Python executor)
+./webhook-bridge unified --no-python
 ```
 
 ### Architecture Benefits
 
-The hybrid Go/Python architecture provides:
+The unified architecture provides:
 
+- **📦 Simplicity**: Single binary for all operations - no more process management
 - **🚀 Performance**: Go HTTP server handles thousands of concurrent requests
 - **🔧 Flexibility**: Python plugins for rapid development and rich ecosystem
-- **📡 Communication**: gRPC for type-safe, high-performance inter-service communication
+- **🔗 Integration**: Seamless communication between Go server and Python executor
 - **🔄 Compatibility**: Existing Python plugins work without modification
-- **📦 Deployment**: Single binary deployment with embedded Python executor management
-- **🐳 Containerization**: Docker-ready with proper volume mounts and health checks
+- **📦 Deployment**: True single binary deployment with automatic service management
+- **🐳 Containerization**: Docker-ready with simplified configuration
 
 ### Development Workflow
 

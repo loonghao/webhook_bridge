@@ -13,7 +13,8 @@ import {
   Settings,
   TestTube,
   Zap,
-  ChevronRight
+  ChevronRight,
+  Activity
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +47,7 @@ const navigationGroups = [
       { name: 'Configuration', href: '/config', icon: Settings },
       { name: 'API Test', href: '/api-test', icon: TestTube },
       { name: 'Debug', href: '/debug', icon: Code },
+      { name: 'Connection Health', href: '/debug/connection', icon: Activity },
     ]
   }
 ]

@@ -18,12 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} bg-background text-foreground antialiased`}>
-        <StagewiseProvider config={{
-          captureConsole: true,
-          captureNetwork: true,
-          enablePerformanceMetrics: true,
-          maxLogEntries: 1000
-        }}>
+        <StagewiseProvider>
           <div id="root">
             {children}
           </div>

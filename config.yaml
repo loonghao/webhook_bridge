@@ -1,5 +1,5 @@
 # Webhook Bridge Configuration
-# This is the main configuration file for the webhook bridge hybrid architecture
+# This is the main configuration file for the webhook bridge unified architecture
 
 server:
   host: "0.0.0.0"
@@ -46,14 +46,55 @@ python:
     - "grpcio-tools"
 
 executor:
-  # Python executor gRPC service configuration
+  # Python executor gRPC service configuration (managed automatically by unified service)
   host: "127.0.0.1"  # Use IPv4 localhost for local development
   port: 50051
   timeout: 30  # seconds
+  auto_start: true   # Automatically start Python executor in unified mode
 
 logging:
   level: "info"  # debug, info, warn, error
   format: "text"  # text, json
+  file: "logs/webhook-bridge.log"  # Log file path
+  max_size: 100  # Max log file size in MB
+  max_age: 30    # Max age in days
+  compress: true # Compress old log files
+
+# Storage configuration for execution tracking
+storage:
+  type: "sqlite"
+  sqlite:
+    path: "data/executions.db"
+    max_connections: 10
+    retention_days: 30
+    enable_wal: true
+    enable_foreign_keys: true
+
+# Execution tracking configuration
+execution_tracking:
+  enabled: true
+  max_executions: 10000
+  cleanup_interval: "1h"
+  retention_period: "720h"  # 30 days
+
+# Directories configuration
+directories:
+  working_dir: ""
+  log_dir: "logs"
+  config_dir: ""
+  plugin_dir: "plugins"
+  data_dir: "data"
+
+# Unified service configuration
+unified:
+  # Enable unified service mode (Python executor + Go server)
+  enabled: true
+  # Graceful shutdown timeout
+  shutdown_timeout: 10  # seconds
+  # Service startup order and timing
+  startup:
+    python_executor_delay: 3  # seconds to wait for Python executor startup
+    health_check_interval: 5  # seconds between health checks
 
 # Environment-specific overrides
 # These can be overridden by environment variables:

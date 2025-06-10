@@ -71,20 +71,44 @@ async def serve(host: str = "0.0.0.0", port: int = 50051, plugin_dirs: list[str]
     if plugin_dirs:
         logger.info(f"Additional plugin directories: {plugin_dirs}")
 
-    # Setup graceful shutdown
+    # Setup graceful shutdown with proper async handling
+    shutdown_event = asyncio.Event()
+
     def signal_handler(_signum, _frame):
-        logger.info("Received shutdown signal, stopping server...")
-        server.stop(grace=5)
-        sys.exit(0)
+        logger.info("Received shutdown signal, initiating graceful shutdown...")
+        shutdown_event.set()
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
     try:
-        await server.wait_for_termination()
+        # Wait for either termination or shutdown signal
+        shutdown_task = asyncio.create_task(shutdown_event.wait())
+        termination_task = asyncio.create_task(server.wait_for_termination())
+
+        done, pending = await asyncio.wait(
+            [shutdown_task, termination_task],
+            return_when=asyncio.FIRST_COMPLETED
+        )
+
+        # Cancel pending tasks
+        for task in pending:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        # If shutdown was triggered by signal, stop the server
+        if shutdown_task in done:
+            logger.info("Stopping server gracefully...")
+            await server.stop(grace=5)
+            logger.info("Server stopped successfully")
+
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received, stopping server...")
-        server.stop(grace=5)
+        await server.stop(grace=5)
+        logger.info("Server stopped successfully")
 
 
 def main() -> None:

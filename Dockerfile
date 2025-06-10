@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for webhook bridge hybrid architecture
+# Multi-stage Dockerfile for webhook bridge unified architecture
 
 # Stage 1: Build Go application
 FROM golang:1.23-alpine AS go-builder
@@ -18,8 +18,8 @@ COPY internal/ internal/
 COPY api/ api/
 COPY pkg/ pkg/
 
-# Build the application
-ARG VERSION=2.0.0-hybrid
+# Build the unified application
+ARG VERSION=2.0.0-unified
 ARG GIT_COMMIT=unknown
 ARG BUILD_DATE=unknown
 
@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags "-X github.com/loonghao/webhook_bridge/pkg/version.Version=${VERSION} \
               -X github.com/loonghao/webhook_bridge/pkg/version.GitCommit=${GIT_COMMIT} \
               -X github.com/loonghao/webhook_bridge/pkg/version.BuildDate=${BUILD_DATE}" \
-    -o webhook-bridge-server ./cmd/server
+    -o webhook-bridge ./cmd/webhook-bridge
 
 # Stage 2: Python environment
 FROM python:3.11-slim AS python-base
@@ -77,8 +77,8 @@ RUN apt-get update && apt-get install -y \
 COPY --from=python-base /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy Go binary
-COPY --from=go-builder /app/webhook-bridge-server /usr/local/bin/
+# Copy unified Go binary
+COPY --from=go-builder /app/webhook-bridge /usr/local/bin/
 
 # Copy Python source code
 COPY webhook_bridge/ webhook_bridge/
@@ -113,16 +113,17 @@ RUN useradd -r -s /bin/false webhook && \
 
 USER webhook
 
-# Expose ports
-EXPOSE 8000 50051
+# Expose ports (unified service uses 8080 by default)
+EXPOSE 8080 50051
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Volume mounts for external configuration
 VOLUME ["/app/config", "/app/plugins", "/app/logs", "/app/data"]
 
 # Default command (can be overridden)
-# Use entrypoint script to start both Python executor and Go server
+# Use unified service to automatically manage Python executor and Go server
 ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["webhook-bridge", "unified"]

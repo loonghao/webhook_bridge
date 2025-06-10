@@ -6,9 +6,18 @@
     "dev": "next dev -p 3002",
     "build": "next build && node build-and-fix.js",
     "build:original": "next build",
+    "build:production": "cross-env NEXT_PUBLIC_ENABLE_STAGEWISE=false NODE_ENV=production next build && node build-and-fix.js",
+    "build:debug": "cross-env NEXT_PUBLIC_ENABLE_STAGEWISE=true NEXT_PUBLIC_DEBUG_MODE=true next build && node build-and-fix.js",
     "start": "next start -p 3002",
+    "start:production": "node start-production.js",
+    "serve": "npm run build:production && npm run start:production",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "analyze": "cross-env ANALYZE=true next build",
+    "test:stagewise": "node test-stagewise-optimization.js",
+    "verify:production": "node scripts/verify-stagewise.js production",
+    "verify:debug": "node scripts/verify-stagewise.js debug",
+    "verify:dev": "node scripts/verify-stagewise.js dev"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.0.4",
@@ -42,6 +51,7 @@
     "@types/react-dom": "^18.2.15",
     "@types/uuid": "^9.0.7",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^7.0.3",
     "eslint": "^8.53.0",
     "eslint-config-next": "^15.1.6",
     "postcss": "^8.5.4",
