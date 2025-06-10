@@ -22,8 +22,21 @@ def test_cli_import():
     assert cli
 
 
-def test_manager_import():
-    """Test that manager module can be imported."""
-    # Import local modules
-    from webhook_bridge import manager
-    assert manager
+def test_project_structure():
+    """Test that project structure is correct."""
+    import os
+    from pathlib import Path
+
+    project_root = Path(__file__).parent.parent
+
+    # Check that essential directories exist
+    assert (project_root / "cmd").exists()
+    assert (project_root / "internal").exists()
+    assert (project_root / "python_executor").exists()
+    assert (project_root / "webhook_bridge").exists()
+
+    # Check that essential files exist
+    assert (project_root / "go.mod").exists()
+    assert (project_root / "pyproject.toml").exists()
+    assert (project_root / "webhook_bridge" / "__init__.py").exists()
+    assert (project_root / "webhook_bridge" / "cli.py").exists()

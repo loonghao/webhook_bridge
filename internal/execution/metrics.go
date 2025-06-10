@@ -13,13 +13,13 @@ type TrackerMetrics struct {
 
 // PluginStats represents statistics for a specific plugin
 type PluginStats struct {
-	TotalExecutions      int64         `json:"total_executions"`
-	SuccessfulExecutions int64         `json:"successful_executions"`
-	FailedExecutions     int64         `json:"failed_executions"`
-	TotalDuration        time.Duration `json:"total_duration"`
-	MinDuration          time.Duration `json:"min_duration"`
-	MaxDuration          time.Duration `json:"max_duration"`
-	LastExecution        time.Time     `json:"last_execution"`
+	TotalExecutions      int64            `json:"total_executions"`
+	SuccessfulExecutions int64            `json:"successful_executions"`
+	FailedExecutions     int64            `json:"failed_executions"`
+	TotalDuration        time.Duration    `json:"total_duration"`
+	MinDuration          time.Duration    `json:"min_duration"`
+	MaxDuration          time.Duration    `json:"max_duration"`
+	LastExecution        time.Time        `json:"last_execution"`
 	ErrorTypes           map[string]int64 `json:"error_types"`
 }
 

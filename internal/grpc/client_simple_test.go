@@ -166,11 +166,13 @@ func TestLogEntry(t *testing.T) {
 		},
 	}
 
+	assert.False(t, entry.Timestamp.IsZero())
 	assert.Equal(t, "INFO", entry.Level)
 	assert.Equal(t, "test", entry.Source)
 	assert.Equal(t, "Test message", entry.Message)
 	assert.Equal(t, "test_plugin", entry.PluginName)
 	assert.NotNil(t, entry.Data)
+	assert.Equal(t, "value", entry.Data["key"])
 }
 
 // TestClientSetManagers tests setting log and stats managers

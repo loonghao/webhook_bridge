@@ -65,7 +65,9 @@ func NewPluginStatsStorage(dataDir string) *PluginStatsStorage {
 	storage.data.PluginStats = make(map[string]*ExecutionStats)
 
 	// Load existing data
-	storage.LoadStats()
+	if err := storage.LoadStats(); err != nil {
+		log.Printf("Warning: Failed to load stats: %v", err)
+	}
 
 	// Start auto-save goroutine
 	go storage.autoSaveWorker()

@@ -111,7 +111,7 @@ func (lm *PersistentLogManager) saveLogToFile(entry LogEntry) {
 		return
 	}
 
-	file, err := os.OpenFile(lm.logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(lm.logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		log.Printf("Warning: Failed to open log file for writing: %v", err)
 		return

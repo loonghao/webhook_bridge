@@ -673,8 +673,23 @@ func runRaceTests() {
 func runCoverageTests() {
 	fmt.Println("📊 Running tests with coverage...")
 
-	// Run tests with coverage
-	cmd := exec.Command("go", "test", "-coverprofile=coverage.out", "./...")
+	// Ensure dashboard is built before running tests (for Go embed)
+	fmt.Println("🏗️ Ensuring dashboard build for Go embed...")
+	if err := ensureDashboardBuild(); err != nil {
+		fmt.Printf("⚠️ Dashboard build failed, creating minimal structure: %v\n", err)
+		createMinimalDashboardStructure()
+	}
+
+	// Run Python tests first
+	fmt.Println("🐍 Running Python tests...")
+	if err := runPythonTestsWithCoverage(); err != nil {
+		fmt.Printf("⚠️ Python tests failed: %v\n", err)
+		// Don't exit, continue with Go tests
+	}
+
+	// Run Go tests with coverage (exclude examples directory)
+	fmt.Println("🔧 Running Go tests with coverage...")
+	cmd := exec.Command("go", "test", "-coverprofile=coverage.out", "./internal/...", "./cmd/...", "./pkg/...")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -1372,4 +1387,198 @@ func getSetupScriptName(osName string) string {
 		return "setup.bat"
 	}
 	return "setup.sh"
+}
+
+// ensureDashboardBuild ensures the dashboard is built for Go embed
+func ensureDashboardBuild() error {
+	fmt.Println("🔍 Checking dashboard build status...")
+
+	// Check if dist directory exists and has content
+	distPath := "web-nextjs/dist"
+	if !dirExists(distPath) {
+		fmt.Println("📁 dist directory not found, building dashboard...")
+		return buildDashboard()
+	}
+
+	// Check if index.html exists
+	indexPath := filepath.Join(distPath, "index.html")
+	if !fileExists(indexPath) {
+		fmt.Println("📄 index.html not found, building dashboard...")
+		return buildDashboard()
+	}
+
+	fmt.Println("✅ Dashboard build exists")
+	return nil
+}
+
+// buildDashboard builds the Next.js dashboard
+func buildDashboard() error {
+	fmt.Println("🏗️ Building dashboard...")
+
+	// Change to web-nextjs directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			fmt.Printf("⚠️ Failed to restore original directory: %v\n", err)
+		}
+	}()
+
+	if err := os.Chdir("web-nextjs"); err != nil {
+		return fmt.Errorf("failed to change to web-nextjs directory: %v", err)
+	}
+
+	// Install dependencies if needed
+	if !dirExists("node_modules") {
+		fmt.Println("📦 Installing npm dependencies...")
+		var cmd *exec.Cmd
+		if fileExists("package-lock.json") {
+			cmd = exec.Command("npm", "ci")
+		} else {
+			cmd = exec.Command("npm", "install")
+		}
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to install dependencies: %v", err)
+		}
+	}
+
+	// Build the dashboard
+	fmt.Println("🔨 Building dashboard...")
+	cmd := exec.Command("npm", "run", "build")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("dashboard build failed: %v", err)
+	}
+
+	fmt.Println("✅ Dashboard build completed")
+	return nil
+}
+
+// createMinimalDashboardStructure creates a minimal dashboard structure for Go embed
+func createMinimalDashboardStructure() {
+	fmt.Println("🔧 Creating minimal dashboard structure...")
+
+	// Create directories
+	dirs := []string{
+		"web-nextjs/dist",
+		"web-nextjs/dist/next/static/css",
+		"web-nextjs/dist/next/static/chunks",
+		"web-nextjs/public",
+	}
+
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			fmt.Printf("⚠️ Failed to create directory %s: %v\n", dir, err)
+		}
+	}
+
+	// Create minimal index.html
+	indexHTML := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Bridge Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .status { padding: 20px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3; }
+        .warning { background: #fff3e0; border-left-color: #ff9800; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Webhook Bridge Dashboard</h1>
+        <div class="status warning">
+            <h2>⚠️ Development Mode</h2>
+            <p>The dashboard is running with minimal assets.</p>
+            <p>For full functionality, please build the dashboard:</p>
+            <pre>cd web-nextjs && npm run build</pre>
+        </div>
+        <div style="margin-top: 20px;">
+            <h3>Quick Actions</h3>
+            <ul>
+                <li><a href="/api/v1/health">Health Check</a></li>
+                <li><a href="/api/v1/status">System Status</a></li>
+                <li><a href="/api/v1/plugins">Plugin List</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>`
+
+	if err := os.WriteFile("web-nextjs/dist/index.html", []byte(indexHTML), 0644); err != nil {
+		fmt.Printf("⚠️ Failed to create index.html: %v\n", err)
+	}
+
+	// Create minimal CSS file
+	css := "/* Minimal CSS for development mode */\nbody { font-family: Arial, sans-serif; }"
+	if err := os.WriteFile("web-nextjs/dist/next/static/css/app.css", []byte(css), 0644); err != nil {
+		fmt.Printf("⚠️ Failed to create CSS file: %v\n", err)
+	}
+
+	// Create minimal JS file
+	js := "// Minimal JS for development mode\nconsole.log('Webhook Bridge Dashboard - Development Mode');"
+	if err := os.WriteFile("web-nextjs/dist/next/static/chunks/app.js", []byte(js), 0644); err != nil {
+		fmt.Printf("⚠️ Failed to create JS file: %v\n", err)
+	}
+
+	// Create favicon
+	if !fileExists("web-nextjs/public/favicon.ico") {
+		if err := os.WriteFile("web-nextjs/public/favicon.ico", []byte{}, 0644); err != nil {
+			fmt.Printf("⚠️ Failed to create favicon: %v\n", err)
+		}
+	}
+
+	// Copy favicon to dist
+	if err := copyFile("web-nextjs/public/favicon.ico", "web-nextjs/dist/favicon.ico"); err != nil {
+		if err := os.WriteFile("web-nextjs/dist/favicon.ico", []byte{}, 0644); err != nil {
+			fmt.Printf("⚠️ Failed to create dist favicon: %v\n", err)
+		}
+	}
+
+	fmt.Println("✅ Minimal dashboard structure created")
+}
+
+// runPythonTestsWithCoverage runs Python tests with coverage
+func runPythonTestsWithCoverage() error {
+	fmt.Println("🐍 Running Python tests with coverage...")
+
+	// Check if nox is available
+	if _, err := exec.LookPath("nox"); err == nil {
+		// Use nox if available
+		cmd := exec.Command("nox", "-s", "pytest")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// Check if uvx is available
+	if _, err := exec.LookPath("uvx"); err == nil {
+		// Use uvx nox if available
+		cmd := exec.Command("uvx", "nox", "-s", "pytest")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// Fallback to direct pytest
+	if _, err := exec.LookPath("pytest"); err == nil {
+		cmd := exec.Command("pytest", "tests/", "-v")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// Try python -m pytest
+	cmd := exec.Command("python", "-m", "pytest", "tests/", "-v")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }

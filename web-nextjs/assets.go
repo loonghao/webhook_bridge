@@ -1,4 +1,4 @@
-package web
+package webnextjs
 
 import (
 	"embed"
@@ -10,7 +10,7 @@ import (
 
 // Embed the entire Next.js dist directory and public assets
 //
-//go:embed dist public
+//go:embed all:dist all:public
 var NextJSAssets embed.FS
 
 // GetNextJSFS returns the embedded Next.js filesystem

@@ -147,6 +147,7 @@ issues:
     - node_modules
     - dist
     - api/proto
+    - examples
   exclude-files:
     - ".*\\.pb\\.go$"
     - "api/proto/.*\\.go$"

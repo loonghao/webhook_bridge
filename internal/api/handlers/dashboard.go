@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/loonghao/webhook_bridge/api/proto"
 	"github.com/loonghao/webhook_bridge/internal/api"
 	"github.com/loonghao/webhook_bridge/internal/config"
@@ -273,7 +274,10 @@ func (h *DashboardHandler) reconnectService(c *gin.Context) {
 	var request struct {
 		InterpreterName string `json:"interpreter_name,omitempty"`
 	}
-	c.ShouldBindJSON(&request)
+	if err := c.ShouldBindJSON(&request); err != nil {
+		api.BadRequest(c, "Invalid request format", err.Error())
+		return
+	}
 
 	err := h.connectionMgr.Reconnect(request.InterpreterName)
 	if err != nil {

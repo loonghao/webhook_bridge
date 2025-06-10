@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/loonghao/webhook_bridge/internal/config"
 	"github.com/loonghao/webhook_bridge/internal/storage"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // SQLiteStorage implements ExecutionStorage interface using SQLite

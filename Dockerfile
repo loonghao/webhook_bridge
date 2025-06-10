@@ -10,6 +10,11 @@ RUN apk add --no-cache git
 
 # Copy Go modules files
 COPY go.mod go.sum ./
+
+# Copy local packages first (needed for replace directives)
+COPY web-nextjs/ web-nextjs/
+COPY pkg/ pkg/
+
 RUN go mod download
 
 # Copy source code

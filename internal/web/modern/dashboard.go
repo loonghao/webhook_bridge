@@ -1307,7 +1307,9 @@ func (h *ModernDashboardHandler) reconnectService(c *gin.Context) {
 	}
 
 	// Parse request body (optional)
-	c.ShouldBindJSON(&request)
+	if err := c.ShouldBindJSON(&request); err != nil {
+		log.Printf("Warning: Failed to parse request body: %v", err)
+	}
 
 	// TODO: Integrate with actual connection manager
 	// For now, return success response
@@ -1712,56 +1714,16 @@ func (h *ModernDashboardHandler) getAllPluginStats(c *gin.Context) {
 
 // enablePlugin enables a specific plugin
 func (h *ModernDashboardHandler) enablePlugin(c *gin.Context) {
-	pluginName := c.Param("name")
-	if pluginName == "" {
-		c.JSON(http.StatusBadRequest, map[string]interface{}{
-			"success": false,
-			"error":   "Plugin name is required",
-		})
-		return
-	}
-
-	// For now, we'll simulate enabling the plugin
-	// In a real implementation, this would interact with the plugin management system
-	log.Printf("Enabling plugin: %s", pluginName)
-
-	// Record log entry
-	if h.logManager != nil {
-		logEntry := web.LogEntry{
-			Timestamp:  time.Now(),
-			Level:      "INFO",
-			Source:     "plugin_management",
-			Message:    fmt.Sprintf("Plugin %s enabled", pluginName),
-			PluginName: pluginName,
-			Data: map[string]interface{}{
-				"action": "enable",
-			},
-		}
-		h.logManager.AddLog(logEntry)
-	}
-
-	// Broadcast plugin status update
-	statusUpdate := PluginStatusUpdate{
-		PluginName:   pluginName,
-		Status:       "active",
-		LastExecuted: time.Now().Format(time.RFC3339),
-		Success:      true,
-	}
-	h.BroadcastPluginStatusUpdate(statusUpdate)
-
-	c.JSON(http.StatusOK, map[string]interface{}{
-		"success": true,
-		"message": fmt.Sprintf("Plugin %s enabled successfully", pluginName),
-		"data": map[string]interface{}{
-			"plugin_name": pluginName,
-			"status":      "active",
-			"timestamp":   time.Now().Format(time.RFC3339),
-		},
-	})
+	h.handlePluginStatusChange(c, "enable", "active", "enabled")
 }
 
 // disablePlugin disables a specific plugin
 func (h *ModernDashboardHandler) disablePlugin(c *gin.Context) {
+	h.handlePluginStatusChange(c, "disable", "inactive", "disabled")
+}
+
+// handlePluginStatusChange is a helper function to handle plugin status changes
+func (h *ModernDashboardHandler) handlePluginStatusChange(c *gin.Context, action, status, pastTense string) {
 	pluginName := c.Param("name")
 	if pluginName == "" {
 		c.JSON(http.StatusBadRequest, map[string]interface{}{
@@ -1771,9 +1733,9 @@ func (h *ModernDashboardHandler) disablePlugin(c *gin.Context) {
 		return
 	}
 
-	// For now, we'll simulate disabling the plugin
+	// For now, we'll simulate the plugin action
 	// In a real implementation, this would interact with the plugin management system
-	log.Printf("Disabling plugin: %s", pluginName)
+	log.Printf("%sing plugin: %s", strings.Title(action), pluginName)
 
 	// Record log entry
 	if h.logManager != nil {
@@ -1781,10 +1743,10 @@ func (h *ModernDashboardHandler) disablePlugin(c *gin.Context) {
 			Timestamp:  time.Now(),
 			Level:      "INFO",
 			Source:     "plugin_management",
-			Message:    fmt.Sprintf("Plugin %s disabled", pluginName),
+			Message:    fmt.Sprintf("Plugin %s %s", pluginName, pastTense),
 			PluginName: pluginName,
 			Data: map[string]interface{}{
-				"action": "disable",
+				"action": action,
 			},
 		}
 		h.logManager.AddLog(logEntry)
@@ -1793,7 +1755,7 @@ func (h *ModernDashboardHandler) disablePlugin(c *gin.Context) {
 	// Broadcast plugin status update
 	statusUpdate := PluginStatusUpdate{
 		PluginName:   pluginName,
-		Status:       "inactive",
+		Status:       status,
 		LastExecuted: time.Now().Format(time.RFC3339),
 		Success:      true,
 	}
@@ -1801,10 +1763,10 @@ func (h *ModernDashboardHandler) disablePlugin(c *gin.Context) {
 
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"success": true,
-		"message": fmt.Sprintf("Plugin %s disabled successfully", pluginName),
+		"message": fmt.Sprintf("Plugin %s %s successfully", pluginName, pastTense),
 		"data": map[string]interface{}{
 			"plugin_name": pluginName,
-			"status":      "inactive",
+			"status":      status,
 			"timestamp":   time.Now().Format(time.RFC3339),
 		},
 	})
@@ -1899,35 +1861,27 @@ func (h *ModernDashboardHandler) streamLogs(c *gin.Context) {
 	}()
 
 	// Send log entries to client
-	for {
-		select {
-		case logEntry, ok := <-logChan:
-			if !ok {
-				// Channel closed, exit
-				return
-			}
+	for logEntry := range logChan {
+		// Convert log entry to the format expected by the frontend
+		message := MonitorMessage{
+			Type:      "log_entry",
+			Timestamp: time.Now(),
+			Data: map[string]interface{}{
+				"id":          logEntry.ID,
+				"timestamp":   logEntry.Timestamp.Format(time.RFC3339),
+				"level":       strings.ToLower(logEntry.Level),
+				"message":     logEntry.Message,
+				"source":      logEntry.Source,
+				"plugin_name": logEntry.PluginName,
+				"component":   logEntry.PluginName, // For compatibility
+				"data":        logEntry.Data,
+			},
+		}
 
-			// Convert log entry to the format expected by the frontend
-			message := MonitorMessage{
-				Type:      "log_entry",
-				Timestamp: time.Now(),
-				Data: map[string]interface{}{
-					"id":          logEntry.ID,
-					"timestamp":   logEntry.Timestamp.Format(time.RFC3339),
-					"level":       strings.ToLower(logEntry.Level),
-					"message":     logEntry.Message,
-					"source":      logEntry.Source,
-					"plugin_name": logEntry.PluginName,
-					"component":   logEntry.PluginName, // For compatibility
-					"data":        logEntry.Data,
-				},
-			}
-
-			// Send log entry to client
-			if err := conn.WriteJSON(message); err != nil {
-				log.Printf("WebSocket write error: %v", err)
-				return
-			}
+		// Send log entry to client
+		if err := conn.WriteJSON(message); err != nil {
+			log.Printf("WebSocket write error: %v", err)
+			return
 		}
 	}
 }
@@ -1960,17 +1914,14 @@ func (h *ModernDashboardHandler) streamMonitor(c *gin.Context) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			// Send periodic system metrics update
-			h.sendSystemMetrics(conn)
+	for range ticker.C {
+		// Send periodic system metrics update
+		h.sendSystemMetrics(conn)
 
-			// Send ping to keep connection alive
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("WebSocket ping error: %v", err)
-				return
-			}
+		// Send ping to keep connection alive
+		if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			log.Printf("WebSocket ping error: %v", err)
+			return
 		}
 	}
 }
@@ -2007,7 +1958,7 @@ func (h *ModernDashboardHandler) getSystemMetrics() SystemMetricsUpdate {
 	var executionCount int64
 
 	for _, pluginStat := range pluginStats {
-		totalExecutionTime += int64(pluginStat.TotalTime.Milliseconds())
+		totalExecutionTime += pluginStat.TotalTime.Milliseconds()
 		executionCount += pluginStat.Count
 	}
 

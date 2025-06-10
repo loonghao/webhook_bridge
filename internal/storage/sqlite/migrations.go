@@ -170,7 +170,11 @@ func (mm *MigrationManager) runMigration(ctx context.Context, migration Migratio
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Failed to rollback transaction: %v", err)
+		}
+	}()
 
 	// Execute migration SQL
 	if _, err := tx.ExecContext(ctx, migration.SQL); err != nil {

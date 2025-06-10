@@ -11,7 +11,8 @@ import (
 
 // Example demonstrating the plugin statistics persistence features
 func main() {
-	fmt.Println("=== Plugin Statistics Persistence Demo ===\n")
+	fmt.Println("=== Plugin Statistics Persistence Demo ===")
+	fmt.Println()
 
 	// Create a temporary data directory for this demo
 	dataDir := filepath.Join(os.TempDir(), "webhook_bridge_demo")
@@ -55,7 +56,7 @@ func main() {
 		sm.RecordExecution(plugin.name, plugin.method, startTime)
 
 		// Record errors if any
-		for j := 0; j < plugin.errors; j++ {
+		for range plugin.errors {
 			sm.RecordError(plugin.name, plugin.method)
 		}
 
@@ -150,10 +151,10 @@ func main() {
 
 	fmt.Println("\n=== Demo completed ===")
 	fmt.Println("\nKey features demonstrated:")
-	fmt.Println("✓ Automatic persistence of plugin statistics")
-	fmt.Println("✓ Data recovery after restart")
-	fmt.Println("✓ Asynchronous saving with manual force save")
-	fmt.Println("✓ Backup and recovery mechanisms")
-	fmt.Println("✓ Statistics reset functionality")
-	fmt.Println("✓ Storage information and monitoring")
+	fmt.Println("✅ Automatic persistence of plugin statistics")
+	fmt.Println("✅ Data recovery after restart")
+	fmt.Println("✅ Asynchronous saving with manual force save")
+	fmt.Println("✅ Backup and recovery mechanisms")
+	fmt.Println("✅ Statistics reset functionality")
+	fmt.Println("✅ Storage information and monitoring")
 }

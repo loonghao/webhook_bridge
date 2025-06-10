@@ -11,6 +11,11 @@ import (
 	"github.com/loonghao/webhook_bridge/internal/grpc"
 )
 
+// Job type constants
+const (
+	jobTypeWebhook = "webhook"
+)
+
 // WebhookJobHandler handles webhook execution jobs
 type WebhookJobHandler struct {
 	grpcClient *grpc.Client
@@ -25,7 +30,7 @@ func NewWebhookJobHandler(grpcClient *grpc.Client) *WebhookJobHandler {
 
 // Type returns the job type this handler processes
 func (h *WebhookJobHandler) Type() string {
-	return "webhook"
+	return jobTypeWebhook
 }
 
 // Handle processes a webhook job
@@ -239,7 +244,7 @@ func (h *ScheduledJobHandler) Handle(ctx context.Context, job *Job) error {
 	// Determine job type
 	jobType, ok := actualJob["type"].(string)
 	if !ok {
-		jobType = "webhook"
+		jobType = jobTypeWebhook
 	}
 
 	// Create a new job for the actual execution
@@ -253,7 +258,7 @@ func (h *ScheduledJobHandler) Handle(ctx context.Context, job *Job) error {
 
 	// Execute based on type
 	switch jobType {
-	case "webhook":
+	case jobTypeWebhook:
 		handler := NewWebhookJobHandler(h.grpcClient)
 		if err := handler.Handle(ctx, executionJob); err != nil {
 			return err

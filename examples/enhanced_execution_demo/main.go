@@ -13,7 +13,8 @@ import (
 
 // Example demonstrating enhanced plugin execution with automatic logging and statistics
 func main() {
-	fmt.Println("=== Enhanced Plugin Execution Demo ===\n")
+	fmt.Println("=== Enhanced Plugin Execution Demo ===")
+	fmt.Println()
 
 	// Create configuration
 	cfg := &config.ExecutorConfig{
@@ -163,11 +164,11 @@ func main() {
 
 	fmt.Println("\n=== Demo completed ===")
 	fmt.Println("\nKey features demonstrated:")
-	fmt.Println("✓ Automatic logging of plugin execution start/end")
-	fmt.Println("✓ Automatic statistics recording for each execution")
-	fmt.Println("✓ Error tracking and logging")
-	fmt.Println("✓ Plugin-specific log filtering")
-	fmt.Println("✓ Persistent storage of statistics")
-	fmt.Println("✓ Non-intrusive integration with existing execution flow")
+	fmt.Println("✅ Automatic logging of plugin execution start/end")
+	fmt.Println("✅ Automatic statistics recording for each execution")
+	fmt.Println("✅ Error tracking and logging")
+	fmt.Println("✅ Plugin-specific log filtering")
+	fmt.Println("✅ Persistent storage of statistics")
+	fmt.Println("✅ Non-intrusive integration with existing execution flow")
 	fmt.Println("\nAll plugin executions are now automatically tracked!")
 }

@@ -5,6 +5,13 @@ import (
 	"runtime"
 )
 
+// Platform constants
+const (
+	platformWindows = "windows"
+	platformLinux   = "linux"
+	platformDarwin  = "darwin"
+)
+
 // ServiceConfig represents service configuration
 type ServiceConfig struct {
 	Name        string
@@ -18,11 +25,11 @@ type ServiceConfig struct {
 // InstallService installs the service
 func InstallService(cfg *ServiceConfig) error {
 	switch runtime.GOOS {
-	case "windows":
+	case platformWindows:
 		return installWindowsService(cfg)
-	case "linux":
+	case platformLinux:
 		return installLinuxService(cfg)
-	case "darwin":
+	case platformDarwin:
 		return installMacService(cfg)
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
@@ -32,11 +39,11 @@ func InstallService(cfg *ServiceConfig) error {
 // UninstallService uninstalls the service
 func UninstallService(cfg *ServiceConfig) error {
 	switch runtime.GOOS {
-	case "windows":
+	case platformWindows:
 		return uninstallWindowsService(cfg)
-	case "linux":
+	case platformLinux:
 		return uninstallLinuxService(cfg)
-	case "darwin":
+	case platformDarwin:
 		return uninstallMacService(cfg)
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
@@ -46,11 +53,11 @@ func UninstallService(cfg *ServiceConfig) error {
 // StartService starts the service
 func StartService(cfg *ServiceConfig) error {
 	switch runtime.GOOS {
-	case "windows":
+	case platformWindows:
 		return startWindowsService(cfg)
-	case "linux":
+	case platformLinux:
 		return startLinuxService(cfg)
-	case "darwin":
+	case platformDarwin:
 		return startMacService(cfg)
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
@@ -60,11 +67,11 @@ func StartService(cfg *ServiceConfig) error {
 // StopService stops the service
 func StopService(cfg *ServiceConfig) error {
 	switch runtime.GOOS {
-	case "windows":
+	case platformWindows:
 		return stopWindowsService(cfg)
-	case "linux":
+	case platformLinux:
 		return stopLinuxService(cfg)
-	case "darwin":
+	case platformDarwin:
 		return stopMacService(cfg)
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
@@ -74,11 +81,11 @@ func StopService(cfg *ServiceConfig) error {
 // GetServiceStatus gets the service status
 func GetServiceStatus(cfg *ServiceConfig) (string, error) {
 	switch runtime.GOOS {
-	case "windows":
+	case platformWindows:
 		return getWindowsServiceStatus(cfg)
-	case "linux":
+	case platformLinux:
 		return getLinuxServiceStatus(cfg)
-	case "darwin":
+	case platformDarwin:
 		return getMacServiceStatus(cfg)
 	default:
 		return "", fmt.Errorf("unsupported platform: %s", runtime.GOOS)

@@ -19,8 +19,27 @@ func TestLogEntryWithPluginName(t *testing.T) {
 		},
 	}
 
+	// Verify all fields are set correctly
+	if entry.ID != 1 {
+		t.Errorf("Expected ID 1, got %d", entry.ID)
+	}
+	if entry.Level != "INFO" {
+		t.Errorf("Expected level 'INFO', got '%s'", entry.Level)
+	}
+	if entry.Source != "plugin" {
+		t.Errorf("Expected source 'plugin', got '%s'", entry.Source)
+	}
+	if entry.Message != "Plugin executed successfully" {
+		t.Errorf("Expected message 'Plugin executed successfully', got '%s'", entry.Message)
+	}
 	if entry.PluginName != "test_plugin" {
 		t.Errorf("Expected plugin name 'test_plugin', got '%s'", entry.PluginName)
+	}
+	if entry.Timestamp.IsZero() {
+		t.Error("Expected timestamp to be set")
+	}
+	if entry.Data["execution_time"] != "45ms" {
+		t.Errorf("Expected execution_time '45ms', got '%v'", entry.Data["execution_time"])
 	}
 }
 

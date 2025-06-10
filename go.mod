@@ -2,6 +2,8 @@ module github.com/loonghao/webhook_bridge
 
 go 1.23
 
+replace github.com/loonghao/webhook_bridge/web-nextjs => ./web-nextjs
+
 require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/google/uuid v1.6.0

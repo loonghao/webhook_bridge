@@ -18,7 +18,7 @@ func main() {
 			Source:     "plugin",
 			Message:    "GitHub webhook plugin executed successfully",
 			PluginName: "github_webhook",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"execution_time": "45ms",
 				"status":         "success",
 				"repository":     "webhook_bridge",
@@ -29,7 +29,7 @@ func main() {
 			Source:     "plugin",
 			Message:    "Slack notification plugin failed",
 			PluginName: "slack_notification",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"execution_time": "120ms",
 				"error":          "connection timeout",
 				"retry_count":    3,
@@ -40,7 +40,7 @@ func main() {
 			Source:     "plugin",
 			Message:    "GitHub webhook plugin rate limit warning",
 			PluginName: "github_webhook",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"execution_time": "30ms",
 				"rate_limit":     "approaching",
 				"remaining":      10,
@@ -51,7 +51,7 @@ func main() {
 			Source:     "system",
 			Message:    "System health check completed",
 			PluginName: "", // No plugin associated
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"memory_usage": "65%",
 				"cpu_usage":    "23%",
 			},
@@ -63,7 +63,8 @@ func main() {
 		logManager.AddLog(log)
 	}
 
-	fmt.Println("=== Plugin Logging Features Demo ===\n")
+	fmt.Println("=== Plugin Logging Features Demo ===")
+	fmt.Println()
 
 	// 1. Get all logs
 	fmt.Println("1. All logs:")

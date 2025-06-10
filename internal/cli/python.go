@@ -307,11 +307,11 @@ func runPythonExecutor(cmd *cobra.Command, args []string) error {
 	fmt.Printf("==========================\n")
 	fmt.Printf("To start the Python executor service, run:\n")
 	fmt.Printf("  python python_executor/main.py --host %s --port %d\n", host, port)
-	
+
 	if len(pluginDirs) > 0 {
 		fmt.Printf("  --plugin-dirs %s\n", strings.Join(pluginDirs, ","))
 	}
-	
+
 	fmt.Printf("\nAlternatively, use the 'start' command for full service management:\n")
 	fmt.Printf("  webhook-bridge start\n")
 
@@ -323,16 +323,16 @@ func parsePackageList(packages string) []string {
 	if packages == "" {
 		return nil
 	}
-	
+
 	parts := strings.Split(packages, ",")
 	result := make([]string, 0, len(parts))
-	
+
 	for _, part := range parts {
 		trimmed := strings.TrimSpace(part)
 		if trimmed != "" {
 			result = append(result, trimmed)
 		}
 	}
-	
+
 	return result
 }

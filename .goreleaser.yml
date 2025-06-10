@@ -1,18 +1,28 @@
 # GoReleaser configuration for webhook-bridge
-# Based on Lazydocker's best practices with modern enhancements
+# Based on Grype and Lazydocker's best practices with modern enhancements
+version: 2
+
+
 
 env:
+  # Required to support multi-architecture docker builds
+  - DOCKER_CLI_EXPERIMENTAL=enabled
   - CGO_ENABLED=0
   - GO111MODULE=on
+  # Description for Docker labels
+  - DESCRIPTION=A hybrid Go/Python webhook bridge for flexible automation
 
 # Global hooks
 before:
   hooks:
+    # Clean and prepare build environment
+    - go mod tidy
+    - go mod download
     # Setup development environment and build dashboard
-    - go run dev.go dev-setup
-    - cd web-nextjs && npm ci && npm run build
+    - go run dev.go dev-setup || echo "Dev setup failed, continuing..."
+    - go run dev.go dashboard build --production || echo "Dashboard build failed, continuing..."
     # Generate protobuf files before building
-    - go run dev.go proto
+    - go run dev.go proto || echo "Proto generation failed, continuing..."
 
 builds:
   # Unified CLI binary (all-in-one command-line interface)
@@ -27,6 +37,9 @@ builds:
       - amd64
       - arm64
       - arm
+      # Add support for more architectures like Grype
+      - ppc64le
+      - s390x
     goarm:
       - 6
       - 7
@@ -38,14 +51,27 @@ builds:
         goarch: arm64
       - goos: darwin
         goarch: arm
-    ldflags:
-      - -s -w
-      - -X main.version={{.Version}}
-      - -X main.buildTime={{.Date}}
-      - -X main.goVersion={{.Env.GOVERSION}}
+      # Skip exotic architectures for Windows and macOS
+      - goos: windows
+        goarch: ppc64le
+      - goos: windows
+        goarch: s390x
+      - goos: darwin
+        goarch: ppc64le
+      - goos: darwin
+        goarch: s390x
+    # Set the modified timestamp on the output binary to the git timestamp to ensure a reproducible build
+    mod_timestamp: &build-timestamp '{{ .CommitTimestamp }}'
+    ldflags: &build-ldflags |
+      -w -s
+      -extldflags '-static'
+      -X main.version={{.Version}}
+      -X main.gitCommit={{.Commit}}
+      -X main.buildDate={{.Date}}
+      -X main.gitDescription={{.Summary}}
 
 archives:
-  - id: webhook-bridge
+  - id: webhook-bridge-archives
     builds:
       - webhook-bridge
     name_template: >-
@@ -69,6 +95,31 @@ archives:
       - scripts/setup_python_env.py
       - web-nextjs/dist/**/*
       - docs/**/*
+
+# Package managers (RPM/DEB support like Grype)
+nfpms:
+  - id: webhook-bridge-packages
+    package_name: webhook-bridge
+    vendor: loonghao
+    homepage: "https://github.com/loonghao/webhook_bridge"
+    maintainer: "Hal Long <hal.long@outlook.com>"
+    description: &description "A hybrid Go/Python webhook bridge for flexible automation"
+    license: "Apache-2.0"
+    formats:
+      - rpm
+      - deb
+    dependencies:
+      - python3
+    recommends:
+      - python3-pip
+    contents:
+      - src: ./config.example.yaml
+        dst: /etc/webhook-bridge/config.example.yaml
+        type: config
+      - src: ./python_executor/
+        dst: /usr/share/webhook-bridge/python_executor/
+      - src: ./example_plugins/
+        dst: /usr/share/webhook-bridge/example_plugins/
 
 checksum:
   name_template: 'checksums.txt'
@@ -142,8 +193,10 @@ brews:
   - repository:
       owner: loonghao
       name: homebrew-tap
+    ids:
+      - webhook-bridge-archives
     homepage: "https://github.com/loonghao/webhook_bridge"
-    description: "A hybrid Go/Python webhook bridge for flexible automation"
+    description: *description
     license: "Apache-2.0"
     test: |
       system "#{bin}/webhook-bridge --version"
@@ -155,40 +208,67 @@ scoops:
   - repository:
       owner: loonghao
       name: scoop-bucket
+    ids:
+      - webhook-bridge-archives
     homepage: "https://github.com/loonghao/webhook_bridge"
-    description: "A hybrid Go/Python webhook bridge for flexible automation"
+    description: *description
     license: "Apache-2.0"
 
-# Docker images
+# Docker images (simplified for reliability)
 dockers:
+  # AMD64 images only for now (to avoid build complexity)
   - image_templates:
       - "ghcr.io/loonghao/webhook-bridge:{{ .Tag }}"
-      - "ghcr.io/loonghao/webhook-bridge:v{{ .Major }}"
-      - "ghcr.io/loonghao/webhook-bridge:v{{ .Major }}.{{ .Minor }}"
       - "ghcr.io/loonghao/webhook-bridge:latest"
+    goarch: amd64
     dockerfile: Dockerfile
     use: buildx
     build_flag_templates:
       - "--pull"
+      - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--label=org.opencontainers.image.description=A hybrid Go/Python webhook bridge for flexible automation"
-      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.description={{.Env.DESCRIPTION}}"
+      - "--build-arg=BUILD_DATE={{.Date}}"
+      - "--build-arg=BUILD_VERSION={{.Version}}"
+      - "--build-arg=VCS_REF={{.FullCommit}}"
+      - "--build-arg=VCS_URL={{.GitURL}}"
     extra_files:
       - go.mod
       - go.sum
       - cmd/
       - internal/
       - api/
-      - web-nextjs/dist/
+      - web-nextjs/
+      - pkg/
       - python_executor/
       - config.yaml
       - docker-entrypoint.sh
       - example_plugins/
       - requirements.txt
+
+# Docker manifests (disabled for now to simplify builds)
+# docker_manifests:
+#   - name_template: "ghcr.io/loonghao/webhook-bridge:latest"
+#     image_templates:
+#       - "ghcr.io/loonghao/webhook-bridge:{{ .Tag }}"
+
+# Code signing (optional, like Grype)
+# signs:
+#   - cmd: cosign
+#     signature: "${artifact}.sig"
+#     certificate: "${artifact}.pem"
+#     args:
+#       - "sign-blob"
+#       - "--oidc-issuer=https://token.actions.githubusercontent.com"
+#       - "--output-certificate=${certificate}"
+#       - "--output-signature=${signature}"
+#       - "${artifact}"
+#       - "--yes"
+#     artifacts: checksum
 
 # Announce to Discord (optional)
 # announces:

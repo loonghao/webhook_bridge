@@ -16,7 +16,8 @@ import (
 
 // Example demonstrating the new plugin management API endpoints
 func main() {
-	fmt.Println("=== Plugin Management API Demo ===\n")
+	fmt.Println("=== Plugin Management API Demo ===")
+	fmt.Println()
 
 	// Create a test configuration
 	cfg := &config.Config{
@@ -82,12 +83,12 @@ func main() {
 
 	fmt.Println("\n=== Demo completed ===")
 	fmt.Println("\nNew API endpoints demonstrated:")
-	fmt.Println("✓ GET /api/dashboard/plugins - Enhanced with real gRPC integration")
-	fmt.Println("✓ POST /api/dashboard/plugins/:name/execute - Manual plugin testing")
-	fmt.Println("✓ GET /api/dashboard/plugins/:name/stats - Plugin-specific statistics")
-	fmt.Println("✓ GET /api/dashboard/plugins/:name/logs - Plugin-specific logs")
-	fmt.Println("✓ GET /api/dashboard/plugins/stats - All plugin statistics")
-	fmt.Println("✓ GET /api/dashboard/logs?plugin=name - Enhanced logs with plugin filtering")
+	fmt.Println("✅ GET /api/dashboard/plugins - Enhanced with real gRPC integration")
+	fmt.Println("✅ POST /api/dashboard/plugins/:name/execute - Manual plugin testing")
+	fmt.Println("✅ GET /api/dashboard/plugins/:name/stats - Plugin-specific statistics")
+	fmt.Println("✅ GET /api/dashboard/plugins/:name/logs - Plugin-specific logs")
+	fmt.Println("✅ GET /api/dashboard/plugins/stats - All plugin statistics")
+	fmt.Println("✅ GET /api/dashboard/logs?plugin=name - Enhanced logs with plugin filtering")
 }
 
 func testGetRequest(url string) {
@@ -109,7 +110,7 @@ func testGetRequest(url string) {
 	fmt.Printf("    Status: %d\n", resp.StatusCode)
 
 	// Pretty print JSON response
-	var jsonData interface{}
+	var jsonData any
 	if err := json.Unmarshal(body, &jsonData); err == nil {
 		prettyJSON, _ := json.MarshalIndent(jsonData, "    ", "  ")
 		fmt.Printf("    Response: %s\n", string(prettyJSON))
@@ -122,7 +123,7 @@ func testPluginExecution(url string) {
 	fmt.Printf("  POST %s\n", url)
 
 	// Create test execution request
-	requestData := map[string]interface{}{
+	requestData := map[string]any{
 		"method": "POST",
 		"data": map[string]string{
 			"test_key": "test_value",
@@ -157,7 +158,7 @@ func testPluginExecution(url string) {
 	fmt.Printf("    Status: %d\n", resp.StatusCode)
 
 	// Pretty print JSON response
-	var jsonResponse interface{}
+	var jsonResponse any
 	if err := json.Unmarshal(body, &jsonResponse); err == nil {
 		prettyJSON, _ := json.MarshalIndent(jsonResponse, "    ", "  ")
 		fmt.Printf("    Response: %s\n", string(prettyJSON))

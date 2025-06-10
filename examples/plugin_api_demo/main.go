@@ -15,7 +15,8 @@ import (
 
 // Simple demo for plugin management API endpoints
 func main() {
-	fmt.Println("=== Plugin Management API Demo ===\n")
+	fmt.Println("=== Plugin Management API Demo ===")
+	fmt.Println()
 
 	// Create a test configuration
 	cfg := &config.Config{
@@ -65,7 +66,7 @@ func main() {
 	testAPI(router, "GET", "/api/dashboard/logs?plugin=example_plugin&limit=5", nil)
 
 	fmt.Println("\n6. Testing plugin execution...")
-	executionData := map[string]interface{}{
+	executionData := map[string]any{
 		"method": "POST",
 		"data": map[string]string{
 			"test_key": "test_value",
@@ -79,14 +80,14 @@ func main() {
 
 	fmt.Println("\n=== Demo completed ===")
 	fmt.Println("\nAll new plugin management API endpoints are working correctly!")
-	fmt.Println("✓ Enhanced plugin listing with gRPC integration")
-	fmt.Println("✓ Plugin execution testing capability")
-	fmt.Println("✓ Plugin-specific statistics and logs")
-	fmt.Println("✓ Comprehensive plugin statistics overview")
-	fmt.Println("✓ Enhanced log filtering by plugin")
+	fmt.Println("✅ Enhanced plugin listing with gRPC integration")
+	fmt.Println("✅ Plugin execution testing capability")
+	fmt.Println("✅ Plugin-specific statistics and logs")
+	fmt.Println("✅ Comprehensive plugin statistics overview")
+	fmt.Println("✅ Enhanced log filtering by plugin")
 }
 
-func testAPI(router *gin.Engine, method, path string, data interface{}) {
+func testAPI(router *gin.Engine, method, path string, data any) {
 	fmt.Printf("  %s %s\n", method, path)
 
 	var req *http.Request
@@ -114,19 +115,19 @@ func testAPI(router *gin.Engine, method, path string, data interface{}) {
 	fmt.Printf("    Status: %d\n", w.Code)
 
 	// Parse and display response
-	var response interface{}
+	var response any
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err == nil {
 		// Check if it's a successful response
-		if respMap, ok := response.(map[string]interface{}); ok {
+		if respMap, ok := response.(map[string]any); ok {
 			if success, exists := respMap["success"]; exists && success == true {
 				fmt.Printf("    Success: ✓\n")
 
 				// Show some key data
 				if data, exists := respMap["data"]; exists {
 					switch d := data.(type) {
-					case []interface{}:
+					case []any:
 						fmt.Printf("    Data: Array with %d items\n", len(d))
-					case map[string]interface{}:
+					case map[string]any:
 						fmt.Printf("    Data: Object with keys: ")
 						keys := make([]string, 0, len(d))
 						for k := range d {

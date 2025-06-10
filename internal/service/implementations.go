@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	"github.com/loonghao/webhook_bridge/internal/config"
 	"github.com/loonghao/webhook_bridge/internal/grpc"
 )

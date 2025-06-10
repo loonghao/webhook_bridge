@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"log"
 	"runtime"
 	"sync"
 	"time"
@@ -62,7 +63,9 @@ func NewStatsManagerWithPersistence(dataDir string) *StatsManager {
 	}
 
 	// Load existing data
-	sm.LoadStats()
+	if err := sm.LoadStats(); err != nil {
+		log.Printf("Warning: Failed to load stats: %v", err)
+	}
 
 	return sm
 }

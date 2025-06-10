@@ -91,8 +91,10 @@ func TestMonitorMessageStructure(t *testing.T) {
 
 	assert.Equal(t, "test_plugin", update.PluginName)
 	assert.Equal(t, "executed", update.Status)
+	assert.Equal(t, "2023-01-01T00:00:00Z", update.LastExecuted)
 	assert.Equal(t, int64(150), update.ExecutionTime)
 	assert.True(t, update.Success)
+	assert.Equal(t, "", update.Error)
 
 	// Test SystemMetricsUpdate structure
 	metrics := SystemMetricsUpdate{
@@ -153,6 +155,7 @@ func TestMonitorMessageTypes(t *testing.T) {
 	}
 
 	assert.Equal(t, "system_metrics", systemMsg.Type)
+	assert.False(t, systemMsg.Timestamp.IsZero())
 	assert.NotNil(t, systemMsg.Data)
 
 	// Test plugin_status message
@@ -166,6 +169,7 @@ func TestMonitorMessageTypes(t *testing.T) {
 	}
 
 	assert.Equal(t, "plugin_status", pluginMsg.Type)
+	assert.False(t, pluginMsg.Timestamp.IsZero())
 	assert.NotNil(t, pluginMsg.Data)
 }
 

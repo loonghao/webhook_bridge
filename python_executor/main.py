@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 from concurrent import futures
+import contextlib
 import logging
 import os
 from pathlib import Path
@@ -88,16 +89,14 @@ async def serve(host: str = "0.0.0.0", port: int = 50051, plugin_dirs: list[str]
 
         done, pending = await asyncio.wait(
             [shutdown_task, termination_task],
-            return_when=asyncio.FIRST_COMPLETED
+            return_when=asyncio.FIRST_COMPLETED,
         )
 
         # Cancel pending tasks
         for task in pending:
             task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
 
         # If shutdown was triggered by signal, stop the server
         if shutdown_task in done:
