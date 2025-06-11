@@ -33,8 +33,8 @@ func NewSQLiteStorage(config *config.SQLiteConfig) *SQLiteStorage {
 
 // Initialize initializes the SQLite database
 func (s *SQLiteStorage) Initialize(ctx context.Context) error {
-	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(s.dbPath), 0755); err != nil {
+	// Ensure directory exists with secure permissions
+	if err := os.MkdirAll(filepath.Dir(s.dbPath), 0750); err != nil {
 		return fmt.Errorf("failed to create database directory: %w", err)
 	}
 

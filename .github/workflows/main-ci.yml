@@ -74,6 +74,7 @@ jobs:
   lint:
     name: Lint Go Code
     runs-on: ubuntu-latest
+    needs: dashboard  # Wait for dashboard to be built
 
     steps:
     - name: Checkout code
@@ -105,6 +106,12 @@ jobs:
 
     - name: Generate protobuf code
       run: go run dev.go proto
+
+    - name: Download Dashboard artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: dashboard-build
+        path: web-nextjs/
 
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v6
@@ -185,12 +192,14 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: dashboard-build
-        path: web-nextjs/dist/
+        path: |
+          web-nextjs/dist/
+          web-nextjs/public/
         retention-days: 30
         
   build:
     name: Build Binaries
-    needs: [test, lint, dashboard]
+    needs: [test, lint]
     strategy:
       matrix:
         include:
@@ -255,7 +264,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: dashboard-build
-        path: web-nextjs/dist/
+        path: web-nextjs/
 
     - name: Build binary
       env:

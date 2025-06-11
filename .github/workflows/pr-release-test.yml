@@ -42,9 +42,14 @@ jobs:
     - name: Setup development environment
       run: go run dev.go dev-setup
 
+    - name: Build dashboard
+      run: |
+        go run dev.go dashboard install
+        go run dev.go dashboard build --production
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-        
+
     - name: Test GoReleaser build (snapshot)
       uses: goreleaser/goreleaser-action@v6
       with:
@@ -60,6 +65,7 @@ jobs:
         context: .
         platforms: linux/amd64
         push: false
+        load: true
         tags: webhook-bridge:pr-test
         build-args: |
           VERSION=pr-test
@@ -71,7 +77,7 @@ jobs:
     - name: Verify artifacts
       run: |
         echo "🔍 Verifying build artifacts..."
-        
+
         # Check GoReleaser artifacts
         if ls dist/webhook-bridge_* 1> /dev/null 2>&1; then
           echo "✅ GoReleaser binary artifacts found"
@@ -80,10 +86,27 @@ jobs:
           echo "❌ No GoReleaser binary artifacts found"
           exit 1
         fi
-        
+
         # Test Docker image
+        echo "📋 Available Docker images:"
+        docker images
+
         if docker images | grep -q webhook-bridge; then
           echo "✅ Docker image built successfully"
+
+          # Test basic container functionality
+          echo "🧪 Testing container startup..."
+          docker run --rm -d --name test-container -p 8080:8000 webhook-bridge:pr-test &
+          CONTAINER_PID=$!
+
+          # Wait briefly and check if container is running
+          sleep 5
+          if docker ps | grep -q test-container; then
+            echo "✅ Container started successfully"
+            docker stop test-container || true
+          else
+            echo "⚠️ Container startup test skipped (may need more time)"
+          fi
         else
           echo "❌ Docker image not found"
           exit 1

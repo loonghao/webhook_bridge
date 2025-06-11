@@ -2,9 +2,12 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -220,6 +223,9 @@ func (s *Server) setupMiddleware(router *gin.Engine) {
 	// CORS middleware
 	router.Use(s.corsMiddleware())
 
+	// Security headers middleware
+	router.Use(s.securityHeadersMiddleware())
+
 	// Request ID middleware
 	router.Use(s.requestIDMiddleware())
 
@@ -235,10 +241,41 @@ func (s *Server) setupMiddleware(router *gin.Engine) {
 // corsMiddleware handles CORS headers
 func (s *Server) corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Request-ID")
-		c.Header("Access-Control-Expose-Headers", "X-Request-ID, X-Execution-Time")
+		origin := c.Request.Header.Get("Origin")
+
+		// Check if origin is allowed
+		allowedOrigin := ""
+		for _, configOrigin := range s.config.Server.CORS.AllowedOrigins {
+			if configOrigin == "*" || configOrigin == origin {
+				allowedOrigin = origin
+				break
+			}
+		}
+
+		// Set CORS headers based on configuration
+		if allowedOrigin != "" {
+			c.Header("Access-Control-Allow-Origin", allowedOrigin)
+		}
+
+		if len(s.config.Server.CORS.AllowedMethods) > 0 {
+			c.Header("Access-Control-Allow-Methods", strings.Join(s.config.Server.CORS.AllowedMethods, ", "))
+		}
+
+		if len(s.config.Server.CORS.AllowedHeaders) > 0 {
+			c.Header("Access-Control-Allow-Headers", strings.Join(s.config.Server.CORS.AllowedHeaders, ", "))
+		}
+
+		if len(s.config.Server.CORS.ExposedHeaders) > 0 {
+			c.Header("Access-Control-Expose-Headers", strings.Join(s.config.Server.CORS.ExposedHeaders, ", "))
+		}
+
+		if s.config.Server.CORS.AllowCredentials {
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
+
+		if s.config.Server.CORS.MaxAge > 0 {
+			c.Header("Access-Control-Max-Age", fmt.Sprintf("%d", s.config.Server.CORS.MaxAge))
+		}
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
@@ -249,12 +286,76 @@ func (s *Server) corsMiddleware() gin.HandlerFunc {
 	}
 }
 
+// generateSecureRequestID generates a cryptographically secure request ID
+func generateSecureRequestID() string {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp-based ID if crypto/rand fails
+		return fmt.Sprintf("req_%d_%d", time.Now().UnixNano(), time.Now().Unix())
+	}
+	return fmt.Sprintf("req_%s", hex.EncodeToString(bytes))
+}
+
+// validatePluginName validates plugin name to prevent path traversal attacks
+func validatePluginName(name string) error {
+	if name == "" {
+		return fmt.Errorf("plugin name cannot be empty")
+	}
+
+	// Check for path traversal attempts
+	if strings.Contains(name, "..") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return fmt.Errorf("plugin name contains invalid characters")
+	}
+
+	// Check length
+	if len(name) > 100 {
+		return fmt.Errorf("plugin name too long (max 100 characters)")
+	}
+
+	// Only allow alphanumeric characters, hyphens, and underscores
+	for _, char := range name {
+		if !((char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '-' || char == '_') {
+			return fmt.Errorf("plugin name contains invalid character: %c", char)
+		}
+	}
+
+	return nil
+}
+
+// securityHeadersMiddleware adds security headers to responses
+func (s *Server) securityHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Prevent MIME type sniffing
+		c.Header("X-Content-Type-Options", "nosniff")
+
+		// Prevent clickjacking
+		c.Header("X-Frame-Options", "DENY")
+
+		// Enable XSS protection
+		c.Header("X-XSS-Protection", "1; mode=block")
+
+		// Prevent information disclosure
+		c.Header("Server", "webhook-bridge")
+
+		// Content Security Policy (basic)
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+
+		// Referrer Policy
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+
+		c.Next()
+	}
+}
+
 // requestIDMiddleware adds a unique request ID to each request
 func (s *Server) requestIDMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetHeader("X-Request-ID")
 		if requestID == "" {
-			requestID = fmt.Sprintf("%d-%d", time.Now().UnixNano(), atomic.AddInt64(&s.requestCount, 1))
+			requestID = generateSecureRequestID()
 		}
 
 		c.Header("X-Request-ID", requestID)
@@ -480,6 +581,17 @@ func (s *Server) listPlugins(c *gin.Context) {
 func (s *Server) getPluginInfo(c *gin.Context) {
 	pluginName := c.Param("plugin")
 
+	// Validate plugin name
+	if err := validatePluginName(pluginName); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":     "Invalid plugin name",
+			"details":   err.Error(),
+			"plugin":    pluginName,
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -525,6 +637,18 @@ func (s *Server) executePlugin(c *gin.Context) {
 	pluginName := c.Param("plugin")
 	method := c.Request.Method
 
+	// Validate plugin name
+	if err := validatePluginName(pluginName); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":     "Invalid plugin name",
+			"details":   err.Error(),
+			"plugin":    pluginName,
+			"method":    method,
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -532,11 +656,23 @@ func (s *Server) executePlugin(c *gin.Context) {
 	requestData := make(map[string]string)
 
 	if method == "POST" || method == "PUT" {
+		// Limit request body size to 10MB
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10*1024*1024)
+
 		var jsonData map[string]interface{}
 		if err := c.ShouldBindJSON(&jsonData); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":   "Invalid JSON payload",
 				"details": err.Error(),
+			})
+			return
+		}
+
+		// Validate JSON data size
+		if len(jsonData) > 1000 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Request payload too large",
+				"details": "Maximum 1000 fields allowed",
 			})
 			return
 		}

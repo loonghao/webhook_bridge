@@ -640,7 +640,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, sourceFile, 0600)
+	return os.WriteFile(dst, sourceFile, 0640)
 }
 
 // startPythonExecutor starts Python executor (simplified version for dashboard)

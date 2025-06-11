@@ -25,10 +25,21 @@ type Config struct {
 
 // ServerConfig represents HTTP server configuration
 type ServerConfig struct {
-	Host     string `yaml:"host" default:"0.0.0.0"`
-	Port     int    `yaml:"port" default:"0"`         // 0 means auto-assign
-	Mode     string `yaml:"mode" default:"debug"`     // debug, release
-	AutoPort bool   `yaml:"auto_port" default:"true"` // Enable automatic port assignment
+	Host     string     `yaml:"host" default:"0.0.0.0"`
+	Port     int        `yaml:"port" default:"0"`         // 0 means auto-assign
+	Mode     string     `yaml:"mode" default:"debug"`     // debug, release
+	AutoPort bool       `yaml:"auto_port" default:"true"` // Enable automatic port assignment
+	CORS     CORSConfig `yaml:"cors"`                     // CORS configuration
+}
+
+// CORSConfig represents CORS configuration
+type CORSConfig struct {
+	AllowedOrigins   []string `yaml:"allowed_origins"`   // Allowed origins for CORS
+	AllowedMethods   []string `yaml:"allowed_methods"`   // Allowed HTTP methods
+	AllowedHeaders   []string `yaml:"allowed_headers"`   // Allowed headers
+	ExposedHeaders   []string `yaml:"exposed_headers"`   // Headers to expose to client
+	AllowCredentials bool     `yaml:"allow_credentials"` // Allow credentials
+	MaxAge           int      `yaml:"max_age"`           // Preflight cache duration in seconds
 }
 
 // PythonConfig represents Python interpreter configuration
@@ -225,6 +236,14 @@ func (c *Config) setDefaults() {
 	c.Server.Port = 0 // Auto-assign
 	c.Server.Mode = "debug"
 	c.Server.AutoPort = true
+
+	// CORS defaults - secure by default
+	c.Server.CORS.AllowedOrigins = []string{"http://localhost:3000", "http://127.0.0.1:3000"}
+	c.Server.CORS.AllowedMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	c.Server.CORS.AllowedHeaders = []string{"Origin", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization", "X-Request-ID"}
+	c.Server.CORS.ExposedHeaders = []string{"X-Request-ID", "X-Execution-Time"}
+	c.Server.CORS.AllowCredentials = false
+	c.Server.CORS.MaxAge = 86400 // 24 hours
 
 	c.Python.Interpreter = "auto"
 	c.Python.AutoDownloadUV = true

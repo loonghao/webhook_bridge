@@ -5,15 +5,53 @@
 server:
   # Host to bind the server to
   host: "0.0.0.0"
-  
+
   # Port to bind the server to (0 for auto-assign)
   port: 0
-  
+
   # Server mode: debug, release
   mode: "debug"
-  
+
   # Enable automatic port assignment
   auto_port: true
+
+  # CORS Configuration
+  cors:
+    # Allowed origins for CORS requests
+    allowed_origins:
+      - "http://localhost:3000"
+      - "http://127.0.0.1:3000"
+      # Add your frontend URLs here
+      # - "https://your-frontend-domain.com"
+
+    # Allowed HTTP methods
+    allowed_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "OPTIONS"
+
+    # Allowed headers
+    allowed_headers:
+      - "Origin"
+      - "Content-Type"
+      - "Content-Length"
+      - "Accept-Encoding"
+      - "X-CSRF-Token"
+      - "Authorization"
+      - "X-Request-ID"
+
+    # Headers to expose to client
+    exposed_headers:
+      - "X-Request-ID"
+      - "X-Execution-Time"
+
+    # Allow credentials (cookies, authorization headers)
+    allow_credentials: false
+
+    # Preflight cache duration in seconds
+    max_age: 86400
 
 # Enhanced Python Interpreter Configuration
 python:
