@@ -114,7 +114,11 @@ func (pss *PluginStatsStorage) LoadStats() error {
 func (pss *PluginStatsStorage) loadFromFile(filePath string) error {
 	// Validate and clean file path to prevent path traversal
 	cleanPath := filepath.Clean(filePath)
-	if !strings.HasPrefix(cleanPath, pss.dataDir) {
+	cleanDataDir := filepath.Clean(pss.dataDir)
+
+	// Check if the clean path is within the data directory
+	relPath, err := filepath.Rel(cleanDataDir, cleanPath)
+	if err != nil || strings.HasPrefix(relPath, "..") {
 		return fmt.Errorf("invalid file path: path traversal detected")
 	}
 
@@ -159,7 +163,11 @@ func (pss *PluginStatsStorage) SaveStats(statsData *PluginStatsData) error {
 func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 	// Validate and clean file path to prevent path traversal
 	cleanPath := filepath.Clean(filePath)
-	if !strings.HasPrefix(cleanPath, pss.dataDir) {
+	cleanDataDir := filepath.Clean(pss.dataDir)
+
+	// Check if the clean path is within the data directory
+	relPath, err := filepath.Rel(cleanDataDir, cleanPath)
+	if err != nil || strings.HasPrefix(relPath, "..") {
 		return fmt.Errorf("invalid file path: path traversal detected")
 	}
 
@@ -174,8 +182,14 @@ func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 	tempFile := cleanPath + ".tmp"
 	// Validate temp file path as well
 	cleanTempFile := filepath.Clean(tempFile)
-	if !strings.HasPrefix(cleanTempFile, pss.dataDir) {
+	relTempPath, err := filepath.Rel(cleanDataDir, cleanTempFile)
+	if err != nil || strings.HasPrefix(relTempPath, "..") {
 		return fmt.Errorf("invalid temp file path: path traversal detected")
+	}
+
+	// Ensure the directory exists before creating the temp file
+	if err := os.MkdirAll(filepath.Dir(cleanTempFile), 0750); err != nil {
+		return fmt.Errorf("failed to create directory for temp file: %w", err)
 	}
 
 	file, err := os.Create(cleanTempFile)
