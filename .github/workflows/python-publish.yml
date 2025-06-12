@@ -40,13 +40,17 @@ jobs:
           ${{ runner.os }}-poetry-3.12-
           ${{ runner.os }}-poetry-
 
-    - name: Install dependencies
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+
+    - name: Install dependencies and build
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -r requirements-dev.txt
-        poetry --version
-        poetry install
-        poetry build
+        uvx poetry --version
+        uvx poetry install
+        uvx poetry build
     # Note that we don't need credentials.
     # We rely on https://docs.pypi.org/trusted-publishers/.
     - name: Upload to PyPI
