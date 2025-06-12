@@ -1,3 +1,14 @@
+## v3.0.0 (2025-06-12)
+
+### BREAKING CHANGE
+
+- Removed separate server and python-manager binaries in favor of unified webhook-bridge CLI
+- Docker containers now use unified CLI and port 8080 instead of 8000
+
+### Refactor
+
+- clean up codebase and remove unnecessary test files (#85)
+
 ## v2.2.0 (2025-06-01)
 
 ### Feat
