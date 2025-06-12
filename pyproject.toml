@@ -40,12 +40,6 @@ Issues = "https://github.com/loonghao/webhook_bridge/issues"
 webhook-bridge-py = "webhook_bridge.cli:main"
 
 [tool.poetry]
-name = "webhook-bridge"
-version = "3.0.0"
-description = "A flexible webhook integration platform with hybrid Go/Python architecture"
-authors = ["hal.long <hal.long@outlook.com>"]
-license = "MIT"
-readme = "README.md"
 packages = [
     { include = "webhook_bridge" },
     { include = "python_executor" },
