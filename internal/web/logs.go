@@ -9,12 +9,13 @@ import (
 
 // LogEntry represents a single log entry
 type LogEntry struct {
-	ID        int64                  `json:"id"`
-	Timestamp time.Time              `json:"timestamp"`
-	Level     string                 `json:"level"`
-	Source    string                 `json:"source"`
-	Message   string                 `json:"message"`
-	Data      map[string]interface{} `json:"data,omitempty"`
+	ID         int64                  `json:"id"`
+	Timestamp  time.Time              `json:"timestamp"`
+	Level      string                 `json:"level"`
+	Source     string                 `json:"source"`
+	Message    string                 `json:"message"`
+	PluginName string                 `json:"plugin_name,omitempty"` // Plugin name for plugin-related logs
+	Data       map[string]interface{} `json:"data,omitempty"`
 }
 
 // LogManager manages application logs for the dashboard
@@ -67,21 +68,29 @@ func (lm *LogManager) AddLog(entry LogEntry) {
 
 // GetLogs returns logs filtered by level and limited by count
 func (lm *LogManager) GetLogs(level string, limit int) []LogEntry {
+	return lm.GetLogsWithFilters(level, "", limit)
+}
+
+// GetLogsWithFilters returns logs filtered by level, plugin name and limited by count
+func (lm *LogManager) GetLogsWithFilters(level string, pluginName string, limit int) []LogEntry {
 	lm.mutex.RLock()
 	defer lm.mutex.RUnlock()
 
 	var filtered []LogEntry
 
-	// Filter by level if specified
-	if level != "" {
-		for _, log := range lm.logs {
-			if log.Level == level {
-				filtered = append(filtered, log)
-			}
+	// Filter by level and plugin name if specified
+	for _, log := range lm.logs {
+		// Check level filter
+		if level != "" && log.Level != level {
+			continue
 		}
-	} else {
-		filtered = make([]LogEntry, len(lm.logs))
-		copy(filtered, lm.logs)
+
+		// Check plugin name filter
+		if pluginName != "" && log.PluginName != pluginName {
+			continue
+		}
+
+		filtered = append(filtered, log)
 	}
 
 	// Apply limit
@@ -95,6 +104,31 @@ func (lm *LogManager) GetLogs(level string, limit int) []LogEntry {
 	}
 
 	return filtered
+}
+
+// GetLogsByPlugin returns logs for a specific plugin
+func (lm *LogManager) GetLogsByPlugin(pluginName string, limit int) []LogEntry {
+	return lm.GetLogsWithFilters("", pluginName, limit)
+}
+
+// GetAvailablePlugins returns a list of all plugin names that have logs
+func (lm *LogManager) GetAvailablePlugins() []string {
+	lm.mutex.RLock()
+	defer lm.mutex.RUnlock()
+
+	pluginSet := make(map[string]bool)
+	for _, log := range lm.logs {
+		if log.PluginName != "" {
+			pluginSet[log.PluginName] = true
+		}
+	}
+
+	var plugins []string
+	for plugin := range pluginSet {
+		plugins = append(plugins, plugin)
+	}
+
+	return plugins
 }
 
 // AddClient adds a client for real-time log streaming
@@ -156,14 +190,19 @@ func (lm *LogManager) GetLogStats() map[string]interface{} {
 		"total":   len(lm.logs),
 		"levels":  make(map[string]int),
 		"sources": make(map[string]int),
+		"plugins": make(map[string]int),
 	}
 
 	levels := stats["levels"].(map[string]int)
 	sources := stats["sources"].(map[string]int)
+	plugins := stats["plugins"].(map[string]int)
 
 	for _, log := range lm.logs {
 		levels[log.Level]++
 		sources[log.Source]++
+		if log.PluginName != "" {
+			plugins[log.PluginName]++
+		}
 	}
 
 	return stats

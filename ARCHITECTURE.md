@@ -1,25 +1,40 @@
-# Webhook Bridge - Hybrid Architecture
+# Webhook Bridge - Unified Architecture
 
 ## Overview
 
-Webhook Bridge 2.0 introduces a hybrid architecture that combines the high performance of Go with the flexibility of Python plugins. This design provides the best of both worlds: blazing-fast HTTP handling and the rich ecosystem of Python for plugin development.
+Webhook Bridge 2.0 introduces a unified architecture that combines multiple executables into a single, powerful binary. This design eliminates the complexity of managing multiple processes while maintaining the high performance of Go and the flexibility of Python plugins.
 
 ## Architecture Diagram
 
 ```
-┌─────────────────┐    gRPC     ┌─────────────────┐
-│   Go HTTP       │◄──────────►│ Python Plugin   │
-│   Server        │             │ Executor        │
-│                 │             │                 │
-│ • Gin Router    │             │ • Plugin Loader │
-│ • Request       │             │ • gRPC Server   │
-│   Validation    │             │ • Compatibility │
-│ • Load Balancing│             │   Layer         │
-│ • Monitoring    │             │                 │
-└─────────────────┘             └─────────────────┘
-        │                               │
-        │                               │
-        ▼                               ▼
+┌─────────────────────────────────────────────────────────┐
+│                webhook-bridge.exe                       │
+│                 (Unified Binary)                        │
+│                                                         │
+│  ┌─────────────────┐    Internal    ┌─────────────────┐ │
+│  │   Go HTTP       │◄──────────────►│ Python Executor │ │
+│  │   Server        │   Management   │ Manager         │ │
+│  │                 │                │                 │ │
+│  │ • Gin Router    │                │ • Auto-start    │ │
+│  │ • Request       │                │ • Process Mgmt  │ │
+│  │   Validation    │                │ • gRPC Client   │ │
+│  │ • Load Balancing│                │ • Health Check  │ │
+│  │ • Monitoring    │                │                 │ │
+│  └─────────────────┘                └─────────────────┘ │
+│           │                                  │          │
+│           │                                  ▼          │
+│           │                    ┌─────────────────┐      │
+│           │                    │ Python Executor │      │
+│           │                    │ Service         │      │
+│           │                    │                 │      │
+│           │                    │ • Plugin Loader │      │
+│           │                    │ • gRPC Server   │      │
+│           │                    │ • Compatibility │      │
+│           │                    │   Layer         │      │
+│           │                    └─────────────────┘      │
+└───────────┼─────────────────────────────────────────────┘
+            │                            │
+            ▼                            ▼
 ┌─────────────────┐             ┌─────────────────┐
 │   HTTP Clients  │             │ Python Plugins  │
 │                 │             │                 │
@@ -31,7 +46,15 @@ Webhook Bridge 2.0 introduces a hybrid architecture that combines the high perfo
 
 ## Components
 
-### 1. Go HTTP Server (`cmd/server/`)
+### 1. Unified CLI (`cmd/webhook-bridge/`)
+- **Framework**: Cobra CLI with subcommands
+- **Responsibilities**:
+  - Command routing and argument parsing
+  - Service orchestration and management
+  - Configuration loading and validation
+  - Development and production workflows
+
+### 2. Go HTTP Server (Integrated)
 - **Framework**: Gin (high-performance HTTP router)
 - **Responsibilities**:
   - HTTP request handling and routing
@@ -40,7 +63,15 @@ Webhook Bridge 2.0 introduces a hybrid architecture that combines the high perfo
   - Load balancing and concurrency management
   - Health checks and monitoring
 
-### 2. Python Plugin Executor (`python_executor/`)
+### 3. Python Executor Manager (Integrated)
+- **Framework**: Process management with gRPC client
+- **Responsibilities**:
+  - Automatic Python executor startup
+  - Process lifecycle management
+  - gRPC connection management
+  - Health monitoring and recovery
+
+### 4. Python Plugin Executor (`python_executor/`)
 - **Framework**: gRPC server with existing plugin system
 - **Responsibilities**:
   - Plugin discovery and loading
@@ -48,15 +79,7 @@ Webhook Bridge 2.0 introduces a hybrid architecture that combines the high perfo
   - Backward compatibility with current plugins
   - Error handling and logging
 
-### 3. gRPC Communication Layer (`api/proto/`)
-- **Protocol**: Protocol Buffers + gRPC
-- **Features**:
-  - Type-safe communication
-  - Streaming support for large payloads
-  - Built-in error handling
-  - Performance monitoring
-
-### 4. Python Interpreter Management (`internal/python/`)
+### 5. Python Interpreter Management (`internal/python/`)
 - **Strategies**:
   1. **UV Virtual Environment** (preferred)
   2. **Custom Path** (configured)
@@ -118,32 +141,36 @@ uv run python python_executor/main.py
 
 ## Deployment Options
 
-### 1. Single Binary (Go + Embedded Python)
+### 1. Unified Service (Recommended)
 ```bash
-# Build Go server
-make build
+# Build unified binary
+go build -o webhook-bridge.exe ./cmd/webhook-bridge
 
-# Run with system Python
-./bin/webhook-bridge-server
+# Run unified service (Python executor + Go server)
+./webhook-bridge unified --port 8080
 ```
 
-### 2. Docker Container
+### 2. Individual Components
+```bash
+# Run Go server only
+./webhook-bridge serve --port 8080
+
+# Run backend server with gRPC client
+./webhook-bridge server --port 8080
+
+# Manage Python environment
+./webhook-bridge python info
+```
+
+### 3. Docker Container
 ```dockerfile
 FROM golang:1.21-alpine AS go-builder
 # ... Go build steps
 
 FROM python:3.11-slim
 # ... Python setup
-COPY --from=go-builder /app/webhook-bridge-server /usr/local/bin/
-```
-
-### 3. Separate Services
-```bash
-# Terminal 1: Python executor
-make run-python
-
-# Terminal 2: Go server
-make run
+COPY --from=go-builder /app/webhook-bridge /usr/local/bin/
+CMD ["webhook-bridge", "unified"]
 ```
 
 ## Performance Benefits

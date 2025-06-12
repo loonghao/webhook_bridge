@@ -1,17 +1,13 @@
 """
-Webhook Bridge - A flexible webhook integration platform with hybrid Go/Python architecture.
+Webhook Bridge Python Components
 
-This Python package provides a CLI tool to download, manage, and run the Go-based
-webhook bridge server.
+This package contains Python components for the webhook-bridge project.
+The main application is written in Go, but this package provides:
+- Python executor server
+- Development utilities
+- Testing helpers
 """
 
-__version__ = "1.0.0"
-__author__ = "hal.long <hal.long@outlook.com>"
-__description__ = "A flexible webhook integration platform with hybrid Go/Python architecture"
-
-# Re-export main components
-from .cli import main
-from .manager import WebhookBridgeManager
-
-
-__all__ = ["WebhookBridgeManager", "main"]
+__version__ = "2.2.0"
+__author__ = "hal.long"
+__email__ = "hal.long@outlook.com"

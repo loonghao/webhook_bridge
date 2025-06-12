@@ -1,7 +1,10 @@
+# This project is primarily a Go application with Python components
+# The pyproject.toml is used for Python development dependencies and tooling only
+
 [project]
 name = "webhook-bridge"
 version = "2.2.0"
-description = "A flexible webhook integration platform with hybrid Go/Python architecture - CLI manager for Go binaries."
+description = "A flexible webhook integration platform with hybrid Go/Python architecture"
 authors = [
     {name = "hal.long", email = "hal.long@outlook.com"}
 ]
@@ -10,8 +13,10 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "pyyaml>=6.0",
+    "grpcio>=1.50.0",
+    "grpcio-tools>=1.50.0",
 ]
-keywords = ["webhook", "integration", "platform", "go", "python", "cli"]
+keywords = ["webhook", "integration", "platform", "go", "python"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -23,9 +28,6 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: System :: Systems Administration",
 ]
 
 [project.urls]
@@ -35,26 +37,33 @@ Documentation = "https://github.com/loonghao/webhook_bridge#readme"
 Issues = "https://github.com/loonghao/webhook_bridge/issues"
 
 [project.scripts]
-webhook-bridge = "webhook_bridge.cli:main"
+webhook-bridge-py = "webhook_bridge.cli:main"
 
 [tool.poetry]
 name = "webhook-bridge"
 version = "2.2.0"
-description = "A flexible webhook integration platform with hybrid Go/Python architecture - CLI manager for Go binaries."
+description = "A flexible webhook integration platform with hybrid Go/Python architecture"
 authors = ["hal.long <hal.long@outlook.com>"]
 license = "MIT"
 readme = "README.md"
 packages = [
     { include = "webhook_bridge" },
+    { include = "python_executor" },
 ]
 
 [tool.poetry.dependencies]
 python = "^3.8"
 pyyaml = "^6.0"
+grpcio = "^1.50.0"
+grpcio-tools = "^1.50.0"
 
-[tool.poetry.scripts]
-webhook-bridge = "webhook_bridge.cli:main"
-
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pytest-cov = "^4.0.0"
+ruff = "^0.1.0"
+black = "^23.0.0"
+isort = "^5.12.0"
+nox = "^2023.4.22"
 
 [build-system]
 requires = ["poetry-core"]
@@ -66,7 +75,6 @@ version = "2.2.0"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml:version",
-    "webhook_bridge/__version__.py",
     "pkg/version/version.go:Version = \"$version\""
 ]
 

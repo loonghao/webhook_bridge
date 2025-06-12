@@ -3,19 +3,21 @@ package cli
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 
 	"github.com/loonghao/webhook_bridge/internal/config"
+	"github.com/loonghao/webhook_bridge/internal/logging"
 	"github.com/loonghao/webhook_bridge/internal/python"
+	"github.com/loonghao/webhook_bridge/internal/server"
 )
 
 // NewStartCommand creates the start command
@@ -23,37 +25,63 @@ func NewStartCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "start",
 		Short: "Start the webhook bridge service",
-		Long:  "Start both the Go HTTP server and Python executor service",
-		RunE:  runStart,
+		Long: `Start all services (frontend, backend, Python executor) in unified mode.
+This command starts both Python executor and Go server in a unified process.
+
+Features:
+- Automatic Python executor startup
+- Integrated Go server with gRPC client
+- Unified process management
+- Graceful shutdown handling`,
+		RunE: runStart,
 	}
 
-	cmd.Flags().StringP("env", "e", "dev", "Environment (dev, prod)")
-	cmd.Flags().BoolP("daemon", "d", false, "Run as daemon (background)")
-	cmd.Flags().Bool("build", false, "Build before starting (default: auto-detect)")
-	cmd.Flags().Bool("force-build", false, "Force build even if binaries exist")
-	cmd.Flags().StringP("config", "c", "", "Configuration file path")
-	cmd.Flags().String("server-port", "", "Override server port")
-	cmd.Flags().String("executor-port", "", "Override executor port")
+	cmd.Flags().String("port", "", "Server port (default from config)")
+	cmd.Flags().String("host", "", "Server host (default from config)")
+	cmd.Flags().String("config", "", "Configuration file path")
+	cmd.Flags().String("mode", "", "Server mode (debug, release)")
+	cmd.Flags().String("log-level", "", "Log level (debug, info, warn, error)")
+	cmd.Flags().Bool("no-python", false, "Skip Python executor startup (API-only mode)")
+	cmd.Flags().Bool("stagewise", false, "Enable stagewise debugging mode")
 
 	return cmd
 }
 
 func runStart(cmd *cobra.Command, args []string) error {
 	verbose, _ := cmd.Flags().GetBool("verbose")
-	env, _ := cmd.Flags().GetString("env")
-	daemon, _ := cmd.Flags().GetBool("daemon")
-	build, _ := cmd.Flags().GetBool("build")
-	forceBuild, _ := cmd.Flags().GetBool("force-build")
+	port, _ := cmd.Flags().GetString("port")
+	host, _ := cmd.Flags().GetString("host")
 	configPath, _ := cmd.Flags().GetString("config")
-	serverPort, _ := cmd.Flags().GetString("server-port")
-	executorPort, _ := cmd.Flags().GetString("executor-port")
+	mode, _ := cmd.Flags().GetString("mode")
+	logLevel, _ := cmd.Flags().GetString("log-level")
+	noPython, _ := cmd.Flags().GetBool("no-python")
+	stagewise, _ := cmd.Flags().GetBool("stagewise")
 
 	if verbose {
-		fmt.Printf("🚀 Starting webhook bridge in %s mode...\n", env)
+		fmt.Printf("🚀 Starting webhook bridge service...\n")
+		fmt.Printf("📊 Configuration: %s\n", configPath)
+		fmt.Printf("🌐 Host: %s\n", host)
+		fmt.Printf("🌐 Port: %s\n", port)
+		fmt.Printf("🔧 Mode: %s\n", mode)
+		fmt.Printf("📝 Log Level: %s\n", logLevel)
+		fmt.Printf("🐍 Python Executor: %v\n", !noPython)
+		if stagewise {
+			fmt.Printf("🎭 Stagewise Debug: enabled\n")
+		}
 	}
 
-	// Step 1: Intelligent configuration loading
-	workingDir, _ := os.Getwd()
+	return runUnifiedService(verbose, port, host, configPath, mode, logLevel, noPython, stagewise)
+}
+
+// runUnifiedService runs the unified webhook bridge service
+func runUnifiedService(verbose bool, port, host, configPath, mode, logLevel string, noPython, stagewise bool) error {
+	// Get current working directory
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Create configuration manager
 	configManager := config.NewConfigManager(workingDir, configPath, verbose)
 
 	// Validate working directory
@@ -67,365 +95,252 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Override with command line parameters
-	if serverPort != "" {
-		if port, err := parsePort(serverPort); err == nil {
-			cfg.Server.Port = port
-			cfg.Server.AutoPort = false
+	// Override configuration with command line flags
+	if host != "" {
+		cfg.Server.Host = host
+	}
+	if port != "" {
+		if portInt, parseErr := parsePort(port); parseErr == nil {
+			cfg.Server.Port = portInt
+		} else {
+			return fmt.Errorf("invalid port: %s", port)
 		}
 	}
-	if executorPort != "" {
-		if port, err := parsePort(executorPort); err == nil {
-			cfg.Executor.Port = port
-			cfg.Executor.AutoPort = false
-		}
+	if mode != "" {
+		cfg.Server.Mode = mode
+	}
+	if logLevel != "" {
+		cfg.Logging.Level = logLevel
 	}
 
-	// Set environment-specific defaults
-	if env == "prod" {
-		cfg.Server.Mode = "release"
-		cfg.Logging.Level = "info"
-	}
+	return startUnifiedServices(cfg, configManager, noPython, stagewise, verbose)
+}
 
+// startUnifiedServices starts all services in unified mode
+func startUnifiedServices(cfg *config.Config, configManager *config.ConfigManager, noPython, stagewise, verbose bool) error {
 	// Setup configuration environment
 	if err := configManager.SetupConfigEnvironment(cfg); err != nil {
 		return fmt.Errorf("failed to setup configuration environment: %w", err)
 	}
 
-	if verbose {
-		fmt.Printf("\n%s\n\n", configManager.GetConfigSummary(cfg))
-	}
-
-	// Step 2: Intelligent Python interpreter detection
-	pythonResult, err := python.DetectPythonInterpreter(&cfg.Python, verbose)
-	if err != nil {
-		return fmt.Errorf("Python interpreter detection failed: %w", err)
-	}
-
-	if verbose {
-		fmt.Printf("🐍 Python interpreter detected: %s\n", pythonResult.Interpreter.Path)
-		fmt.Printf("📋 Python version: %s\n", pythonResult.Interpreter.Version)
-		if pythonResult.Interpreter.IsVirtual {
-			fmt.Printf("🏠 Virtual environment: %s\n", pythonResult.Interpreter.VenvPath)
+	// Setup logging system
+	dirManager := configManager.GetDirectoryManager()
+	var logManager *logging.Manager
+	if dirManager != nil {
+		logManager = logging.NewManager(&cfg.Logging, dirManager, verbose)
+		if err := logManager.SetupLoggingEnvironment(); err != nil {
+			log.Printf("Warning: Failed to setup logging: %v", err)
+		} else {
+			logManager.LogStartup("2.0.0-unified", time.Now().Format(time.RFC3339))
 		}
-		if pythonResult.UVAvailable {
-			fmt.Printf("⚡ UV available: Yes\n")
-		}
-		fmt.Printf("\n")
-	}
-
-	// Step 3: Determine if we need to build
-	needsBuild := forceBuild || build || shouldAutoBuild(verbose)
-
-	if needsBuild {
-		if verbose {
-			fmt.Println("🔨 Building...")
-		}
-		buildCmd := NewBuildCommand()
-		if err := buildCmd.RunE(buildCmd, []string{}); err != nil {
-			if forceBuild || build {
-				return fmt.Errorf("build failed: %w", err)
+		defer func() {
+			if logManager != nil {
+				if err := logManager.Close(); err != nil && verbose {
+					fmt.Printf("⚠️  Failed to close log manager: %v\n", err)
+				}
 			}
-			// If auto-build fails, try to continue with existing binaries
-			if verbose {
-				fmt.Printf("⚠️  Build failed, attempting to use existing binaries...\n")
-			}
-		}
+		}()
 	}
 
-	if daemon {
-		return runAsDaemon(cfg, pythonResult, verbose)
-	}
-
-	// Step 4: Start services
+	// Context for managing services
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start Python executor with detected interpreter
-	pythonCmd, err := startPythonExecutorWithConfig(ctx, cfg, pythonResult, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to start Python executor: %w", err)
-	}
-	defer func() {
-		if pythonCmd.Process != nil {
-			pythonCmd.Process.Kill()
-		}
-	}()
+	var pythonCmd *exec.Cmd
 
-	// Wait for Python executor to start
-	time.Sleep(2 * time.Second)
-
-	// Start Go server
-	goCmd, err := startGoServerWithConfig(ctx, cfg, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to start Go server: %w", err)
+	// Step 1: Start Python executor (if enabled)
+	if !noPython {
+		pythonCmd = startPythonExecutorService(ctx, cfg, verbose)
 	}
-	defer func() {
-		if goCmd.Process != nil {
-			goCmd.Process.Kill()
+
+	// Step 1.5: Build frontend with stagewise if enabled
+	if stagewise {
+		if err := buildFrontendWithStagewise(verbose); err != nil {
+			if verbose {
+				fmt.Printf("⚠️  Frontend build failed: %v\n", err)
+				fmt.Printf("🔧 Continuing without frontend build\n")
+			}
 		}
-	}()
+	}
+
+	// Step 2: Start Go server (integrated)
+	return startGoServerService(cfg, pythonCmd, verbose)
+}
+
+// startPythonExecutorService starts Python executor as a service component
+func startPythonExecutorService(ctx context.Context, cfg *config.Config, verbose bool) *exec.Cmd {
+	if verbose {
+		fmt.Printf("🐍 Step 1: Starting Python executor service...\n")
+	}
+
+	// Detect Python interpreter
+	pythonResult, err := python.DetectPythonInterpreter(&cfg.Python, verbose)
+	if err != nil {
+		if verbose {
+			fmt.Printf("⚠️  Python detection failed: %v\n", err)
+			fmt.Printf("🔧 Continuing without Python executor (API-only mode)\n")
+		}
+		return nil
+	}
+
+	pythonCmd, err := startPythonExecutorUnified(ctx, cfg, pythonResult, verbose)
+	if err != nil {
+		if verbose {
+			fmt.Printf("⚠️  Failed to start Python executor: %v\n", err)
+			fmt.Printf("🔧 Continuing without Python executor (API-only mode)\n")
+		}
+		return nil
+	}
+
+	// Wait for Python executor to initialize
+	if verbose {
+		fmt.Printf("⏳ Waiting for Python executor to initialize...\n")
+	}
+	time.Sleep(3 * time.Second)
 
 	if verbose {
-		fmt.Printf("✅ Webhook bridge started successfully!\n")
-		fmt.Printf("🌐 Server: http://localhost:%d\n", cfg.Server.Port)
-		fmt.Printf("🐍 Executor: localhost:%d\n", cfg.Executor.Port)
-		fmt.Printf("📊 Health: http://localhost:%d/health\n", cfg.Server.Port)
-		fmt.Printf("🎛️  Dashboard: http://localhost:%d/dashboard\n", cfg.Server.Port)
+		fmt.Printf("✅ Python executor started on port %d\n", cfg.Executor.Port)
+	}
+
+	return pythonCmd
+}
+
+// startGoServerService starts Go server as an integrated service
+func startGoServerService(cfg *config.Config, pythonCmd *exec.Cmd, verbose bool) error {
+	if verbose {
+		fmt.Printf("🚀 Step 2: Starting Go server (integrated)...\n")
+	}
+
+	// Create Gin router
+	if cfg.Server.Mode == "release" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	router := gin.New()
+
+	// Create server
+	srv := server.New(cfg)
+
+	// Start gRPC connection
+	if err := srv.Start(); err != nil {
+		if verbose {
+			fmt.Printf("⚠️  gRPC connection failed: %v\n", err)
+			if pythonCmd == nil {
+				fmt.Printf("🔧 This is expected in API-only mode\n")
+			} else {
+				fmt.Printf("🔧 Server will start with limited functionality\n")
+			}
+		}
+	} else {
+		if verbose {
+			fmt.Printf("✅ gRPC connection established\n")
+		}
+	}
+	defer srv.Stop()
+
+	// Setup routes
+	srv.SetupRoutes(router)
+
+	// Create HTTP server
+	httpServer := &http.Server{
+		Addr:              cfg.GetServerAddress(),
+		Handler:           router,
+		ReadHeaderTimeout: 30 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	return runHTTPServer(httpServer, cfg, pythonCmd, verbose)
+}
+
+// runHTTPServer runs the HTTP server with graceful shutdown
+func runHTTPServer(httpServer *http.Server, cfg *config.Config, pythonCmd *exec.Cmd, verbose bool) error {
+	// Start HTTP server in goroutine
+	go func() {
+		fmt.Printf("🚀 Webhook bridge service started!\n")
+		fmt.Printf("🌐 Server: http://localhost:%d/\n", cfg.Server.Port)
+		fmt.Printf("📊 Dashboard: http://localhost:%d/dashboard\n", cfg.Server.Port)
+		fmt.Printf("📊 API: http://localhost:%d/api/v1\n", cfg.Server.Port)
+		fmt.Printf("❤️  Health: http://localhost:%d/health\n", cfg.Server.Port)
+		if pythonCmd != nil {
+			fmt.Printf("🐍 Python Executor: localhost:%d (gRPC)\n", cfg.Executor.Port)
+		}
+		fmt.Printf("💡 Press Ctrl+C to stop all services\n")
+
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
+
+	// Setup cleanup for Python process
+	if pythonCmd != nil {
+		defer func() {
+			if pythonCmd.Process != nil {
+				if verbose {
+					fmt.Printf("🛑 Stopping Python executor...\n")
+				}
+				if err := pythonCmd.Process.Kill(); err != nil && verbose {
+					fmt.Printf("⚠️  Failed to kill Python process: %v\n", err)
+				}
+			}
+		}()
 	}
 
 	// Wait for interrupt signal
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	<-quit
 
-	fmt.Println("\n🛑 Shutting down...")
+	if verbose {
+		fmt.Printf("\n🛑 Shutting down service...\n")
+	}
+
+	// Graceful shutdown
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("server forced to shutdown: %w", err)
+	}
+
+	fmt.Printf("✅ Service stopped gracefully\n")
 	return nil
 }
 
-// shouldAutoBuild determines if we should automatically build based on missing binaries
-func shouldAutoBuild(verbose bool) bool {
-	// Check if required binaries exist
-	requiredBinaries := []string{
-		"bin/webhook-bridge-server",
-		"bin/webhook-bridge-server.exe", // Windows
-		"bin/python-manager",
-		"bin/python-manager.exe", // Windows
-	}
-
-	// Check if any of the binaries exist
-	hasAnyBinary := false
-	for _, binary := range requiredBinaries {
-		if _, err := os.Stat(binary); err == nil {
-			hasAnyBinary = true
-			break
-		}
-	}
-
-	// Check if Python environment exists
-	hasPythonEnv := false
-	if _, err := os.Stat(".venv"); err == nil {
-		hasPythonEnv = true
-	}
-
-	shouldBuild := !hasAnyBinary || !hasPythonEnv
-
-	if verbose && shouldBuild {
-		if !hasAnyBinary {
-			fmt.Println("📦 No existing binaries found, will build automatically")
-		}
-		if !hasPythonEnv {
-			fmt.Println("🐍 No Python environment found, will setup automatically")
-		}
-	}
-
-	return shouldBuild
-}
-
-func setupConfiguration(env string, verbose bool) error {
-	configFile := "config.yaml"
-
-	// Check if config file exists
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		if verbose {
-			fmt.Printf("📝 Creating configuration for %s environment...\n", env)
-		}
-
-		var sourceConfig string
-		switch env {
-		case "prod":
-			sourceConfig = "config.prod.yaml"
-		case "dev":
-			sourceConfig = "config.dev.yaml"
-		default:
-			sourceConfig = "config.example.yaml"
-		}
-
-		// Copy configuration file
-		if err := copyFile(sourceConfig, configFile); err != nil {
-			return fmt.Errorf("failed to copy configuration: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func startPythonExecutor(ctx context.Context, port string, verbose bool) (*exec.Cmd, error) {
-	// Find Python executable in virtual environment
-	var pythonPath string
-	if runtime.GOOS == "windows" {
-		pythonPath = filepath.Join(".venv", "Scripts", "python.exe")
-	} else {
-		pythonPath = filepath.Join(".venv", "bin", "python")
-	}
-
-	// Check if Python executable exists
-	if _, err := os.Stat(pythonPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Python virtual environment not found. Run 'webhook-bridge build' first")
-	}
-
-	// Prepare command arguments
-	args := []string{"python_executor/main.py", "--plugin-dirs", "example_plugins"}
-	if port != "" {
-		args = append(args, "--port", port)
-	}
-
-	// Create command
-	cmd := exec.CommandContext(ctx, pythonPath, args...)
-	cmd.Dir = "."
-
-	if verbose {
-		fmt.Println("🐍 Starting Python executor...")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-
-	// Start the process
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start Python executor: %w", err)
-	}
-
-	return cmd, nil
-}
-
-func startGoServer(ctx context.Context, serverPort, executorPort string, verbose bool) (*exec.Cmd, error) {
-	// Find Go server executable
-	var serverPath string
-	if runtime.GOOS == "windows" {
-		serverPath = filepath.Join("build", "webhook-bridge-server.exe")
-	} else {
-		serverPath = filepath.Join("build", "webhook-bridge-server")
-	}
-
-	// Check if server executable exists
-	if _, err := os.Stat(serverPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Go server executable not found. Run 'webhook-bridge build' first")
-	}
-
-	// Create command
-	cmd := exec.CommandContext(ctx, serverPath)
-	cmd.Dir = "."
-
-	// Set environment variables for port overrides
-	env := os.Environ()
-	if serverPort != "" {
-		env = append(env, "WEBHOOK_BRIDGE_PORT="+serverPort)
-	}
-	if executorPort != "" {
-		env = append(env, "WEBHOOK_BRIDGE_EXECUTOR_PORT="+executorPort)
-	}
-	cmd.Env = env
-
-	if verbose {
-		fmt.Println("🚀 Starting Go server...")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-
-	// Start the process
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start Go server: %w", err)
-	}
-
-	return cmd, nil
-}
-
-func copyFile(src, dst string) error {
-	// Validate source and destination paths to prevent directory traversal
-	if err := validateFilePath(src, "source"); err != nil {
-		return fmt.Errorf("invalid source path: %w", err)
-	}
-	if err := validateFilePath(dst, "destination"); err != nil {
-		return fmt.Errorf("invalid destination path: %w", err)
-	}
-
-	sourceFile, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(dst, sourceFile, 0600)
-}
-
-// validateFilePath validates that a file path is safe for operations
-func validateFilePath(path, pathType string) error {
-	// Clean the path to resolve any .. or . components
-	cleanPath := filepath.Clean(path)
-
-	// Check for directory traversal attempts
-	if strings.Contains(cleanPath, "..") {
-		return fmt.Errorf("directory traversal not allowed in %s path", pathType)
-	}
-
-	// Get absolute path for further validation
-	absPath, err := filepath.Abs(cleanPath)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for %s: %w", pathType, err)
-	}
-
-	// Get current working directory
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	// Only allow files within current working directory or its subdirectories
-	wdAbs, err := filepath.Abs(wd)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute working directory: %w", err)
-	}
-	if !strings.HasPrefix(absPath, wdAbs) {
-		return fmt.Errorf("%s file must be within current working directory", pathType)
-	}
-
-	return nil
-}
-
-// parsePort parses a port string to integer
-func parsePort(portStr string) (int, error) {
-	if portStr == "" {
-		return 0, fmt.Errorf("empty port string")
-	}
-
-	port := 0
-	if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
-		return 0, fmt.Errorf("invalid port: %s", portStr)
-	}
-
-	if port < 1 || port > 65535 {
-		return 0, fmt.Errorf("port out of range: %d", port)
-	}
-
-	return port, nil
-}
-
-// startPythonExecutorWithConfig starts Python executor using detected interpreter and config
-func startPythonExecutorWithConfig(ctx context.Context, cfg *config.Config, pythonResult *python.DetectionResult, verbose bool) (*exec.Cmd, error) {
-	if verbose {
-		fmt.Println("🐍 Starting Python executor with detected interpreter...")
-	}
-
-	// Use detected Python interpreter
+// startPythonExecutorUnified starts Python executor as a service component
+func startPythonExecutorUnified(ctx context.Context, cfg *config.Config, pythonResult *python.DetectionResult, verbose bool) (*exec.Cmd, error) {
 	pythonPath := pythonResult.Interpreter.Path
 
 	// Prepare command arguments
-	args := []string{"python_executor/main.py", "--plugin-dirs", "example_plugins"}
+	args := []string{"python_executor/main.py"}
+	args = append(args, "--host", cfg.Executor.Host)
 	args = append(args, "--port", fmt.Sprintf("%d", cfg.Executor.Port))
+
+	// Add plugin directories
+	if len(cfg.Python.PluginDirs) > 0 {
+		for _, dir := range cfg.Python.PluginDirs {
+			args = append(args, "--plugin-dirs", dir)
+		}
+	} else {
+		args = append(args, "--plugin-dirs", "example_plugins")
+	}
 
 	// Create command
 	cmd := exec.CommandContext(ctx, pythonPath, args...)
 	cmd.Dir = "."
 
 	// Set environment for virtual environment if needed
+	env := os.Environ()
 	if pythonResult.Interpreter.IsVirtual {
-		env := os.Environ()
 		env = append(env, fmt.Sprintf("VIRTUAL_ENV=%s", pythonResult.Interpreter.VenvPath))
-		cmd.Env = env
 	}
+	cmd.Env = env
 
+	// Setup output handling
 	if verbose {
 		fmt.Printf("🐍 Python path: %s\n", pythonPath)
-		fmt.Printf("🔧 Executor port: %d\n", cfg.Executor.Port)
+		fmt.Printf("🔧 Executor address: %s:%d\n", cfg.Executor.Host, cfg.Executor.Port)
+		fmt.Printf("📁 Plugin directories: %v\n", cfg.Python.PluginDirs)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
@@ -438,81 +353,46 @@ func startPythonExecutorWithConfig(ctx context.Context, cfg *config.Config, pyth
 	return cmd, nil
 }
 
-// startGoServerWithConfig starts Go server using configuration
-func startGoServerWithConfig(ctx context.Context, cfg *config.Config, verbose bool) (*exec.Cmd, error) {
+// buildFrontendWithStagewise builds the frontend with stagewise debugging enabled
+func buildFrontendWithStagewise(verbose bool) error {
+	// Check if we're in the correct directory
+	if _, err := os.Stat("web-nextjs"); err != nil {
+		return fmt.Errorf("web-nextjs directory not found")
+	}
+
+	// Check if npm is available
+	if _, err := exec.LookPath("npm"); err != nil {
+		return fmt.Errorf("npm not found in PATH")
+	}
+
 	if verbose {
-		fmt.Println("🚀 Starting Go server...")
+		fmt.Printf("📦 Building frontend with stagewise debug enabled...\n")
 	}
 
-	// Find Go server executable
-	var serverPath string
-	if runtime.GOOS == "windows" {
-		serverPath = filepath.Join("build", "webhook-bridge-server.exe")
-	} else {
-		serverPath = filepath.Join("build", "webhook-bridge-server")
-	}
-
-	// Check if server executable exists
-	if _, err := os.Stat(serverPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Go server executable not found. Run 'webhook-bridge build' first")
-	}
-
-	// Create command
-	cmd := exec.CommandContext(ctx, serverPath)
-	cmd.Dir = "."
-
-	// Set environment variables from configuration
+	// Set environment variables for stagewise build
 	env := os.Environ()
-	env = append(env, fmt.Sprintf("WEBHOOK_BRIDGE_PORT=%d", cfg.Server.Port))
-	env = append(env, fmt.Sprintf("WEBHOOK_BRIDGE_EXECUTOR_PORT=%d", cfg.Executor.Port))
-	env = append(env, fmt.Sprintf("WEBHOOK_BRIDGE_MODE=%s", cfg.Server.Mode))
+	env = append(env, "NEXT_PUBLIC_ENABLE_STAGEWISE=true")
+	env = append(env, "NEXT_PUBLIC_DEBUG_MODE=true")
+
+	// Run npm run build:debug in web-nextjs directory
+	cmd := exec.Command("npm", "run", "build:debug")
+	cmd.Dir = "web-nextjs"
 	cmd.Env = env
 
 	if verbose {
-		fmt.Printf("🌐 Server port: %d\n", cfg.Server.Port)
-		fmt.Printf("🔧 Executor port: %d\n", cfg.Executor.Port)
-		fmt.Printf("📊 Mode: %s\n", cfg.Server.Mode)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+		fmt.Printf("🔧 Running: npm run build:debug in web-nextjs directory\n")
+		fmt.Printf("🌍 Environment: NEXT_PUBLIC_ENABLE_STAGEWISE=true, NEXT_PUBLIC_DEBUG_MODE=true\n")
 	}
 
-	// Start the process
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start Go server: %w", err)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("npm run build:debug failed: %w", err)
 	}
 
-	return cmd, nil
-}
-
-// runAsDaemon runs the services in daemon mode
-func runAsDaemon(cfg *config.Config, pythonResult *python.DetectionResult, verbose bool) error {
 	if verbose {
-		fmt.Println("🔄 Starting services in daemon mode...")
+		fmt.Printf("✅ Frontend stagewise build completed successfully\n")
 	}
-
-	ctx := context.Background()
-
-	// Start Python executor
-	pythonCmd, err := startPythonExecutorWithConfig(ctx, cfg, pythonResult, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to start Python executor: %w", err)
-	}
-
-	// Wait for Python executor to start
-	time.Sleep(2 * time.Second)
-
-	// Start Go server
-	goCmd, err := startGoServerWithConfig(ctx, cfg, verbose)
-	if err != nil {
-		pythonCmd.Process.Kill()
-		return fmt.Errorf("failed to start Go server: %w", err)
-	}
-
-	fmt.Println("✅ Services started in daemon mode")
-	fmt.Printf("📊 Server PID: %d\n", goCmd.Process.Pid)
-	fmt.Printf("🐍 Python Executor PID: %d\n", pythonCmd.Process.Pid)
-	fmt.Printf("🌐 Server: http://localhost:%d\n", cfg.Server.Port)
-	fmt.Printf("📊 Health: http://localhost:%d/health\n", cfg.Server.Port)
 
 	return nil
 }

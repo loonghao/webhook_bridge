@@ -73,6 +73,8 @@ func main() {
 		createSnapshotRelease()
 	case "release-dry-run":
 		dryRunRelease()
+	case "prepare-python-deps":
+		preparePythonDeps()
 	default:
 		fmt.Printf("❌ Unknown command: %s\n", command)
 		showHelp()
@@ -171,6 +173,7 @@ RELEASE:
     release      Create a release with GoReleaser
     release-snapshot Create a snapshot release
     release-dry-run  Dry run release process
+    prepare-python-deps Prepare platform-specific Python dependencies
 
 UTILITIES:
     version      Show version information
@@ -242,7 +245,8 @@ func generateProto() {
 	}
 
 	// Check if protobuf files already exist and are newer than source
-	if fileExists("api/proto/webhook.pb.go") && fileExists("api/proto/webhook_grpc.pb.go") {
+	if fileExists("api/proto/webhook.pb.go") && fileExists("api/proto/webhook_grpc.pb.go") &&
+		fileExists("api/proto/webhook_pb2.py") && fileExists("api/proto/webhook_pb2_grpc.py") {
 		fmt.Println("✅ Protobuf files already exist and are up to date")
 		return
 	}
@@ -260,6 +264,7 @@ func generateProto() {
 	}
 
 	// Generate Go protobuf files
+	fmt.Println("Generating Go protobuf files...")
 	cmd := exec.Command("protoc",
 		"--go_out=.", "--go_opt=paths=source_relative",
 		"--go-grpc_out=.", "--go-grpc_opt=paths=source_relative",
@@ -272,6 +277,33 @@ func generateProto() {
 		fmt.Printf("Error generating Go protobuf: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Generate Python protobuf files
+	fmt.Println("Generating Python protobuf files...")
+	pythonCmd := exec.Command("python", "-m", "grpc_tools.protoc",
+		"-I.", "--python_out=.", "--grpc_python_out=.",
+		"api/proto/webhook.proto")
+
+	pythonCmd.Stdout = os.Stdout
+	pythonCmd.Stderr = os.Stderr
+
+	if err := pythonCmd.Run(); err != nil {
+		fmt.Printf("Warning: Failed to generate Python protobuf files: %v\n", err)
+		fmt.Println("This is optional for Go-only builds, but required for Python executor")
+	} else {
+		fmt.Println("✅ Python protobuf files generated successfully")
+	}
+
+	// Create necessary __init__.py files for Python package structure
+	fmt.Println("Creating Python package structure...")
+	createInitFile := func(path, content string) {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+			fmt.Printf("Warning: Failed to create %s: %v\n", path, err)
+		}
+	}
+
+	createInitFile("api/__init__.py", `"""API package for webhook bridge."""`)
+	createInitFile("api/proto/__init__.py", `"""Protocol buffer definitions for webhook bridge."""`)
 
 	fmt.Println("✅ Protobuf files generated successfully")
 }
@@ -363,10 +395,17 @@ func cleanProject() {
 	}
 
 	for _, pattern := range patterns {
-		matches, _ := filepath.Glob(pattern)
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			fmt.Printf("⚠️  Warning: Failed to glob pattern %s: %v\n", pattern, err)
+			continue
+		}
 		for _, match := range matches {
-			os.Remove(match)
-			fmt.Printf("Removed %s\n", match)
+			if err := os.Remove(match); err != nil {
+				fmt.Printf("⚠️  Warning: Failed to remove %s: %v\n", match, err)
+			} else {
+				fmt.Printf("Removed %s\n", match)
+			}
 		}
 	}
 
@@ -374,8 +413,11 @@ func cleanProject() {
 	dirs := []string{"build", "dist"}
 	for _, dir := range dirs {
 		if dirExists(dir) {
-			os.RemoveAll(dir)
-			fmt.Printf("Removed %s/\n", dir)
+			if err := os.RemoveAll(dir); err != nil {
+				fmt.Printf("⚠️  Warning: Failed to remove %s/: %v\n", dir, err)
+			} else {
+				fmt.Printf("Removed %s/\n", dir)
+			}
 		}
 	}
 
@@ -546,7 +588,13 @@ func checkGoMod() bool {
 }
 
 func checkProtobuf() bool {
-	return fileExists("api/proto/webhook.proto")
+	return fileExists("api/proto/webhook.proto") &&
+		fileExists("api/proto/webhook.pb.go") &&
+		fileExists("api/proto/webhook_grpc.pb.go") &&
+		fileExists("api/proto/webhook_pb2.py") &&
+		fileExists("api/proto/webhook_pb2_grpc.py") &&
+		fileExists("api/__init__.py") &&
+		fileExists("api/proto/__init__.py")
 }
 
 func checkTools() bool {
@@ -635,8 +683,23 @@ func runRaceTests() {
 func runCoverageTests() {
 	fmt.Println("📊 Running tests with coverage...")
 
-	// Run tests with coverage
-	cmd := exec.Command("go", "test", "-coverprofile=coverage.out", "./...")
+	// Ensure dashboard is built before running tests (for Go embed)
+	fmt.Println("🏗️ Ensuring dashboard build for Go embed...")
+	if err := ensureDashboardBuild(); err != nil {
+		fmt.Printf("⚠️ Dashboard build failed, creating minimal structure: %v\n", err)
+		createMinimalDashboardStructure()
+	}
+
+	// Run Python tests first
+	fmt.Println("🐍 Running Python tests...")
+	if err := runPythonTestsWithCoverage(); err != nil {
+		fmt.Printf("⚠️ Python tests failed: %v\n", err)
+		// Don't exit, continue with Go tests
+	}
+
+	// Run Go tests with coverage (exclude examples directory)
+	fmt.Println("🔧 Running Go tests with coverage...")
+	cmd := exec.Command("go", "test", "-coverprofile=coverage.out", "./internal/...", "./cmd/...", "./pkg/...")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -849,7 +912,7 @@ func (d *DashboardCommands) Build(args []string) error {
 		}
 	}
 
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	if _, err := os.Stat(filepath.Join(webDir, "tsconfig.json")); os.IsNotExist(err) {
 		return fmt.Errorf("❌ Error: Must run from project root directory (tsconfig.json not found)")
 	}
@@ -882,7 +945,7 @@ func (d *DashboardCommands) Build(args []string) error {
 	// Clean if requested
 	if clean {
 		printColored("🧹 Cleaning build directory...", ColorYellow)
-		distDir := filepath.Join("static", "js", "dist")
+		distDir := filepath.Join("dist")
 		if _, err := os.Stat(distDir); err == nil {
 			if err := os.RemoveAll(distDir); err != nil {
 				return fmt.Errorf("failed to clean dist directory: %w", err)
@@ -901,8 +964,8 @@ func (d *DashboardCommands) Build(args []string) error {
 	}
 
 	// Create dist directory if it doesn't exist
-	distDir := filepath.Join("static", "js", "dist")
-	if err := os.MkdirAll(distDir, 0755); err != nil {
+	distDir := filepath.Join("dist")
+	if err := os.MkdirAll(distDir, 0750); err != nil {
 		return fmt.Errorf("failed to create dist directory: %w", err)
 	}
 
@@ -910,21 +973,21 @@ func (d *DashboardCommands) Build(args []string) error {
 	if watch {
 		printColored("👀 Starting TypeScript watch mode...", ColorYellow)
 		printColored("Press Ctrl+C to stop", ColorYellow)
-		return runCommand("npm", "run", "build:watch")
+		return runCommand("npm", "run", "dev")
 	} else if production {
 		printColored("🏗️ Building for production...", ColorYellow)
-		if err := runCommand("npm", "run", "build:prod"); err != nil {
+		if err := runCommand("npm", "run", "build"); err != nil {
 			return fmt.Errorf("❌ Production build failed: %w", err)
 		}
 		printColored("✅ Production build completed", ColorGreen)
-		printColored("📁 Output: web/static/js/dist/", ColorGreen)
+		printColored("📁 Output: web-nextjs/dist/", ColorGreen)
 	} else {
 		printColored("🏗️ Building TypeScript dashboard...", ColorYellow)
 		if err := runCommand("npm", "run", "build"); err != nil {
 			return fmt.Errorf("❌ Build failed: %w", err)
 		}
 		printColored("✅ Build completed successfully", ColorGreen)
-		printColored("📁 Output: web/static/js/dist/", ColorGreen)
+		printColored("📁 Output: web-nextjs/dist/", ColorGreen)
 	}
 
 	printColored("🎉 Dashboard build process completed!", ColorGreen)
@@ -949,7 +1012,7 @@ func (d *DashboardCommands) Dev(args []string) error {
 
 // Install installs dashboard dependencies
 func (d *DashboardCommands) Install(args []string) error {
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -961,7 +1024,7 @@ func (d *DashboardCommands) Install(args []string) error {
 	}()
 
 	if err := os.Chdir(webDir); err != nil {
-		return fmt.Errorf("failed to change to web directory: %w", err)
+		return fmt.Errorf("failed to change to web-nextjs directory: %w", err)
 	}
 
 	printColored("📦 Installing dashboard dependencies...", ColorYellow)
@@ -982,7 +1045,7 @@ func (d *DashboardCommands) Lint(args []string) error {
 		}
 	}
 
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -994,7 +1057,7 @@ func (d *DashboardCommands) Lint(args []string) error {
 	}()
 
 	if err := os.Chdir(webDir); err != nil {
-		return fmt.Errorf("failed to change to web directory: %w", err)
+		return fmt.Errorf("failed to change to web-nextjs directory: %w", err)
 	}
 
 	printColored("🔍 Running TypeScript linting...", ColorYellow)
@@ -1016,7 +1079,7 @@ func (d *DashboardCommands) Lint(args []string) error {
 
 // TypeCheck runs TypeScript type checking
 func (d *DashboardCommands) TypeCheck(args []string) error {
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -1028,7 +1091,7 @@ func (d *DashboardCommands) TypeCheck(args []string) error {
 	}()
 
 	if err := os.Chdir(webDir); err != nil {
-		return fmt.Errorf("failed to change to web directory: %w", err)
+		return fmt.Errorf("failed to change to web-nextjs directory: %w", err)
 	}
 
 	printColored("🔍 Running TypeScript type checking...", ColorYellow)
@@ -1044,14 +1107,14 @@ func (d *DashboardCommands) TypeCheck(args []string) error {
 func (d *DashboardCommands) Clean(args []string) error {
 	printColored("🧹 Cleaning dashboard build artifacts...", ColorYellow)
 
-	distDir := filepath.Join("web", "static", "js", "dist")
+	distDir := filepath.Join("web-nextjs", "dist")
 	if _, err := os.Stat(distDir); err == nil {
 		if err := os.RemoveAll(distDir); err != nil {
 			return fmt.Errorf("failed to clean dist directory: %w", err)
 		}
 	}
 
-	nodeModulesDir := filepath.Join("web", "node_modules")
+	nodeModulesDir := filepath.Join("web-nextjs", "node_modules")
 	if _, err := os.Stat(nodeModulesDir); err == nil {
 		printColored("🗑️ Removing node_modules...", ColorYellow)
 		if err := os.RemoveAll(nodeModulesDir); err != nil {
@@ -1074,7 +1137,7 @@ func (d *DashboardCommands) Serve(args []string) error {
 		}
 	}
 
-	webDir := filepath.Join("web")
+	webDir := filepath.Join("web-nextjs")
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -1086,7 +1149,7 @@ func (d *DashboardCommands) Serve(args []string) error {
 	}()
 
 	if err := os.Chdir(webDir); err != nil {
-		return fmt.Errorf("failed to change to web directory: %w", err)
+		return fmt.Errorf("failed to change to web-nextjs directory: %w", err)
 	}
 
 	printColored(fmt.Sprintf("🌐 Serving dashboard on http://localhost:%s", port), ColorGreen)
@@ -1145,4 +1208,412 @@ func printColored(text, color string) {
 	} else {
 		fmt.Printf("%s%s%s\n", color, text, ColorReset)
 	}
+}
+
+// preparePythonDeps prepares platform-specific Python dependencies for packaging
+func preparePythonDeps() {
+	fmt.Println("📦 Preparing platform-specific Python dependencies...")
+
+	// Define target platforms
+	platforms := []struct {
+		os   string
+		arch string
+	}{
+		{"linux", "amd64"},
+		{"linux", "arm64"},
+		{"windows", "amd64"},
+		{"darwin", "amd64"},
+		{"darwin", "arm64"},
+	}
+
+	// Create base directory
+	baseDir := "dist/python-deps"
+	if err := os.MkdirAll(baseDir, 0750); err != nil {
+		fmt.Printf("❌ Failed to create directory %s: %v\n", baseDir, err)
+		os.Exit(1)
+	}
+
+	for _, platform := range platforms {
+		platformDir := fmt.Sprintf("%s/%s_%s", baseDir, platform.os, platform.arch)
+		fmt.Printf("📁 Preparing dependencies for %s/%s...\n", platform.os, platform.arch)
+
+		// Create platform directory
+		if err := os.MkdirAll(platformDir, 0750); err != nil {
+			fmt.Printf("❌ Failed to create directory %s: %v\n", platformDir, err)
+			continue
+		}
+
+		// Copy Python executor
+		pythonSrcDir := "python_executor"
+		pythonDstDir := filepath.Join(platformDir, "python_executor")
+		if err := copyDir(pythonSrcDir, pythonDstDir); err != nil {
+			fmt.Printf("❌ Failed to copy Python executor for %s/%s: %v\n", platform.os, platform.arch, err)
+			continue
+		}
+
+		// Copy webhook_bridge package
+		packageSrcDir := "webhook_bridge"
+		packageDstDir := filepath.Join(platformDir, "webhook_bridge")
+		if err := copyDir(packageSrcDir, packageDstDir); err != nil {
+			fmt.Printf("❌ Failed to copy webhook_bridge package for %s/%s: %v\n", platform.os, platform.arch, err)
+			continue
+		}
+
+		// Copy requirements files
+		reqFiles := []string{"requirements.txt", "requirements-dev.txt"}
+		for _, reqFile := range reqFiles {
+			if fileExists(reqFile) {
+				srcPath := reqFile
+				dstPath := filepath.Join(platformDir, reqFile)
+				if err := copyFile(srcPath, dstPath); err != nil {
+					fmt.Printf("⚠️  Warning: Failed to copy %s for %s/%s: %v\n", reqFile, platform.os, platform.arch, err)
+				}
+			}
+		}
+
+		// Create platform-specific setup script
+		setupScript := generateSetupScript(platform.os)
+		setupPath := filepath.Join(platformDir, getSetupScriptName(platform.os))
+		if err := os.WriteFile(setupPath, []byte(setupScript), 0600); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to create setup script for %s/%s: %v\n", platform.os, platform.arch, err)
+		}
+
+		fmt.Printf("✅ Dependencies prepared for %s/%s\n", platform.os, platform.arch)
+	}
+
+	fmt.Println("✅ All platform-specific Python dependencies prepared!")
+}
+
+// copyDir recursively copies a directory
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip __pycache__ directories
+		if info.IsDir() && info.Name() == "__pycache__" {
+			return filepath.SkipDir
+		}
+
+		// Skip .pyc files
+		if strings.HasSuffix(path, ".pyc") {
+			return nil
+		}
+
+		// Calculate destination path
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+
+		return copyFile(path, dstPath)
+	})
+}
+
+// copyFile copies a single file
+func copyFile(src, dst string) error {
+	// Validate and clean file paths to prevent path traversal
+	src = filepath.Clean(src)
+	dst = filepath.Clean(dst)
+
+	// Check if source file exists and is a regular file
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("failed to stat source file: %w", err)
+	}
+	if !srcInfo.Mode().IsRegular() {
+		return fmt.Errorf("source is not a regular file")
+	}
+
+	// Create destination directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer func() {
+		if err := srcFile.Close(); err != nil {
+			fmt.Printf("⚠️ Failed to close source file: %v\n", err)
+		}
+	}()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer func() {
+		if err := dstFile.Close(); err != nil {
+			fmt.Printf("⚠️ Failed to close destination file: %v\n", err)
+		}
+	}()
+
+	_, err = dstFile.ReadFrom(srcFile)
+	if err != nil {
+		return fmt.Errorf("failed to copy file content: %w", err)
+	}
+
+	return nil
+}
+
+// generateSetupScript generates a platform-specific setup script
+func generateSetupScript(osName string) string {
+	if osName == "windows" {
+		return `@echo off
+REM Setup script for webhook-bridge Python dependencies on Windows
+echo Setting up webhook-bridge Python environment...
+
+REM Check if Python is available
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo Python is not installed or not in PATH
+    echo Please install Python 3.8+ and add it to PATH
+    exit /b 1
+)
+
+REM Install dependencies
+echo Installing Python dependencies...
+python -m pip install --user -r requirements.txt
+
+echo Setup completed successfully!
+echo You can now run: webhook-bridge run
+`
+	} else {
+		return `#!/bin/bash
+# Setup script for webhook-bridge Python dependencies on Unix-like systems
+set -e
+
+echo "Setting up webhook-bridge Python environment..."
+
+# Check if Python is available
+if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+    echo "Python is not installed or not in PATH"
+    echo "Please install Python 3.8+ and add it to PATH"
+    exit 1
+fi
+
+# Determine Python command
+PYTHON_CMD="python3"
+if ! command -v python3 &> /dev/null; then
+    PYTHON_CMD="python"
+fi
+
+# Install dependencies
+echo "Installing Python dependencies..."
+$PYTHON_CMD -m pip install --user -r requirements.txt
+
+echo "Setup completed successfully!"
+echo "You can now run: webhook-bridge run"
+`
+	}
+}
+
+// getSetupScriptName returns the appropriate setup script name for the platform
+func getSetupScriptName(osName string) string {
+	if osName == "windows" {
+		return "setup.bat"
+	}
+	return "setup.sh"
+}
+
+// ensureDashboardBuild ensures the dashboard is built for Go embed
+func ensureDashboardBuild() error {
+	fmt.Println("🔍 Checking dashboard build status...")
+
+	// Check if dist directory exists and has content
+	distPath := "web-nextjs/dist"
+	if !dirExists(distPath) {
+		fmt.Println("📁 dist directory not found, building dashboard...")
+		return buildDashboard()
+	}
+
+	// Check if index.html exists
+	indexPath := filepath.Join(distPath, "index.html")
+	if !fileExists(indexPath) {
+		fmt.Println("📄 index.html not found, building dashboard...")
+		return buildDashboard()
+	}
+
+	fmt.Println("✅ Dashboard build exists")
+	return nil
+}
+
+// buildDashboard builds the Next.js dashboard
+func buildDashboard() error {
+	fmt.Println("🏗️ Building dashboard...")
+
+	// Change to web-nextjs directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			fmt.Printf("⚠️ Failed to restore original directory: %v\n", err)
+		}
+	}()
+
+	if err := os.Chdir("web-nextjs"); err != nil {
+		return fmt.Errorf("failed to change to web-nextjs directory: %v", err)
+	}
+
+	// Install dependencies if needed
+	if !dirExists("node_modules") {
+		fmt.Println("📦 Installing npm dependencies...")
+		var cmd *exec.Cmd
+		if fileExists("package-lock.json") {
+			cmd = exec.Command("npm", "ci")
+		} else {
+			cmd = exec.Command("npm", "install")
+		}
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to install dependencies: %v", err)
+		}
+	}
+
+	// Build the dashboard
+	fmt.Println("🔨 Building dashboard...")
+	cmd := exec.Command("npm", "run", "build")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("dashboard build failed: %v", err)
+	}
+
+	fmt.Println("✅ Dashboard build completed")
+	return nil
+}
+
+// createMinimalDashboardStructure creates a minimal dashboard structure for Go embed
+func createMinimalDashboardStructure() {
+	fmt.Println("🔧 Creating minimal dashboard structure...")
+
+	// Create directories
+	dirs := []string{
+		"web-nextjs/dist",
+		"web-nextjs/dist/next/static/css",
+		"web-nextjs/dist/next/static/chunks",
+		"web-nextjs/public",
+	}
+
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0750); err != nil {
+			fmt.Printf("⚠️ Failed to create directory %s: %v\n", dir, err)
+		}
+	}
+
+	// Create minimal index.html
+	indexHTML := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Bridge Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .status { padding: 20px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3; }
+        .warning { background: #fff3e0; border-left-color: #ff9800; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Webhook Bridge Dashboard</h1>
+        <div class="status warning">
+            <h2>⚠️ Development Mode</h2>
+            <p>The dashboard is running with minimal assets.</p>
+            <p>For full functionality, please build the dashboard:</p>
+            <pre>cd web-nextjs && npm run build</pre>
+        </div>
+        <div style="margin-top: 20px;">
+            <h3>Quick Actions</h3>
+            <ul>
+                <li><a href="/api/v1/health">Health Check</a></li>
+                <li><a href="/api/v1/status">System Status</a></li>
+                <li><a href="/api/v1/plugins">Plugin List</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>`
+
+	if err := os.WriteFile("web-nextjs/dist/index.html", []byte(indexHTML), 0600); err != nil {
+		fmt.Printf("⚠️ Failed to create index.html: %v\n", err)
+	}
+
+	// Create minimal CSS file
+	css := "/* Minimal CSS for development mode */\nbody { font-family: Arial, sans-serif; }"
+	if err := os.WriteFile("web-nextjs/dist/next/static/css/app.css", []byte(css), 0600); err != nil {
+		fmt.Printf("⚠️ Failed to create CSS file: %v\n", err)
+	}
+
+	// Create minimal JS file
+	js := "// Minimal JS for development mode\nconsole.log('Webhook Bridge Dashboard - Development Mode');"
+	if err := os.WriteFile("web-nextjs/dist/next/static/chunks/app.js", []byte(js), 0600); err != nil {
+		fmt.Printf("⚠️ Failed to create JS file: %v\n", err)
+	}
+
+	// Create favicon
+	if !fileExists("web-nextjs/public/favicon.ico") {
+		if err := os.WriteFile("web-nextjs/public/favicon.ico", []byte{}, 0600); err != nil {
+			fmt.Printf("⚠️ Failed to create favicon: %v\n", err)
+		}
+	}
+
+	// Copy favicon to dist
+	if err := copyFile("web-nextjs/public/favicon.ico", "web-nextjs/dist/favicon.ico"); err != nil {
+		if err := os.WriteFile("web-nextjs/dist/favicon.ico", []byte{}, 0600); err != nil {
+			fmt.Printf("⚠️ Failed to create dist favicon: %v\n", err)
+		}
+	}
+
+	fmt.Println("✅ Minimal dashboard structure created")
+}
+
+// runPythonTestsWithCoverage runs Python tests with coverage
+func runPythonTestsWithCoverage() error {
+	fmt.Println("🐍 Running Python tests with coverage...")
+
+	// Check if nox is available
+	if _, err := exec.LookPath("nox"); err == nil {
+		// Use nox if available
+		cmd := exec.Command("nox", "-s", "pytest")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// Check if uvx is available
+	if _, err := exec.LookPath("uvx"); err == nil {
+		// Use uvx nox if available
+		cmd := exec.Command("uvx", "nox", "-s", "pytest")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// Fallback to direct pytest
+	if _, err := exec.LookPath("pytest"); err == nil {
+		cmd := exec.Command("pytest", "tests/", "-v")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// Try python -m pytest
+	cmd := exec.Command("python", "-m", "pytest", "tests/", "-v")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }

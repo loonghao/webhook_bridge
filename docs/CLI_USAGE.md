@@ -1,6 +1,6 @@
 # Webhook Bridge CLI 使用指南
 
-Webhook Bridge 提供了一个统一的命令行工具，支持开发、测试、部署和运维的完整生命周期。
+Webhook Bridge 提供了一个统一的命令行工具，将原本的多个可执行文件整合为单一二进制文件，支持开发、测试、部署和运维的完整生命周期。
 
 ## 快速开始
 
@@ -23,9 +23,40 @@ go build -o webhook-bridge cmd/webhook-bridge/main.go
 
 ## 核心命令详解
 
-### 1. `serve` - 独立服务器模式 ⭐
+### 1. `unified` - 统一服务模式 ⭐ (推荐)
 
-**最简单的启动方式，适合生产环境和快速测试**
+**最完整的启动方式，自动管理Python执行器和Go服务器**
+
+```bash
+# 基本启动（推荐）
+webhook-bridge unified
+
+# 指定端口
+webhook-bridge unified --port 8080
+
+# 生产环境模式
+webhook-bridge unified --mode release --port 8080
+
+# 指定配置文件
+webhook-bridge unified --config /path/to/config.yaml
+
+# 详细输出
+webhook-bridge unified --verbose
+
+# API模式（不启动Python执行器）
+webhook-bridge unified --no-python
+```
+
+**特点：**
+- ✅ 单一命令启动所有服务
+- ✅ 自动管理Python执行器
+- ✅ 完整的插件功能支持
+- ✅ 统一进程管理
+- ✅ 优雅的服务关闭
+
+### 2. `serve` - 独立服务器模式
+
+**仅启动Go HTTP服务器，不包含Python执行器**
 
 ```bash
 # 基本启动
@@ -36,24 +67,59 @@ webhook-bridge serve --port 9000
 
 # 生产环境模式
 webhook-bridge serve --env prod --port 8080
-
-# 指定配置文件
-webhook-bridge serve --config /path/to/config.yaml
-
-# 详细输出
-webhook-bridge serve --verbose
 ```
 
 **特点：**
-- ✅ 无需外部依赖，单一进程
-- ✅ 自动处理配置加载
-- ✅ 优雅的信号处理（Ctrl+C）
-- ✅ 内置健康检查和监控
-- ⚠️ Python插件功能有限（需要Python executor）
+- ✅ 轻量级，快速启动
+- ✅ 无需Python环境
+- ⚠️ Python插件功能不可用
 
-### 2. `start` - 完整开发模式
+### 3. `server` - 后端服务器模式
 
-**完整功能模式，包含Go服务器和Python执行器**
+**启动后端服务器，包含gRPC客户端功能**
+
+```bash
+# 基本启动
+webhook-bridge server
+
+# 指定端口
+webhook-bridge server --port 8080
+
+# 详细输出
+webhook-bridge server --verbose
+```
+
+**特点：**
+- ✅ 包含gRPC客户端
+- ✅ 支持连接外部Python执行器
+- 🔧 需要单独启动Python执行器
+
+### 4. `python` - Python环境管理
+
+**管理Python环境和依赖**
+
+```bash
+# 显示Python环境信息
+webhook-bridge python info
+
+# 验证Python环境
+webhook-bridge python validate
+
+# 安装Python包
+webhook-bridge python install grpcio requests
+
+# 启动Python执行器服务
+webhook-bridge python executor
+```
+
+**特点：**
+- ✅ 统一的Python环境管理
+- ✅ 自动环境检测
+- ✅ 依赖安装和验证
+
+### 5. `start` - 完整开发模式
+
+**传统的完整功能模式，包含Go服务器和Python执行器**
 
 ```bash
 # 开发模式启动
@@ -67,19 +133,15 @@ webhook-bridge start --force-build
 
 # 后台运行
 webhook-bridge start --daemon
-
-# 自定义端口
-webhook-bridge start --server-port 8080 --executor-port 50052
 ```
 
 **特点：**
 - ✅ 完整的Python插件支持
 - ✅ 智能构建检测
 - ✅ 自动Python环境检测
-- ✅ 支持后台运行
-- 🔧 需要Python环境
+- 🔧 传统多进程管理方式
 
-### 3. `dashboard` - Web管理界面
+### 6. `dashboard` - Web管理界面
 
 **启动服务并打开Web管理界面**
 
@@ -98,9 +160,9 @@ webhook-bridge dashboard --env prod
 ```
 
 **访问地址：**
-- 🌐 Dashboard界面: `http://localhost:8000/dashboard`
-- 🔍 API文档: `http://localhost:8000/api`
-- ❤️ 健康检查: `http://localhost:8000/health`
+- 🌐 Dashboard界面: `http://localhost:8080/dashboard`
+- 🔍 API文档: `http://localhost:8080/api`
+- ❤️ 健康检查: `http://localhost:8080/health`
 
 ## 开发和构建命令
 
@@ -314,25 +376,40 @@ curl http://localhost:8000/metrics
 
 ## 常见使用场景
 
-### 场景1：快速演示
+### 场景1：快速演示（推荐）
 ```bash
-webhook-bridge serve --verbose
-# 访问 http://localhost:8000/dashboard
-```
-
-### 场景2：开发调试
-```bash
-webhook-bridge start --env dev --verbose
+webhook-bridge unified --verbose
+# 访问 http://localhost:8080/dashboard
 # 完整功能，包含Python插件支持
 ```
 
-### 场景3：生产部署
+### 场景2：轻量级API服务
 ```bash
-webhook-bridge deploy --env prod
-webhook-bridge serve --env prod --port 8080
+webhook-bridge serve --verbose
+# 仅Go服务器，无Python插件功能
 ```
 
-### 场景4：CI/CD集成
+### 场景3：开发调试
+```bash
+webhook-bridge unified --verbose
+# 或者使用传统方式
+webhook-bridge start --env dev --verbose
+```
+
+### 场景4：生产部署
+```bash
+webhook-bridge deploy --env prod
+webhook-bridge unified --mode release --port 8080
+```
+
+### 场景5：Python环境管理
+```bash
+webhook-bridge python info
+webhook-bridge python validate
+webhook-bridge python install grpcio
+```
+
+### 场景6：CI/CD集成
 ```bash
 webhook-bridge clean
 webhook-bridge build
@@ -340,10 +417,11 @@ webhook-bridge test --coverage
 webhook-bridge deploy --skip-tests
 ```
 
-### 场景5：问题排查
+### 场景7：问题排查
 ```bash
 webhook-bridge status --verbose
 webhook-bridge config --show
+webhook-bridge python info
 webhook-bridge clean && webhook-bridge build --force --verbose
 ```
 

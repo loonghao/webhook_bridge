@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 from concurrent import futures
+import contextlib
 import logging
 import os
 from pathlib import Path
@@ -59,7 +60,7 @@ def create_server(host: str = "localhost", port: int = 50051, plugin_dirs: list[
     return server
 
 
-async def serve(host: str = "localhost", port: int = 50051, plugin_dirs: list[str] = None) -> None:
+async def serve(host: str = "0.0.0.0", port: int = 50051, plugin_dirs: list[str] = None) -> None:
     """Start the gRPC server."""
     logger = logging.getLogger(__name__)
 
@@ -71,20 +72,42 @@ async def serve(host: str = "localhost", port: int = 50051, plugin_dirs: list[st
     if plugin_dirs:
         logger.info(f"Additional plugin directories: {plugin_dirs}")
 
-    # Setup graceful shutdown
+    # Setup graceful shutdown with proper async handling
+    shutdown_event = asyncio.Event()
+
     def signal_handler(_signum, _frame):
-        logger.info("Received shutdown signal, stopping server...")
-        server.stop(grace=5)
-        sys.exit(0)
+        logger.info("Received shutdown signal, initiating graceful shutdown...")
+        shutdown_event.set()
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
     try:
-        await server.wait_for_termination()
+        # Wait for either termination or shutdown signal
+        shutdown_task = asyncio.create_task(shutdown_event.wait())
+        termination_task = asyncio.create_task(server.wait_for_termination())
+
+        done, pending = await asyncio.wait(
+            [shutdown_task, termination_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        # Cancel pending tasks
+        for task in pending:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+        # If shutdown was triggered by signal, stop the server
+        if shutdown_task in done:
+            logger.info("Stopping server gracefully...")
+            await server.stop(grace=5)
+            logger.info("Server stopped successfully")
+
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received, stopping server...")
-        server.stop(grace=5)
+        await server.stop(grace=5)
+        logger.info("Server stopped successfully")
 
 
 def main() -> None:
@@ -92,8 +115,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Python Executor gRPC Service")
     parser.add_argument(
         "--host",
-        default="localhost",
-        help="Host to bind the server to (default: localhost)",
+        default="0.0.0.0",
+        help="Host to bind the server to (default: 0.0.0.0)",
     )
     parser.add_argument(
         "--port",
@@ -129,6 +152,7 @@ def main() -> None:
         try:
             # Import third-party modules
             try:
+                # Import third-party modules
                 import yaml
             except ImportError:
                 logging.error("PyYAML is not installed. Please install it with: pip install PyYAML")
@@ -177,6 +201,7 @@ def main() -> None:
     except Exception as e:
         logging.error(f"Server error: {e}")
         logging.error(f"Failed to start server on {args.host}:{port}")
+        # Import built-in modules
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)

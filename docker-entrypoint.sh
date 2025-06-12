@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# Docker entrypoint script for webhook-bridge hybrid architecture
-# This script starts both the Python executor and Go server
+# Docker entrypoint script for webhook-bridge unified architecture
+# This script can start the unified service or individual components
 
 # Default configuration
 CONFIG_FILE="/app/config.yaml"
@@ -340,10 +340,10 @@ start_go_server() {
     fi
 
     log "✅ All pre-startup checks passed, starting Go server..."
-    log "🚀 Executing: webhook-bridge-server --config $CONFIG_FILE"
+    log "🚀 Executing: webhook-bridge serve --config $CONFIG_FILE"
 
     # Start Go server (this will block)
-    exec webhook-bridge-server --config "$CONFIG_FILE"
+    exec webhook-bridge serve --config "$CONFIG_FILE"
 }
 
 # Function to handle shutdown
@@ -367,12 +367,13 @@ trap shutdown SIGTERM SIGINT
 # Function to display startup banner and system info
 display_startup_info() {
     log "🚀 =============================================="
-    log "🚀 Starting webhook-bridge hybrid architecture"
+    log "🚀 Starting webhook-bridge unified architecture"
     log "🚀 =============================================="
     log "📋 Configuration:"
     log "   Config file: $CONFIG_FILE"
     log "   Python executor: $PYTHON_EXECUTOR_HOST:$PYTHON_EXECUTOR_PORT"
     log "   Log level: $LOG_LEVEL"
+    log "   Command: $*"
     log ""
     log "🖥️  System Information:"
     if command -v uname >/dev/null 2>&1; then
@@ -397,28 +398,67 @@ display_startup_info() {
 }
 
 # Main execution
-display_startup_info
+display_startup_info "$@"
 
-# Validate initial configuration
-if ! validate_config; then
-    log "ERROR: Configuration validation failed, attempting to find config file..."
-    # Try to find config file in common locations
-    if [ -f "/app/config.yaml" ]; then
-        CONFIG_FILE="/app/config.yaml"
-        log "Found config file at $CONFIG_FILE"
-    elif [ -f "/app/config/config.yaml" ]; then
-        CONFIG_FILE="/app/config/config.yaml"
-        log "Found config file at $CONFIG_FILE"
-    else
-        log "FATAL: No valid config file found"
-        exit 1
+# Check if we should use start command or legacy mode
+if [ "$1" = "webhook-bridge" ] && [ "$2" = "start" ]; then
+    log "🚀 Starting unified service mode..."
+
+    # Validate initial configuration
+    if ! validate_config; then
+        log "ERROR: Configuration validation failed, attempting to find config file..."
+        # Try to find config file in common locations
+        if [ -f "/app/config.yaml" ]; then
+            CONFIG_FILE="/app/config.yaml"
+            log "Found config file at $CONFIG_FILE"
+        elif [ -f "/app/config/config.yaml" ]; then
+            CONFIG_FILE="/app/config/config.yaml"
+            log "Found config file at $CONFIG_FILE"
+        else
+            log "FATAL: No valid config file found"
+            exit 1
+        fi
     fi
+
+    # Start unified service (this will block and manage everything)
+    log "🚀 Executing unified service: webhook-bridge start --config $CONFIG_FILE"
+    exec webhook-bridge start --config "$CONFIG_FILE"
+
+elif [ "$1" = "webhook-bridge" ]; then
+    log "🚀 Starting webhook-bridge with custom command: $*"
+
+    # Validate configuration
+    if ! validate_config; then
+        log "WARNING: Configuration validation failed, using default config"
+    fi
+
+    # Execute the webhook-bridge command directly
+    exec "$@"
+
+else
+    log "🚀 Starting legacy mode (separate Python executor and Go server)..."
+
+    # Validate initial configuration
+    if ! validate_config; then
+        log "ERROR: Configuration validation failed, attempting to find config file..."
+        # Try to find config file in common locations
+        if [ -f "/app/config.yaml" ]; then
+            CONFIG_FILE="/app/config.yaml"
+            log "Found config file at $CONFIG_FILE"
+        elif [ -f "/app/config/config.yaml" ]; then
+            CONFIG_FILE="/app/config/config.yaml"
+            log "Found config file at $CONFIG_FILE"
+        else
+            log "FATAL: No valid config file found"
+            exit 1
+        fi
+    fi
+
+    # Start Python executor first
+    log "📍 Phase 1: Starting Python executor..."
+    start_python_executor
+
+    log "📍 Phase 2: Starting Go server..."
+    # Start Go server (this will block)
+    start_go_server
 fi
-
-# Start Python executor first
-log "📍 Phase 1: Starting Python executor..."
-start_python_executor
-
-log "📍 Phase 2: Starting Go server..."
-# Start Go server (this will block)
-start_go_server
