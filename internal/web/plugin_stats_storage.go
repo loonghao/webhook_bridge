@@ -41,7 +41,7 @@ func NewPluginStatsStorage(dataDir string) *PluginStatsStorage {
 	}
 
 	// Ensure data directory exists
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0750); err != nil {
 		log.Printf("Warning: Failed to create data directory %s: %v", dataDir, err)
 		dataDir = "." // Fallback to current directory
 	}
@@ -190,7 +190,7 @@ func (pss *PluginStatsStorage) createBackup() error {
 	}
 
 	// Write to backup file
-	return os.WriteFile(pss.backupPath, data, 0644)
+	return os.WriteFile(pss.backupPath, data, 0600)
 }
 
 // RequestSave requests an asynchronous save operation

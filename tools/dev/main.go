@@ -297,7 +297,7 @@ func generateProto() {
 	// Create necessary __init__.py files for Python package structure
 	fmt.Println("Creating Python package structure...")
 	createInitFile := func(path, content string) {
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			fmt.Printf("Warning: Failed to create %s: %v\n", path, err)
 		}
 	}
@@ -955,7 +955,7 @@ func (d *DashboardCommands) Build(args []string) error {
 
 	// Create dist directory if it doesn't exist
 	distDir := filepath.Join("dist")
-	if err := os.MkdirAll(distDir, 0755); err != nil {
+	if err := os.MkdirAll(distDir, 0750); err != nil {
 		return fmt.Errorf("failed to create dist directory: %w", err)
 	}
 
@@ -1218,7 +1218,7 @@ func preparePythonDeps() {
 
 	// Create base directory
 	baseDir := "dist/python-deps"
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	if err := os.MkdirAll(baseDir, 0750); err != nil {
 		fmt.Printf("❌ Failed to create directory %s: %v\n", baseDir, err)
 		os.Exit(1)
 	}
@@ -1228,7 +1228,7 @@ func preparePythonDeps() {
 		fmt.Printf("📁 Preparing dependencies for %s/%s...\n", platform.os, platform.arch)
 
 		// Create platform directory
-		if err := os.MkdirAll(platformDir, 0755); err != nil {
+		if err := os.MkdirAll(platformDir, 0750); err != nil {
 			fmt.Printf("❌ Failed to create directory %s: %v\n", platformDir, err)
 			continue
 		}
@@ -1264,7 +1264,7 @@ func preparePythonDeps() {
 		// Create platform-specific setup script
 		setupScript := generateSetupScript(platform.os)
 		setupPath := filepath.Join(platformDir, getSetupScriptName(platform.os))
-		if err := os.WriteFile(setupPath, []byte(setupScript), 0755); err != nil {
+		if err := os.WriteFile(setupPath, []byte(setupScript), 0750); err != nil {
 			fmt.Printf("⚠️  Warning: Failed to create setup script for %s/%s: %v\n", platform.os, platform.arch, err)
 		}
 
@@ -1309,7 +1309,7 @@ func copyDir(src, dst string) error {
 // copyFile copies a single file
 func copyFile(src, dst string) error {
 	// Create destination directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
 		return err
 	}
 
@@ -1472,7 +1472,7 @@ func createMinimalDashboardStructure() {
 	}
 
 	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil {
 			fmt.Printf("⚠️ Failed to create directory %s: %v\n", dir, err)
 		}
 	}
@@ -1513,32 +1513,32 @@ func createMinimalDashboardStructure() {
 </body>
 </html>`
 
-	if err := os.WriteFile("web-nextjs/dist/index.html", []byte(indexHTML), 0644); err != nil {
+	if err := os.WriteFile("web-nextjs/dist/index.html", []byte(indexHTML), 0600); err != nil {
 		fmt.Printf("⚠️ Failed to create index.html: %v\n", err)
 	}
 
 	// Create minimal CSS file
 	css := "/* Minimal CSS for development mode */\nbody { font-family: Arial, sans-serif; }"
-	if err := os.WriteFile("web-nextjs/dist/next/static/css/app.css", []byte(css), 0644); err != nil {
+	if err := os.WriteFile("web-nextjs/dist/next/static/css/app.css", []byte(css), 0600); err != nil {
 		fmt.Printf("⚠️ Failed to create CSS file: %v\n", err)
 	}
 
 	// Create minimal JS file
 	js := "// Minimal JS for development mode\nconsole.log('Webhook Bridge Dashboard - Development Mode');"
-	if err := os.WriteFile("web-nextjs/dist/next/static/chunks/app.js", []byte(js), 0644); err != nil {
+	if err := os.WriteFile("web-nextjs/dist/next/static/chunks/app.js", []byte(js), 0600); err != nil {
 		fmt.Printf("⚠️ Failed to create JS file: %v\n", err)
 	}
 
 	// Create favicon
 	if !fileExists("web-nextjs/public/favicon.ico") {
-		if err := os.WriteFile("web-nextjs/public/favicon.ico", []byte{}, 0644); err != nil {
+		if err := os.WriteFile("web-nextjs/public/favicon.ico", []byte{}, 0600); err != nil {
 			fmt.Printf("⚠️ Failed to create favicon: %v\n", err)
 		}
 	}
 
 	// Copy favicon to dist
 	if err := copyFile("web-nextjs/public/favicon.ico", "web-nextjs/dist/favicon.ico"); err != nil {
-		if err := os.WriteFile("web-nextjs/dist/favicon.ico", []byte{}, 0644); err != nil {
+		if err := os.WriteFile("web-nextjs/dist/favicon.ico", []byte{}, 0600); err != nil {
 			fmt.Printf("⚠️ Failed to create dist favicon: %v\n", err)
 		}
 	}

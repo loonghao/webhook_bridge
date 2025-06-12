@@ -36,7 +36,7 @@ func NewPersistentLogManager(logDir string, maxLogs int) *PersistentLogManager {
 		logDir = "./logs"
 	}
 
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0750); err != nil {
 		log.Printf("Warning: Failed to create log directory %s: %v", logDir, err)
 		logDir = "." // Fallback to current directory
 	}
