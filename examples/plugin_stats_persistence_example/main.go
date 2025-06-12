@@ -99,7 +99,9 @@ func main() {
 
 	// 5. Close the first stats manager
 	fmt.Println("\n5. Closing first StatsManager...")
-	sm.Close()
+	if err := sm.Close(); err != nil {
+		fmt.Printf("   Warning: Failed to close StatsManager: %v\n", err)
+	}
 
 	// 6. Create a new stats manager to demonstrate data recovery
 	fmt.Println("\n6. Creating new StatsManager to test data recovery...")

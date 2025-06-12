@@ -2014,7 +2014,9 @@ func (h *ModernDashboardHandler) BroadcastPluginStatusUpdate(update PluginStatus
 				h.monitorMutex.Lock()
 				delete(h.monitorClients, c)
 				h.monitorMutex.Unlock()
-				c.Close()
+				if err := c.Close(); err != nil {
+					log.Printf("Failed to close WebSocket connection: %v", err)
+				}
 			}(conn)
 		}
 	}
@@ -2041,7 +2043,9 @@ func (h *ModernDashboardHandler) BroadcastSystemMetricsUpdate() {
 				h.monitorMutex.Lock()
 				delete(h.monitorClients, c)
 				h.monitorMutex.Unlock()
-				c.Close()
+				if err := c.Close(); err != nil {
+					log.Printf("Failed to close WebSocket connection: %v", err)
+				}
 			}(conn)
 		}
 	}

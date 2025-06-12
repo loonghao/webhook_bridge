@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -25,6 +26,7 @@ type PluginStatsData struct {
 type PluginStatsStorage struct {
 	filePath        string
 	backupPath      string
+	dataDir         string
 	data            *PluginStatsData
 	mutex           sync.RWMutex
 	saveChannel     chan bool
@@ -52,6 +54,7 @@ func NewPluginStatsStorage(dataDir string) *PluginStatsStorage {
 	storage := &PluginStatsStorage{
 		filePath:        filePath,
 		backupPath:      backupPath,
+		dataDir:         dataDir,
 		data:            &PluginStatsData{},
 		saveChannel:     make(chan bool, 100), // Buffered channel to prevent blocking
 		stopChannel:     make(chan bool, 1),
@@ -109,11 +112,21 @@ func (pss *PluginStatsStorage) LoadStats() error {
 
 // loadFromFile loads data from a specific file
 func (pss *PluginStatsStorage) loadFromFile(filePath string) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return err
+	// Validate and clean file path to prevent path traversal
+	cleanPath := filepath.Clean(filePath)
+	if !strings.HasPrefix(cleanPath, pss.dataDir) {
+		return fmt.Errorf("invalid file path: path traversal detected")
 	}
-	defer file.Close()
+
+	file, err := os.Open(cleanPath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Failed to close file: %v", err)
+		}
+	}()
 
 	var data PluginStatsData
 	decoder := json.NewDecoder(file)
@@ -144,15 +157,21 @@ func (pss *PluginStatsStorage) SaveStats(statsData *PluginStatsData) error {
 
 // saveToFile saves data to a specific file
 func (pss *PluginStatsStorage) saveToFile(filePath string) error {
+	// Validate and clean file path to prevent path traversal
+	cleanPath := filepath.Clean(filePath)
+	if !strings.HasPrefix(cleanPath, pss.dataDir) {
+		return fmt.Errorf("invalid file path: path traversal detected")
+	}
+
 	// Create backup before saving
-	if _, err := os.Stat(filePath); err == nil {
+	if _, err := os.Stat(cleanPath); err == nil {
 		if err := pss.createBackup(); err != nil {
 			log.Printf("Warning: Failed to create backup: %v", err)
 		}
 	}
 
 	// Create temporary file for atomic write
-	tempFile := filePath + ".tmp"
+	tempFile := cleanPath + ".tmp"
 	file, err := os.Create(tempFile)
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
@@ -161,16 +180,27 @@ func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ") // Pretty print JSON
 	if err := encoder.Encode(pss.data); err != nil {
-		file.Close()
-		os.Remove(tempFile)
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("Failed to close file: %v", closeErr)
+		}
+		if removeErr := os.Remove(tempFile); removeErr != nil {
+			log.Printf("Failed to remove temp file: %v", removeErr)
+		}
 		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
 
-	file.Close()
+	if err := file.Close(); err != nil {
+		if removeErr := os.Remove(tempFile); removeErr != nil {
+			log.Printf("Failed to remove temp file: %v", removeErr)
+		}
+		return fmt.Errorf("failed to close file: %w", err)
+	}
 
 	// Atomic rename
-	if err := os.Rename(tempFile, filePath); err != nil {
-		os.Remove(tempFile)
+	if err := os.Rename(tempFile, cleanPath); err != nil {
+		if removeErr := os.Remove(tempFile); removeErr != nil {
+			log.Printf("Failed to remove temp file: %v", removeErr)
+		}
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
 

@@ -395,10 +395,17 @@ func cleanProject() {
 	}
 
 	for _, pattern := range patterns {
-		matches, _ := filepath.Glob(pattern)
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			fmt.Printf("⚠️  Warning: Failed to glob pattern %s: %v\n", pattern, err)
+			continue
+		}
 		for _, match := range matches {
-			os.Remove(match)
-			fmt.Printf("Removed %s\n", match)
+			if err := os.Remove(match); err != nil {
+				fmt.Printf("⚠️  Warning: Failed to remove %s: %v\n", match, err)
+			} else {
+				fmt.Printf("Removed %s\n", match)
+			}
 		}
 	}
 
@@ -406,8 +413,11 @@ func cleanProject() {
 	dirs := []string{"build", "dist"}
 	for _, dir := range dirs {
 		if dirExists(dir) {
-			os.RemoveAll(dir)
-			fmt.Printf("Removed %s/\n", dir)
+			if err := os.RemoveAll(dir); err != nil {
+				fmt.Printf("⚠️  Warning: Failed to remove %s/: %v\n", dir, err)
+			} else {
+				fmt.Printf("Removed %s/\n", dir)
+			}
 		}
 	}
 
@@ -1308,25 +1318,50 @@ func copyDir(src, dst string) error {
 
 // copyFile copies a single file
 func copyFile(src, dst string) error {
+	// Validate and clean file paths to prevent path traversal
+	src = filepath.Clean(src)
+	dst = filepath.Clean(dst)
+
+	// Check if source file exists and is a regular file
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("failed to stat source file: %w", err)
+	}
+	if !srcInfo.Mode().IsRegular() {
+		return fmt.Errorf("source is not a regular file")
+	}
+
 	// Create destination directory if it doesn't exist
 	if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
-		return err
+		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
 	srcFile, err := os.Open(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open source file: %w", err)
 	}
-	defer srcFile.Close()
+	defer func() {
+		if err := srcFile.Close(); err != nil {
+			fmt.Printf("⚠️ Failed to close source file: %v\n", err)
+		}
+	}()
 
 	dstFile, err := os.Create(dst)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer dstFile.Close()
+	defer func() {
+		if err := dstFile.Close(); err != nil {
+			fmt.Printf("⚠️ Failed to close destination file: %v\n", err)
+		}
+	}()
 
 	_, err = dstFile.ReadFrom(srcFile)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to copy file content: %w", err)
+	}
+
+	return nil
 }
 
 // generateSetupScript generates a platform-specific setup script

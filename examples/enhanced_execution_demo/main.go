@@ -160,7 +160,9 @@ func main() {
 	}
 
 	// Close connections
-	grpcClient.Close()
+	if err := grpcClient.Close(); err != nil {
+		fmt.Printf("⚠️ Warning: Failed to close gRPC client: %v\n", err)
+	}
 
 	fmt.Println("\n=== Demo completed ===")
 	fmt.Println("\nKey features demonstrated:")

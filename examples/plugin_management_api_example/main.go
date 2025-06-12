@@ -54,7 +54,9 @@ func main() {
 	// Start server in background
 	go func() {
 		fmt.Printf("Starting test server on http://localhost:8080\n")
-		router.Run(":8080")
+		if err := router.Run(":8080"); err != nil {
+			fmt.Printf("⚠️ Server failed to start: %v\n", err)
+		}
 	}()
 
 	// Wait for server to start
@@ -94,12 +96,22 @@ func main() {
 func testGetRequest(url string) {
 	fmt.Printf("  GET %s\n", url)
 
+	// Validate URL to prevent SSRF attacks
+	if !strings.HasPrefix(url, "http://localhost:8080/") {
+		fmt.Printf("    Error: Invalid URL - only localhost:8080 allowed\n")
+		return
+	}
+
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Printf("    Error: %v\n", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("    Warning: Failed to close response body: %v\n", err)
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -121,6 +133,12 @@ func testGetRequest(url string) {
 
 func testPluginExecution(url string) {
 	fmt.Printf("  POST %s\n", url)
+
+	// Validate URL to prevent SSRF attacks
+	if !strings.HasPrefix(url, "http://localhost:8080/") {
+		fmt.Printf("    Error: Invalid URL - only localhost:8080 allowed\n")
+		return
+	}
 
 	// Create test execution request
 	requestData := map[string]any{
@@ -147,7 +165,11 @@ func testPluginExecution(url string) {
 		fmt.Printf("    Error: %v\n", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("    Warning: Failed to close response body: %v\n", err)
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

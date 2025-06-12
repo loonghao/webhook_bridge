@@ -636,11 +636,30 @@ func setupConfiguration(env string, verbose bool) error {
 
 // copyFile copies a file from src to dst
 func copyFile(src, dst string) error {
+	// Validate and clean file paths to prevent path traversal
+	src = filepath.Clean(src)
+	dst = filepath.Clean(dst)
+
+	// Check if source file exists and is a regular file
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("failed to stat source file: %w", err)
+	}
+	if !srcInfo.Mode().IsRegular() {
+		return fmt.Errorf("source is not a regular file")
+	}
+
 	sourceFile, err := os.ReadFile(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read source file: %w", err)
 	}
-	return os.WriteFile(dst, sourceFile, 0640)
+
+	// Use secure file permissions
+	if err := os.WriteFile(dst, sourceFile, 0600); err != nil {
+		return fmt.Errorf("failed to write destination file: %w", err)
+	}
+
+	return nil
 }
 
 // startPythonExecutor starts Python executor (simplified version for dashboard)

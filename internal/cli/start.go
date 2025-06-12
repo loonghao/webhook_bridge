@@ -153,7 +153,12 @@ func startUnifiedServices(cfg *config.Config, configManager *config.ConfigManage
 
 	// Step 1.5: Build frontend with stagewise if enabled
 	if stagewise {
-		buildFrontendWithStagewise(verbose)
+		if err := buildFrontendWithStagewise(verbose); err != nil {
+			if verbose {
+				fmt.Printf("⚠️  Frontend build failed: %v\n", err)
+				fmt.Printf("🔧 Continuing without frontend build\n")
+			}
+		}
 	}
 
 	// Step 2: Start Go server (integrated)
@@ -272,7 +277,9 @@ func runHTTPServer(httpServer *http.Server, cfg *config.Config, pythonCmd *exec.
 				if verbose {
 					fmt.Printf("🛑 Stopping Python executor...\n")
 				}
-				pythonCmd.Process.Kill()
+				if err := pythonCmd.Process.Kill(); err != nil && verbose {
+					fmt.Printf("⚠️  Failed to kill Python process: %v\n", err)
+				}
 			}
 		}()
 	}
