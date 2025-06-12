@@ -188,31 +188,31 @@ release:
     
     **Full Changelog**: https://github.com/loonghao/webhook_bridge/compare/{{.PreviousTag}}...{{.Tag}}
 
-# Homebrew tap (for macOS users)
-brews:
-  - repository:
-      owner: loonghao
-      name: homebrew-tap
-    ids:
-      - webhook-bridge-archives
-    homepage: "https://github.com/loonghao/webhook_bridge"
-    description: *description
-    license: "Apache-2.0"
-    test: |
-      system "#{bin}/webhook-bridge --version"
-    install: |
-      bin.install "webhook-bridge"
+# Homebrew tap (for macOS users) - Disabled until repository is created
+# brews:
+#   - repository:
+#       owner: loonghao
+#       name: homebrew-tap
+#     ids:
+#       - webhook-bridge-archives
+#     homepage: "https://github.com/loonghao/webhook_bridge"
+#     description: *description
+#     license: "Apache-2.0"
+#     test: |
+#       system "#{bin}/webhook-bridge --version"
+#     install: |
+#       bin.install "webhook-bridge"
 
-# Scoop bucket (for Windows users)
-scoops:
-  - repository:
-      owner: loonghao
-      name: scoop-bucket
-    ids:
-      - webhook-bridge-archives
-    homepage: "https://github.com/loonghao/webhook_bridge"
-    description: *description
-    license: "Apache-2.0"
+# Scoop bucket (for Windows users) - Disabled until repository is created
+# scoops:
+#   - repository:
+#       owner: loonghao
+#       name: scoop-bucket
+#     ids:
+#       - webhook-bridge-archives
+#     homepage: "https://github.com/loonghao/webhook_bridge"
+#     description: *description
+#     license: "Apache-2.0"
 
 # Docker images (simplified for reliability)
 dockers:
