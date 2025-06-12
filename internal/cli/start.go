@@ -135,7 +135,9 @@ func startUnifiedServices(cfg *config.Config, configManager *config.ConfigManage
 		}
 		defer func() {
 			if logManager != nil {
-				logManager.Close()
+				if err := logManager.Close(); err != nil && verbose {
+					fmt.Printf("⚠️  Failed to close log manager: %v\n", err)
+				}
 			}
 		}()
 	}

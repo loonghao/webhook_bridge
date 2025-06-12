@@ -1274,7 +1274,7 @@ func preparePythonDeps() {
 		// Create platform-specific setup script
 		setupScript := generateSetupScript(platform.os)
 		setupPath := filepath.Join(platformDir, getSetupScriptName(platform.os))
-		if err := os.WriteFile(setupPath, []byte(setupScript), 0750); err != nil {
+		if err := os.WriteFile(setupPath, []byte(setupScript), 0600); err != nil {
 			fmt.Printf("⚠️  Warning: Failed to create setup script for %s/%s: %v\n", platform.os, platform.arch, err)
 		}
 

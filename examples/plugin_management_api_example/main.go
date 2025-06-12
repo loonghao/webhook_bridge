@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -102,7 +103,18 @@ func testGetRequest(url string) {
 		return
 	}
 
-	resp, err := http.Get(url)
+	// Create HTTP client with timeout for security
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", "http://localhost:8080"+strings.TrimPrefix(url, "http://localhost:8080"), nil)
+	if err != nil {
+		fmt.Printf("    Error creating request: %v\n", err)
+		return
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("    Error: %v\n", err)
 		return
@@ -160,7 +172,19 @@ func testPluginExecution(url string) {
 		return
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	// Create HTTP client with timeout for security
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest("POST", "http://localhost:8080"+strings.TrimPrefix(url, "http://localhost:8080"), bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Printf("    Error creating request: %v\n", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("    Error: %v\n", err)
 		return

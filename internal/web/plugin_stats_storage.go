@@ -170,9 +170,15 @@ func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 		}
 	}
 
-	// Create temporary file for atomic write
+	// Create temporary file for atomic write with additional path validation
 	tempFile := cleanPath + ".tmp"
-	file, err := os.Create(tempFile)
+	// Validate temp file path as well
+	cleanTempFile := filepath.Clean(tempFile)
+	if !strings.HasPrefix(cleanTempFile, pss.dataDir) {
+		return fmt.Errorf("invalid temp file path: path traversal detected")
+	}
+
+	file, err := os.Create(cleanTempFile)
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -183,22 +189,22 @@ func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 		if closeErr := file.Close(); closeErr != nil {
 			log.Printf("Failed to close file: %v", closeErr)
 		}
-		if removeErr := os.Remove(tempFile); removeErr != nil {
+		if removeErr := os.Remove(cleanTempFile); removeErr != nil {
 			log.Printf("Failed to remove temp file: %v", removeErr)
 		}
 		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
 
 	if err := file.Close(); err != nil {
-		if removeErr := os.Remove(tempFile); removeErr != nil {
+		if removeErr := os.Remove(cleanTempFile); removeErr != nil {
 			log.Printf("Failed to remove temp file: %v", removeErr)
 		}
 		return fmt.Errorf("failed to close file: %w", err)
 	}
 
 	// Atomic rename
-	if err := os.Rename(tempFile, cleanPath); err != nil {
-		if removeErr := os.Remove(tempFile); removeErr != nil {
+	if err := os.Rename(cleanTempFile, cleanPath); err != nil {
+		if removeErr := os.Remove(cleanTempFile); removeErr != nil {
 			log.Printf("Failed to remove temp file: %v", removeErr)
 		}
 		return fmt.Errorf("failed to rename temp file: %w", err)
