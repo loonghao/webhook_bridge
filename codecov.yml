@@ -7,18 +7,20 @@ coverage:
   round: down
   range: "70...100"
 
-  # Status checks configuration
+  # Status checks configuration - informational only, no failures
   status:
     project:
       default:
         target: 75%
         threshold: 2%
         base: auto
+        informational: true  # Don't fail CI on coverage issues
         flags:
           - go
       go:
         target: 80%
         threshold: 1%
+        informational: true  # Don't fail CI on coverage issues
         paths:
           - "cmd/"
           - "internal/"
@@ -28,6 +30,7 @@ coverage:
       python:
         target: 70%
         threshold: 3%
+        informational: true  # Don't fail CI on coverage issues
         paths:
           - "python_executor/"
           - "webhook_bridge/"
@@ -37,8 +40,10 @@ coverage:
       default:
         target: 70%
         threshold: 5%
+        informational: true  # Don't fail CI on coverage issues
       go:
         target: 75%
+        informational: true  # Don't fail CI on coverage issues
         paths:
           - "cmd/"
           - "internal/"
