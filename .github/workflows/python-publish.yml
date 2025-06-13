@@ -41,7 +41,7 @@ jobs:
           ${{ runner.os }}-poetry-
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@v6
       with:
         version: "latest"
 
