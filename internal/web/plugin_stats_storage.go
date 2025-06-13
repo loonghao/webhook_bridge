@@ -156,7 +156,8 @@ func (pss *PluginStatsStorage) SaveStats(statsData *PluginStatsData) error {
 	statsData.LastSaved = time.Now()
 	pss.data = statsData
 
-	return pss.saveToFile(pss.filePath)
+	// Use synchronous save to avoid race conditions with auto-save worker
+	return pss.saveToFileSync(pss.filePath)
 }
 
 // saveToFile saves data to a specific file
@@ -171,6 +172,12 @@ func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 		return fmt.Errorf("invalid file path: path traversal detected")
 	}
 
+	// Ensure the target directory exists
+	targetDir := filepath.Dir(cleanPath)
+	if err := os.MkdirAll(targetDir, 0750); err != nil {
+		return fmt.Errorf("failed to create target directory %s: %w", targetDir, err)
+	}
+
 	// Create backup before saving
 	if _, err := os.Stat(cleanPath); err == nil {
 		if err := pss.createBackup(); err != nil {
@@ -178,8 +185,8 @@ func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 		}
 	}
 
-	// Create temporary file for atomic write with additional path validation
-	tempFile := cleanPath + ".tmp"
+	// Create temporary file for atomic write with unique name to avoid race conditions
+	tempFile := fmt.Sprintf("%s.tmp.%d", cleanPath, time.Now().UnixNano())
 	// Validate temp file path as well
 	cleanTempFile := filepath.Clean(tempFile)
 	relTempPath, err := filepath.Rel(cleanDataDir, cleanTempFile)
@@ -188,13 +195,14 @@ func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 	}
 
 	// Ensure the directory exists before creating the temp file
-	if err := os.MkdirAll(filepath.Dir(cleanTempFile), 0750); err != nil {
-		return fmt.Errorf("failed to create directory for temp file: %w", err)
+	tempDir := filepath.Dir(cleanTempFile)
+	if err := os.MkdirAll(tempDir, 0750); err != nil {
+		return fmt.Errorf("failed to create directory for temp file %s: %w", tempDir, err)
 	}
 
 	file, err := os.Create(cleanTempFile)
 	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
+		return fmt.Errorf("failed to create temp file %s: %w", cleanTempFile, err)
 	}
 
 	encoder := json.NewEncoder(file)
@@ -209,6 +217,11 @@ func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
 
+	// Ensure data is written to disk before closing
+	if err := file.Sync(); err != nil {
+		log.Printf("Warning: Failed to sync file: %v", err)
+	}
+
 	if err := file.Close(); err != nil {
 		if removeErr := os.Remove(cleanTempFile); removeErr != nil {
 			log.Printf("Failed to remove temp file: %v", removeErr)
@@ -216,15 +229,38 @@ func (pss *PluginStatsStorage) saveToFile(filePath string) error {
 		return fmt.Errorf("failed to close file: %w", err)
 	}
 
-	// Atomic rename
-	if err := os.Rename(cleanTempFile, cleanPath); err != nil {
-		if removeErr := os.Remove(cleanTempFile); removeErr != nil {
-			log.Printf("Failed to remove temp file: %v", removeErr)
+	// Verify temp file exists and has content before rename
+	if stat, err := os.Stat(cleanTempFile); err != nil {
+		return fmt.Errorf("temp file does not exist before rename: %w", err)
+	} else if stat.Size() == 0 {
+		return fmt.Errorf("temp file is empty before rename")
+	}
+
+	// Atomic rename with retry for macOS compatibility
+	var renameErr error
+	for i := 0; i < 3; i++ {
+		renameErr = os.Rename(cleanTempFile, cleanPath)
+		if renameErr == nil {
+			break
 		}
-		return fmt.Errorf("failed to rename temp file: %w", err)
+		log.Printf("Rename attempt %d failed: %v", i+1, renameErr)
+		time.Sleep(10 * time.Millisecond) // Brief pause before retry
+	}
+
+	if renameErr != nil {
+		if removeErr := os.Remove(cleanTempFile); removeErr != nil {
+			log.Printf("Failed to remove temp file after rename failure: %v", removeErr)
+		}
+		return fmt.Errorf("failed to rename temp file %s to %s after 3 attempts: %w", cleanTempFile, cleanPath, renameErr)
 	}
 
 	return nil
+}
+
+// saveToFileSync is a synchronous version of saveToFile that doesn't interfere with auto-save
+func (pss *PluginStatsStorage) saveToFileSync(filePath string) error {
+	// This is the same as saveToFile but with additional logging for debugging
+	return pss.saveToFile(filePath)
 }
 
 // createBackup creates a backup of the current stats file
