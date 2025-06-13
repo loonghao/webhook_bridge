@@ -90,8 +90,15 @@ func TestPluginStatsStorage(t *testing.T) {
 
 func TestStatsManagerWithPersistence(t *testing.T) {
 	// Create temporary directory for testing
-	tempDir := filepath.Join(os.TempDir(), "webhook_bridge_test_sm")
-	defer os.RemoveAll(tempDir)
+	tempDir, err := os.MkdirTemp("", "webhook_bridge_test_sm_*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() {
+		// Ensure proper cleanup order
+		time.Sleep(50 * time.Millisecond) // Give time for any pending operations
+		os.RemoveAll(tempDir)
+	}()
 
 	// Create stats manager with persistence
 	sm := NewStatsManagerWithPersistence(tempDir)
@@ -111,18 +118,21 @@ func TestStatsManagerWithPersistence(t *testing.T) {
 	sm.RecordRequest()
 
 	// Force save (with retry for Windows file system issues)
-	var err error
+	var saveErr error
 	for i := 0; i < 3; i++ {
-		err = sm.ForceSave()
-		if err == nil {
+		saveErr = sm.ForceSave()
+		if saveErr == nil {
 			break
 		}
 		time.Sleep(100 * time.Millisecond) // Wait a bit before retry
 	}
-	if err != nil {
-		t.Logf("Warning: Failed to force save after retries: %v", err)
+	if saveErr != nil {
+		t.Logf("Warning: Failed to force save after retries: %v", saveErr)
 		// Don't fail the test, just log the warning
 	}
+
+	// Close first stats manager before creating second one
+	sm.Close()
 
 	// Create new stats manager and verify data is loaded
 	sm2 := NewStatsManagerWithPersistence(tempDir)
@@ -198,7 +208,10 @@ func TestStatsManagerStorageInfo(t *testing.T) {
 
 func TestStatsManagerResetStats(t *testing.T) {
 	tempDir := filepath.Join(os.TempDir(), "webhook_bridge_test_reset")
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		time.Sleep(50 * time.Millisecond) // Give time for any pending operations
+		os.RemoveAll(tempDir)
+	}()
 
 	sm := NewStatsManagerWithPersistence(tempDir)
 	defer sm.Close()
