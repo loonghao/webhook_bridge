@@ -1,3 +1,15 @@
+## v3.1.0 (2025-06-13)
+
+### Feat
+
+- make coverage tests informational only, not blocking
+
+### Fix
+
+- resolve macOS file system race condition in plugin stats storage
+- resolve GoReleaser 404 errors and update dependencies
+- resolve poetry lock and PyPI publish issues
+
 ## v3.0.0 (2025-06-12)
 
 ### BREAKING CHANGE
