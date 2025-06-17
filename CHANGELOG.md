@@ -1,3 +1,9 @@
+## v3.1.1 (2025-06-17)
+
+### Fix
+
+- **deps**: update dependency lucide-react to ^0.516.0
+
 ## v3.1.0 (2025-06-13)
 
 ### Feat
