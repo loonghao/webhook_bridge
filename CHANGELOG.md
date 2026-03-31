@@ -1,3 +1,9 @@
+## v3.1.2 (2026-03-31)
+
+### Fix
+
+- **deps**: update dependency @modelcontextprotocol/sdk to v1 [security] (#103)
+
 ## v3.1.1 (2025-06-17)
 
 ### Fix
