@@ -11,7 +11,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
-	google.golang.org/grpc v1.73.0
+	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
