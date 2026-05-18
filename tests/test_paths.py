@@ -30,13 +30,13 @@ def test_project_structure():
     project_root = Path(__file__).parent.parent
 
     # Check that essential directories exist
-    assert (project_root / "cmd").exists()
-    assert (project_root / "internal").exists()
+    assert (project_root / "crates" / "bridge-core").exists()
+    assert (project_root / "crates" / "bridge-server").exists()
     assert (project_root / "python_executor").exists()
     assert (project_root / "webhook_bridge").exists()
 
     # Check that essential files exist
-    assert (project_root / "go.mod").exists()
+    assert (project_root / "Cargo.toml").exists()
     assert (project_root / "pyproject.toml").exists()
     assert (project_root / "webhook_bridge" / "__init__.py").exists()
     assert (project_root / "webhook_bridge" / "cli.py").exists()

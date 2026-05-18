@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "crates/bridge-core",
+    "crates/bridge-server",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/loonghao/webhook_bridge"
+rust-version = "1.80"

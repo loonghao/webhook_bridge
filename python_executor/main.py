@@ -25,6 +25,7 @@ import grpc
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "api" / "proto"))
 
 # Import third-party modules
 from api.proto import webhook_pb2_grpc

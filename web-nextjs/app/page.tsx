@@ -1,6 +1,6 @@
 'use client'
 
-import { Activity, Server, Users, Zap, RefreshCw, AlertCircle, ScrollText, Puzzle, Settings, TestTube } from 'lucide-react'
+import { Activity, Server, Users, Zap, RefreshCw, AlertCircle, ScrollText, Route, Settings, TestTube, Cpu, FileCode2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -24,9 +24,23 @@ export default function Dashboard() {
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-blue-600 mb-2">Welcome Back</h1>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <Badge variant="outline" className="border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-300">
+                <Cpu className="h-3.5 w-3.5 mr-1.5" />
+                Rust 4.0 control plane
+              </Badge>
+              <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300">
+                <FileCode2 className="h-3.5 w-3.5 mr-1.5" />
+                Python hooks executor
+              </Badge>
+              <Badge variant="outline" className="border-cyan-300 text-cyan-700 dark:border-cyan-800 dark:text-cyan-300">
+                <Route className="h-3.5 w-3.5 mr-1.5" />
+                Request forwarding first
+              </Badge>
+            </div>
+            <h1 className="text-4xl font-bold text-slate-950 dark:text-white mb-2">Webhook Bridge Dashboard</h1>
             <p className="text-lg text-slate-600 dark:text-slate-400">
-              Monitor and manage your webhook bridge infrastructure
+              Operate webhook forwarding, Python hook transforms, and worker health from one compact console
             </p>
           </div>
           <div className="flex items-center space-x-4">
@@ -87,7 +101,7 @@ export default function Dashboard() {
                 <Server className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="text-right">
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Plugins</p>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Routes</p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white">
                   {loading ? '...' : plugins.filter(p => p.status === 'active').length}
                 </p>
@@ -193,8 +207,8 @@ export default function Dashboard() {
                 View Logs
               </Button>
               <Button className="w-full justify-start h-12 bg-green-50 dark:bg-green-900 dark:bg-opacity-20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900 dark:hover:bg-opacity-30" variant="outline">
-                <Puzzle className="h-4 w-4 mr-3" />
-                Manage Plugins
+                <Route className="h-4 w-4 mr-3" />
+                Manage Routes
               </Button>
               <Button className="w-full justify-start h-12 bg-purple-50 dark:bg-purple-900 dark:bg-opacity-20 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 dark:hover:bg-opacity-30" variant="outline">
                 <Settings className="h-4 w-4 mr-3" />

@@ -1,10 +1,9 @@
-# This project is primarily a Go application with Python components
-# The pyproject.toml is used for Python development dependencies and tooling only
+# Python hook runtime package for Webhook Bridge 4.0.
 
 [project]
 name = "webhook-bridge"
-version = "3.1.2"
-description = "A flexible webhook integration platform with hybrid Go/Python architecture"
+version = "4.0.0-alpha.0"
+description = "A Rust webhook forwarding bridge with Python hook support"
 authors = [
     {name = "hal.long", email = "hal.long@outlook.com"}
 ]
@@ -16,7 +15,7 @@ dependencies = [
     "grpcio>=1.50.0",
     "grpcio-tools>=1.50.0",
 ]
-keywords = ["webhook", "integration", "platform", "go", "python"]
+keywords = ["webhook", "integration", "platform", "rust", "python"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -65,11 +64,13 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "3.1.2"
+version = "4.0.0-alpha.0"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml:version",
-    "pkg/version/version.go:Version = \"$version\""
+    "crates/bridge-core/Cargo.toml:version = \"$version\"",
+    "crates/bridge-server/Cargo.toml:version = \"$version\"",
+    "web-nextjs/package.json:\"version\": \"$version\""
 ]
 
 [tool.black]

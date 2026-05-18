@@ -38,7 +38,7 @@ export default function SystemStatus() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Go Server</CardTitle>
+              <CardTitle className="text-sm font-medium">Rust Server</CardTitle>
               <Server className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -78,7 +78,7 @@ export default function SystemStatus() {
                 {loading ? '...' : status?.version || 'Unknown'}
               </div>
               <p className="text-xs text-muted-foreground">
-                Go {status?.goVersion || 'Unknown'}
+                {status?.runtimeVersion || 'Rust runtime'}
               </p>
             </CardContent>
           </Card>
@@ -173,31 +173,31 @@ export default function SystemStatus() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Plugin Status</CardTitle>
+              <CardTitle>Route Status</CardTitle>
               <CardDescription>
-                Overview of plugin health and performance
+                Overview of forwarding routes and Python hook health
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Total Plugins</span>
+                  <span className="text-sm font-medium">Total Routes</span>
                   <span className="text-2xl font-bold">{plugins.length}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Active Plugins</span>
+                  <span className="text-sm font-medium">Active Routes</span>
                   <span className="text-lg font-semibold text-green-600">
                     {plugins.filter(p => p.status === 'active').length}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Inactive Plugins</span>
+                  <span className="text-sm font-medium">Inactive Routes</span>
                   <span className="text-lg font-semibold text-gray-600">
                     {plugins.filter(p => p.status === 'inactive').length}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Error Plugins</span>
+                  <span className="text-sm font-medium">Error Routes</span>
                   <span className="text-lg font-semibold text-red-600">
                     {plugins.filter(p => p.status === 'error').length}
                   </span>

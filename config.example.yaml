@@ -1,333 +1,82 @@
-# Webhook Bridge Configuration Example
-# Copy this file to config.yaml and modify as needed
+# Webhook Bridge 4.0 example configuration.
+# Copy to config.local.yaml for local overrides, or run with config.4.0.yaml.
 
-# HTTP Server Configuration
 server:
-  # Host to bind the server to
   host: "0.0.0.0"
+  port: 8080
+  request_timeout_secs: 30
+  cors_allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:3002"
+    - "http://127.0.0.1:3000"
+    - "http://127.0.0.1:3002"
 
-  # Port to bind the server to (0 for auto-assign)
-  port: 0
-
-  # Server mode: debug, release
-  mode: "debug"
-
-  # Enable automatic port assignment
-  auto_port: true
-
-  # CORS Configuration
-  cors:
-    # Allowed origins for CORS requests
-    allowed_origins:
-      - "http://localhost:3000"
-      - "http://127.0.0.1:3000"
-      # Add your frontend URLs here
-      # - "https://your-frontend-domain.com"
-
-    # Allowed HTTP methods
-    allowed_methods:
-      - "GET"
-      - "POST"
-      - "PUT"
-      - "DELETE"
-      - "OPTIONS"
-
-    # Allowed headers
-    allowed_headers:
-      - "Origin"
-      - "Content-Type"
-      - "Content-Length"
-      - "Accept-Encoding"
-      - "X-CSRF-Token"
-      - "Authorization"
-      - "X-Request-ID"
-
-    # Headers to expose to client
-    exposed_headers:
-      - "X-Request-ID"
-      - "X-Execution-Time"
-
-    # Allow credentials (cookies, authorization headers)
-    allow_credentials: false
-
-    # Preflight cache duration in seconds
-    max_age: 86400
-
-# Enhanced Python Interpreter Configuration
 python:
-  # Python interpreter discovery strategy
-  # Options: auto, uv, path, custom
-  strategy: "auto"
-
-  # Custom Python interpreter path (used when strategy is "custom")
-  interpreter_path: ""
-
-  # Active interpreter name (from interpreters map below)
-  active_interpreter: "system-python"
-
-  # Multiple interpreter configurations
-  interpreters:
-    system-python:
-      name: "System Python 3.9"
-      path: "/usr/bin/python3"
-      venv_path: ".venv"
-      use_uv: false
-      required_packages:
-        - "grpcio"
-        - "grpcio-tools"
-        - "requests"
-      environment:
-        PYTHONPATH: "/custom/path"
-      validated: true
-      last_validated: "2024-01-15T10:30:00Z"
-
-    uv-python:
-      name: "UV Python Environment"
-      path: ".venv/bin/python"
-      venv_path: ".venv"
-      use_uv: true
-      required_packages:
-        - "grpcio"
-        - "grpcio-tools"
-        - "fastapi"
-        - "uvicorn"
-      validated: true
-      last_validated: "2024-01-15T10:35:00Z"
-
-  # UV virtual environment settings (legacy)
-  uv:
-    enabled: true
-    project_path: ""  # Path to Python project with pyproject.toml
-    venv_name: ".venv"
-
-  # Additional plugin directories to search
+  interpreter: "python"
+  interpreter_strategy: "managed"
+  environment_manager: "uv"
+  uv_project_dir: "."
+  managed_runtime_dir: "data/python"
+  allow_system_fallback: true
+  executor_module: "python_executor.main"
+  auto_start: true
   plugin_dirs:
     - "example_plugins"
-    - "custom_plugins"
+    - "plugins"
 
-  # Environment validation settings
-  validation:
-    enabled: true
-    min_python_version: "3.8"
-    required_capabilities: []
-    strict_mode: false
-    cache_timeout: 5  # minutes
-
-  # Auto-install missing dependencies
-  auto_install: false
-
-  # Required packages for webhook execution (legacy)
-  required_packages:
-    - "grpcio"
-    - "grpcio-tools"
-
-# Python Executor Service Configuration
 executor:
-  # Host for the Python executor service
-  host: "localhost"
-  
-  # Port for the Python executor service (0 for auto-assign)
-  port: 0
-  
-  # Request timeout in seconds
-  timeout: 30
-  
-  # Enable automatic port assignment
-  auto_port: true
+  host: "127.0.0.1"
+  port: 50051
+  workers: 2
+  connect_timeout_secs: 5
 
-# Logging Configuration
-logging:
-  # Log level: debug, info, warning, error
-  level: "info"
-  
-  # Log format: text, json
-  format: "text"
-  
-  # Log file path (optional, logs to stdout if not specified)
-  file: ""
-  
-  # Enable log rotation
-  rotation:
-    enabled: false
-    max_size: "100MB"
-    max_age: "7d"
-    max_backups: 3
-
-# Development Configuration
-development:
-  # Enable development mode features
-  enabled: false
-  
-  # Hot reload for plugins
-  hot_reload: false
-  
-  # Debug endpoints
-  debug_endpoints: false
-  
-  # Profiling
-  profiling:
-    enabled: false
-    port: 6060
-
-# Production Configuration
-production:
-  # Enable production optimizations
-  enabled: false
-  
-  # Security settings
-  security:
-    # Enable HTTPS
-    https:
-      enabled: false
-      cert_file: ""
-      key_file: ""
-    
-    # CORS settings
-    cors:
-      enabled: true
-      allowed_origins: ["*"]
-      allowed_methods: ["GET", "POST", "PUT", "DELETE"]
-      allowed_headers: ["*"]
-    
-    # Rate limiting
-    rate_limit:
-      enabled: false
-      requests_per_minute: 100
-  
-  # Monitoring
-  monitoring:
-    # Enable metrics collection
-    metrics:
-      enabled: false
-      endpoint: "/metrics"
-    
-    # Health check settings
-    health_check:
-      enabled: true
-      endpoint: "/health"
-      interval: "30s"
-
-# Plugin Configuration
-plugins:
-  # Default plugin timeout
-  timeout: 30
-  
-  # Plugin execution limits
-  limits:
-    max_memory: "512MB"
-    max_cpu_time: "10s"
-  
-  # Plugin caching
-  cache:
-    enabled: true
-    ttl: "5m"
-  
-  # Plugin discovery
-  discovery:
-    # Scan interval for new plugins
-    scan_interval: "1m"
-    
-    # Watch for file changes
-    watch_changes: true
-
-# Database Configuration (optional)
-database:
-  # Database type: sqlite, postgres, mysql
-  type: "sqlite"
-  
-  # Connection string
-  connection: "webhook_bridge.db"
-  
-  # Connection pool settings
-  pool:
-    max_open: 10
-    max_idle: 5
-    max_lifetime: "1h"
-
-# Cache Configuration
-cache:
-  # Cache type: memory, redis
-  type: "memory"
-  
-  # Redis configuration (if type is redis)
-  redis:
-    host: "localhost"
-    port: 6379
-    password: ""
-    database: 0
-  
-  # Memory cache settings
-  memory:
-    max_size: "100MB"
-    ttl: "1h"
-
-# Webhook Configuration
-webhook:
-  # Default webhook settings
-  defaults:
-    timeout: "30s"
-    retry_count: 3
-    retry_delay: "1s"
-  
-  # Webhook validation
-  validation:
-    # Validate webhook signatures
-    signature_validation: false
-    
-    # Allowed content types
-    allowed_content_types:
-      - "application/json"
-      - "application/x-www-form-urlencoded"
-      - "text/plain"
-  
-  # Webhook processing
-  processing:
-    # Enable async processing
-    async: true
-    
-    # Queue settings
-    queue:
-      size: 1000
-      workers: 10
-
-# Storage configuration for execution tracking
-storage:
-  type: "sqlite"  # sqlite, mysql, postgresql
-
-  sqlite:
-    database_path: "data/executions.db"
-    max_connections: 10
-    retention_days: 30
-    enable_wal: true
-    enable_foreign_keys: true
-
-  # Future support for other databases
-  mysql:
-    host: "localhost"
-    port: 3306
-    database: "webhook_bridge"
-    username: "webhook_user"
-    password: "webhook_pass"
-    max_connections: 20
-    retention_days: 90
-
-  postgresql:
-    host: "localhost"
-    port: 5432
-    database: "webhook_bridge"
-    username: "webhook_user"
-    password: "webhook_pass"
-    ssl_mode: "disable"
-    max_connections: 20
-    retention_days: 90
-
-# Execution tracking configuration
-execution_tracking:
+gateway:
   enabled: true
-  track_input: true
-  track_output: true
-  track_errors: true
-  max_input_size: 1048576   # 1MB
-  max_output_size: 1048576  # 1MB
-  cleanup_interval: "24h"
-  metrics_aggregation_interval: "1h"
+  public_path: "/gateway"
+  default_route: ""
+  provider_routes:
+    github: "github-fanout"
+    gitlab: "gitlab"
+    sentry: "sentry"
+
+scripts:
+  enabled: true
+  groups:
+    - name: "github-fanout"
+      enabled: true
+      mode: "parallel"
+      routes:
+        - "github-save-json"
+        - "github-wechat"
+  routes:
+    - name: "github-save-json"
+      shell: "powershell"
+      script_path: "scripts/save-github-hook.ps1"
+      working_dir: "."
+      enabled: true
+      timeout_secs: 30
+      env:
+        WEBHOOK_BRIDGE_OUTPUT_DIR: "data/github-hooks"
+    - name: "github-wechat"
+      shell: "python"
+      script_path: "scripts/notify-wechat.py"
+      working_dir: "."
+      enabled: false
+      timeout_secs: 30
+      env:
+        WEBHOOK_BRIDGE_WECHAT_WEBHOOK_URL: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=00000000-0000-0000-0000-000000000000"
+
+forwarding:
+  enabled: true
+  routes: []
+
+storage:
+  sqlite_path: "data/webhook-bridge.db"
+
+dashboard:
+  enabled: true
+  api_prefix: "/api/dashboard"
+
+logging:
+  level: "info"
+  format: "text"

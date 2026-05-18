@@ -66,7 +66,7 @@ export interface SystemStatus {
   service?: string
   status?: 'healthy' | 'unhealthy' | 'unknown'
   version?: string
-  goVersion?: string
+  runtimeVersion?: string
   pythonVersion?: string
   memory?: {
     used: number
@@ -107,7 +107,7 @@ export interface PluginInfo {
   dependencies?: string[]
   error?: string
   enabled?: boolean
-  type?: 'python' | 'go' | 'javascript' | 'yaml'
+  type?: 'python' | 'forward' | 'powershell' | 'pwsh' | 'script-group' | 'javascript' | 'yaml'
   size?: number
 }
 
@@ -204,7 +204,7 @@ export interface PythonPackage {
 // Connection Status
 export interface ConnectionInfo {
   name: string
-  type: 'database' | 'api' | 'service' | 'websocket'
+  type: 'database' | 'api' | 'service' | 'websocket' | 'forwarder'
   status: 'connected' | 'disconnected' | 'error' | 'connecting'
   url?: string
   lastConnected?: string

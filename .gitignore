@@ -24,10 +24,9 @@ coverage.xml
 poetry.lock
 
 # =============================================================================
-# Go
+# Native build artifacts
 # =============================================================================
 
-# Go build artifacts
 *.exe
 *.exe~
 *.dll
@@ -37,13 +36,12 @@ poetry.lock
 coverage.out
 coverage.html
 
-# Go build directories
 build/
 dist/
 !dist/python-deps/
 
-# Go module cache
-go.sum
+# Rust build artifacts
+target/
 
 # =============================================================================
 # Node.js / Frontend
@@ -63,10 +61,10 @@ static/
 # =============================================================================
 
 # Generated protobuf files
-*.pb.go
-*_grpc.pb.go
 *_pb2.py
 *_pb2_grpc.py
+!api/proto/*_pb2.py
+!api/proto/*_pb2_grpc.py
 
 # =============================================================================
 # Development and Testing
