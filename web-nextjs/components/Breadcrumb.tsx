@@ -24,13 +24,13 @@ const routeMap: Record<string, BreadcrumbItem[]> = {
   ],
   '/plugins': [
     { label: 'Dashboard', href: '/', icon: Home },
-    { label: 'Plugin Management', href: '/plugins' },
-    { label: 'Plugins' }
+    { label: 'Webhook Routing', href: '/plugins' },
+    { label: 'Routes' }
   ],
   '/plugin-manager': [
     { label: 'Dashboard', href: '/', icon: Home },
-    { label: 'Plugin Management', href: '/plugins' },
-    { label: 'Plugin Manager' }
+    { label: 'Webhook Routing', href: '/plugins' },
+    { label: 'Route Manager' }
   ],
   '/interpreters': [
     { label: 'Dashboard', href: '/', icon: Home },

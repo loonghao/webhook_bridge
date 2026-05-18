@@ -128,23 +128,23 @@ export default function ConnectionDebugPage() {
               </CardContent>
             </Card>
 
-            {/* Go Server Status */}
+            {/* Rust Server Status */}
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Go Server</CardTitle>
+                  <CardTitle className="text-sm font-medium">Rust Server</CardTitle>
                   <Server className="h-4 w-4 text-muted-foreground" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center space-x-2">
-                  {state.backend.goServer ? (
+                  {state.backend.rustServer ? (
                     <CheckCircle className="h-4 w-4 text-green-500" />
                   ) : (
                     <AlertTriangle className="h-4 w-4 text-red-500" />
                   )}
-                  <span className={`font-medium ${state.backend.goServer ? 'text-green-500' : 'text-red-500'}`}>
-                    {state.backend.goServer ? 'RUNNING' : 'STOPPED'}
+                  <span className={`font-medium ${state.backend.rustServer ? 'text-green-500' : 'text-red-500'}`}>
+                    {state.backend.rustServer ? 'RUNNING' : 'STOPPED'}
                   </span>
                 </div>
               </CardContent>
@@ -273,8 +273,8 @@ export default function ConnectionDebugPage() {
                     
                     <div>
                       <h4 className="font-medium mb-2">Backend</h4>
-                      <p className={`text-sm ${diagnostics.backend.go ? 'text-green-600' : 'text-red-600'}`}>
-                        Go: {diagnostics.backend.go ? '✓ Running' : '✗ Stopped'}
+                      <p className={`text-sm ${diagnostics.backend.rust ? 'text-green-600' : 'text-red-600'}`}>
+                        Rust: {diagnostics.backend.rust ? '✓ Running' : '✗ Stopped'}
                       </p>
                       <p className={`text-sm ${diagnostics.backend.python ? 'text-green-600' : 'text-red-600'}`}>
                         Python: {diagnostics.backend.python ? '✓ Connected' : '✗ Disconnected'}

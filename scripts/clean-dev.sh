@@ -32,12 +32,12 @@ remove_by_pattern() {
 
 echo "📦 Cleaning build artifacts..."
 
-# Remove Go build artifacts
-remove_by_pattern "*.exe" "Go executable"
+# Remove native build artifacts
+remove_by_pattern "*.exe" "Native executable"
 remove_by_pattern "*.dll" "Dynamic library"
 remove_by_pattern "*.so" "Shared object"
 remove_by_pattern "*.dylib" "Dynamic library (macOS)"
-remove_by_pattern "*.test" "Go test binary"
+remove_by_pattern "*.test" "Native test binary"
 
 # Remove build directories
 remove_safely "build" "Build directory"
@@ -113,19 +113,6 @@ remove_by_pattern ".DS_Store" "macOS metadata file"
 remove_by_pattern "Thumbs.db" "Windows thumbnail cache"
 remove_by_pattern "desktop.ini" "Windows desktop configuration"
 
-echo "🧽 Running Go clean..."
-
-# Clean Go cache
-if command -v go >/dev/null 2>&1; then
-    if go clean -cache -testcache -modcache 2>/dev/null; then
-        echo "✅ Go cache cleaned"
-    else
-        echo "⚠️  Warning: Could not clean Go cache"
-    fi
-else
-    echo "⚠️  Warning: Go not found in PATH"
-fi
-
 echo "🎉 Development environment cleaned successfully!"
 echo ""
 echo "📋 Summary:"
@@ -134,7 +121,7 @@ echo "   - Python cache cleared"
 echo "   - Frontend build outputs removed"
 echo "   - Logs and data directories cleaned"
 echo "   - Temporary files removed"
-echo "   - Go cache cleaned"
+echo "   - Native build artifacts cleaned"
 echo ""
 echo "💡 To start fresh development:"
 echo "   uvx nox -s quick    # Quick start"

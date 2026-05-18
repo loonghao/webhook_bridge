@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home,
   BarChart3,
-  Puzzle,
+  Route,
   Cog,
   Code,
   Wifi,
@@ -27,10 +27,10 @@ const navigationGroups = [
     ]
   },
   {
-    title: 'Plugin Management',
+    title: 'Webhook Routing',
     items: [
-      { name: 'Plugins', href: '/plugins', icon: Puzzle },
-      { name: 'Plugin Manager', href: '/plugin-manager', icon: Cog },
+      { name: 'Routes', href: '/plugins', icon: Route },
+      { name: 'Route Manager', href: '/plugin-manager', icon: Cog },
     ]
   },
   {
@@ -60,12 +60,12 @@ export function Sidebar() {
       {/* Logo Section */}
       <div className="p-6 modern-sidebar-header">
         <div className="flex items-center space-x-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white bg-opacity-20">
+          <div className="flex h-12 w-12 items-center justify-center rounded-md bg-white bg-opacity-15 ring-1 ring-white/20">
             <Zap className="h-6 w-6 text-white" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-white">Webhook Bridge</h2>
-            <p className="text-sm text-white text-opacity-70">Admin Panel</p>
+            <p className="text-sm text-white text-opacity-70">4.0 Control Plane</p>
           </div>
         </div>
       </div>

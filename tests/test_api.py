@@ -1,5 +1,4 @@
 """Test cases for basic functionality."""
-import os
 import sys
 from pathlib import Path
 
@@ -10,13 +9,10 @@ sys.path.insert(0, str(project_root))
 
 def test_webhook_bridge_import():
     """Test that webhook_bridge package can be imported."""
-    try:
-        import webhook_bridge
-        assert webhook_bridge
-        assert hasattr(webhook_bridge, '__version__')
-    except ImportError:
-        # This is acceptable for a Go-primary project
-        assert True
+    import webhook_bridge
+
+    assert webhook_bridge
+    assert hasattr(webhook_bridge, "__version__")
 
 
 def test_python_executor_exists():
@@ -29,9 +25,9 @@ def test_python_executor_exists():
 
 def test_project_structure():
     """Test basic project structure."""
-    assert (project_root / "cmd").exists()
-    assert (project_root / "internal").exists()
-    assert (project_root / "go.mod").exists()
+    assert (project_root / "Cargo.toml").exists()
+    assert (project_root / "crates" / "bridge-core").exists()
+    assert (project_root / "crates" / "bridge-server").exists()
     assert (project_root / "pyproject.toml").exists()
 
 

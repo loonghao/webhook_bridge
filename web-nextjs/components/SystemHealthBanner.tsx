@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { apiClient } from '@/services/api'
 
 interface SystemHealth {
-  goServer: {
+  rustServer: {
     status: 'healthy' | 'unhealthy' | 'unknown'
     message?: string
   }
@@ -31,7 +31,7 @@ interface SystemHealthBannerProps {
 
 export function SystemHealthBanner({ className, showDetails = false }: SystemHealthBannerProps) {
   const [health, setHealth] = useState<SystemHealth>({
-    goServer: { status: 'unknown' },
+    rustServer: { status: 'unknown' },
     pythonExecutor: { status: 'unknown' },
     plugins: { total: 0, active: 0, errors: 0 }
   })
@@ -53,9 +53,9 @@ export function SystemHealthBanner({ className, showDetails = false }: SystemHea
       const pluginList = plugins.status === 'fulfilled' ? plugins.value : []
 
       setHealth({
-        goServer: {
+        rustServer: {
           status: systemStatus?.status || 'unknown',
-          message: systemStatus?.service || 'Go server status unknown'
+          message: systemStatus?.service || 'Rust server status unknown'
         },
         pythonExecutor: {
           status: systemStatus?.pythonVersion ? 'connected' : 'disconnected',
@@ -85,10 +85,10 @@ export function SystemHealthBanner({ className, showDetails = false }: SystemHea
   }, [])
 
   const getOverallStatus = (): 'healthy' | 'warning' | 'error' => {
-    if (health.goServer.status === 'unhealthy' || health.pythonExecutor.status === 'disconnected') {
+    if (health.rustServer.status === 'unhealthy' || health.pythonExecutor.status === 'disconnected') {
       return 'error'
     }
-    if (health.plugins.errors > 0 || health.goServer.status === 'unknown') {
+    if (health.plugins.errors > 0 || health.rustServer.status === 'unknown') {
       return 'warning'
     }
     return 'healthy'
@@ -129,7 +129,7 @@ export function SystemHealthBanner({ className, showDetails = false }: SystemHea
     }
   }
 
-  if (loading && !health.goServer.status) {
+  if (loading && !health.rustServer.status) {
     return (
       <Alert className={className}>
         <RefreshCw className="h-4 w-4 animate-spin" />
@@ -152,8 +152,8 @@ export function SystemHealthBanner({ className, showDetails = false }: SystemHea
           {showDetails && (
             <div className="flex items-center space-x-4 text-sm">
               <div className="flex items-center space-x-1">
-                <Badge variant={health.goServer.status === 'healthy' ? 'default' : 'destructive'}>
-                  Go Server
+                <Badge variant={health.rustServer.status === 'healthy' ? 'default' : 'destructive'}>
+                  Rust Server
                 </Badge>
               </div>
               
@@ -168,7 +168,7 @@ export function SystemHealthBanner({ className, showDetails = false }: SystemHea
               
               <div className="flex items-center space-x-1">
                 <span className="text-muted-foreground">
-                  {health.plugins.active}/{health.plugins.total} plugins
+                  {health.plugins.active}/{health.plugins.total} routes
                 </span>
               </div>
             </div>

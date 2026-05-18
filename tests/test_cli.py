@@ -31,24 +31,18 @@ def test_cli_has_main():
         assert callable(cli.main)
 
 
-def test_go_binary_builds():
-    """Test that Go binary can be built."""
+def test_rust_binary_builds():
+    """Test that Rust bridge binary can be built."""
     project_root = Path(__file__).parent.parent
 
-    # Try to build the binary
     result = subprocess.run(
-        ["go", "build", "-o", "test-webhook-bridge", "./cmd/webhook-bridge"],
+        ["cargo", "build", "-p", "webhook-bridge-server", "--bin", "webhook-bridge"],
         cwd=project_root,
         capture_output=True,
         text=True, check=False,
     )
 
-    # Clean up
-    test_binary = project_root / "test-webhook-bridge"
-    if test_binary.exists():
-        test_binary.unlink()
-
-    assert result.returncode == 0, f"Go build failed: {result.stderr}"
+    assert result.returncode == 0, f"Rust build failed: {result.stderr}"
 
 
 def test_python_executor_structure():
