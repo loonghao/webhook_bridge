@@ -1,6 +1,6 @@
 {
   "name": "webhook-bridge-nextjs",
-  "version": "4.0.0-alpha.0",
+  "version": "5.0.0-alpha.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3002",
