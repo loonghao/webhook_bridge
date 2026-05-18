@@ -61,13 +61,14 @@
 
 /* Custom styles for modern dashboard */
 .modern-sidebar {
-  background: linear-gradient(to bottom, #0f172a, #1e293b, #334155);
-  border-right: 1px solid #475569;
+  background: #0b1220;
+  border-right: 1px solid #1f2a3a;
 }
 
 .modern-sidebar-header {
-  background: linear-gradient(to right, #2563eb, #7c3aed);
+  background: #111c2e;
   color: white;
+  border-bottom: 1px solid #243247;
 }
 
 .modern-sidebar-nav-item {
@@ -89,9 +90,9 @@
 }
 
 .modern-sidebar-nav-item.active {
-  background: linear-gradient(to right, rgba(37, 99, 235, 0.2), rgba(124, 58, 237, 0.2));
+  background: rgba(8, 145, 178, 0.16);
   color: white;
-  border-right: 2px solid #3b82f6;
+  border-right: 2px solid #22d3ee;
 }
 
 .modern-header {
@@ -137,7 +138,7 @@
 }
 
 .modern-stat-card.blue::before {
-  background: linear-gradient(to right, #3b82f6, #8b5cf6);
+  background: linear-gradient(to right, #0891b2, #0f766e);
 }
 
 .modern-stat-card.green::before {
@@ -145,7 +146,7 @@
 }
 
 .modern-stat-card.purple::before {
-  background: linear-gradient(to right, #8b5cf6, #a855f7);
+  background: linear-gradient(to right, #64748b, #0f766e);
 }
 
 .modern-stat-card.orange::before {
@@ -153,7 +154,7 @@
 }
 
 .modern-button {
-  background: linear-gradient(to right, #2563eb, #7c3aed);
+  background: #0f172a;
   color: white;
   border-radius: 0.5rem;
   padding: 0.5rem 1rem;
@@ -162,8 +163,8 @@
 }
 
 .modern-button:hover {
-  background: linear-gradient(to right, #1d4ed8, #6d28d9);
-  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.25);
+  background: #164e63;
+  box-shadow: 0 10px 15px -3px rgba(8, 145, 178, 0.2);
 }
 
 .modern-glass {

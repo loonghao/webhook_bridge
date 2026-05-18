@@ -29,7 +29,7 @@ export default function DebugPage() {
     { name: 'Health Check', endpoint: '/health', method: 'GET' },
     { name: 'Dashboard Status', endpoint: '/api/dashboard/status', method: 'GET' },
     { name: 'Dashboard Stats', endpoint: '/api/dashboard/stats', method: 'GET' },
-    { name: 'Plugins List', endpoint: '/api/dashboard/plugins', method: 'GET' },
+    { name: 'Routes List', endpoint: '/api/dashboard/plugins', method: 'GET' },
     { name: 'Workers List', endpoint: '/api/dashboard/workers', method: 'GET' },
     { name: 'Logs', endpoint: '/api/dashboard/logs', method: 'GET' },
   ]
@@ -101,14 +101,14 @@ export default function DebugPage() {
     try {
       const plugins = await apiClient.getPlugins()
       results.push({
-        name: 'API Client - Plugins',
+        name: 'API Client - Routes',
         status: 'success',
-        message: `Successfully fetched ${plugins.length} plugins`,
+        message: `Successfully fetched ${plugins.length} routes`,
         data: plugins
       })
     } catch (error) {
       results.push({
-        name: 'API Client - Plugins',
+        name: 'API Client - Routes',
         status: 'error',
         message: error instanceof Error ? error.message : 'Unknown error'
       })
@@ -257,13 +257,13 @@ export default function DebugPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-medium">Go Server</h4>
+                  <h4 className="font-medium">Rust Server</h4>
                   <div className="flex items-center space-x-2">
-                    {bridgeStatus.backend.goServer ?
+                    {bridgeStatus.backend.rustServer ?
                       <CheckCircle className="h-4 w-4 text-green-600" /> :
                       <XCircle className="h-4 w-4 text-red-600" />
                     }
-                    <span className="text-sm">{bridgeStatus.backend.goServer ? 'Running' : 'Not Running'}</span>
+                    <span className="text-sm">{bridgeStatus.backend.rustServer ? 'Running' : 'Not Running'}</span>
                   </div>
                 </div>
 

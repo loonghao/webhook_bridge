@@ -10,10 +10,11 @@ const nextConfig = {
   async rewrites() {
     // Only apply rewrites in development mode
     if (process.env.NODE_ENV === 'development') {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
       return [
         {
           source: '/api/:path*',
-          destination: 'http://localhost:8000/api/:path*',
+          destination: `${apiBaseUrl}/api/:path*`,
         },
       ];
     }

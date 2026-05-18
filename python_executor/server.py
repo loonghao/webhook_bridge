@@ -9,11 +9,16 @@ from __future__ import annotations
 # Import built-in modules
 import logging
 import os
+from pathlib import Path
+import sys
 import time
 import traceback
 from typing import Any
 from typing import Dict
 from typing import Optional
+
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root / "api" / "proto"))
 
 # Import third-party modules
 from api.proto import webhook_pb2

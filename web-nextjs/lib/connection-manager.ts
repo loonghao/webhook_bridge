@@ -26,7 +26,7 @@ export interface ConnectionState {
     }
   }
   backend: {
-    goServer: boolean
+    rustServer: boolean
     pythonExecutor: boolean
     lastCheck: Date | null
   }
@@ -58,7 +58,7 @@ class ConnectionManager {
       }
     },
     backend: {
-      goServer: false,
+      rustServer: false,
       pythonExecutor: false,
       lastCheck: null
     }
@@ -118,7 +118,7 @@ class ConnectionManager {
 
       // Update backend status from API response
       this.state.backend = {
-        goServer: response.server_status === 'running',
+        rustServer: response.server_status === 'running',
         pythonExecutor: response.grpc_connected === true,
         lastCheck: new Date()
       }
@@ -218,7 +218,7 @@ class ConnectionManager {
 
   isFullyConnected(): boolean {
     return this.state.api.status === 'connected' &&
-           this.state.backend.goServer &&
+           this.state.backend.rustServer &&
            this.state.backend.pythonExecutor
   }
 
@@ -233,7 +233,7 @@ class ConnectionManager {
 
     // Backend services (40% weight)
     total += 40
-    if (this.state.backend.goServer) score += 20
+    if (this.state.backend.rustServer) score += 20
     if (this.state.backend.pythonExecutor) score += 20
 
     // WebSocket connections (20% weight)
@@ -283,13 +283,13 @@ class ConnectionManager {
   async runDiagnostics(): Promise<{
     api: { reachable: boolean, latency: number | null, error?: string }
     websocket: { monitor: boolean, logs: boolean }
-    backend: { go: boolean, python: boolean }
+    backend: { rust: boolean, python: boolean }
     recommendations: string[]
   }> {
     const diagnostics = {
       api: { reachable: false, latency: null as number | null, error: undefined as string | undefined },
       websocket: { monitor: false, logs: false },
-      backend: { go: false, python: false },
+      backend: { rust: false, python: false },
       recommendations: [] as string[]
     }
 
@@ -313,7 +313,7 @@ class ConnectionManager {
     }
 
     // Check backend services
-    diagnostics.backend.go = this.state.backend.goServer
+    diagnostics.backend.rust = this.state.backend.rustServer
     diagnostics.backend.python = this.state.backend.pythonExecutor
 
     if (!diagnostics.backend.python) {

@@ -1,61 +1,31 @@
-# Codecov configuration for webhook-bridge
-# Primary focus: Go coverage with Python as secondary
+# Codecov configuration for Webhook Bridge 4.0
 
 coverage:
-  # Coverage precision and rounding
   precision: 2
   round: down
   range: "70...100"
-
-  # Status checks configuration - informational only, no failures
   status:
     project:
       default:
         target: 75%
         threshold: 2%
         base: auto
-        informational: true  # Don't fail CI on coverage issues
-        flags:
-          - go
-      go:
-        target: 80%
-        threshold: 1%
-        informational: true  # Don't fail CI on coverage issues
+        informational: true
+      rust:
+        target: 75%
+        threshold: 2%
+        informational: true
         paths:
-          - "cmd/"
-          - "internal/"
-          - "pkg/"
-        flags:
-          - go
-      python:
-        target: 70%
-        threshold: 3%
-        informational: true  # Don't fail CI on coverage issues
-        paths:
-          - "python_executor/"
-          - "webhook_bridge/"
-        flags:
-          - python
+          - "crates/"
     patch:
       default:
         target: 70%
         threshold: 5%
-        informational: true  # Don't fail CI on coverage issues
-      go:
-        target: 75%
-        informational: true  # Don't fail CI on coverage issues
-        paths:
-          - "cmd/"
-          - "internal/"
-          - "pkg/"
-        flags:
-          - go
+        informational: true
 
-# GitHub integration
 github_checks:
   annotations: true
 
-# Comment configuration
 comment:
   layout: "reach,diff,flags,tree"
   behavior: default
@@ -63,43 +33,29 @@ comment:
   require_base: no
   require_head: yes
 
-# Files and paths to ignore
 ignore:
-  # Build and generated files
   - "build/"
   - "dist/"
-  - "*.pb.go"
-  - "*_grpc.pb.go"
+  - "target/"
   - "*_pb2.py"
   - "*_pb2_grpc.py"
-
-  # Development and tooling files
   - "noxfile.py"
-  - "make.bat"
   - "Makefile"
   - "scripts/"
   - "example_plugins/"
-  - "temp_test/"
-
-  # Configuration files
   - "*.yml"
   - "*.yaml"
   - "*.toml"
   - "*.json"
   - "Dockerfile"
   - "docker-compose.yml"
-
-  # Documentation
   - "*.md"
   - "docs/"
 
-# Flag configuration for different components
 flags:
-  go:
+  rust:
     paths:
-      - cmd/
-      - internal/
-      - pkg/
+      - crates/
     carryforward: true
   python:
     paths:

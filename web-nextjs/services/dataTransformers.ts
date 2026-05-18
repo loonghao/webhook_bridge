@@ -39,13 +39,13 @@ export function transformDashboardStats(backendStats: any): DashboardStats {
 export function transformSystemStatus(backendStatus: any): SystemStatus {
   // Handle the actual backend response format
   const status = backendStatus.status || 'unknown'
-  const isHealthy = status === 'healthy'
   const checks = backendStatus.checks || {}
+  const grpcConnected = backendStatus.grpc_connected ?? checks.grpc?.status ?? false
 
   return {
     // Backend fields (adapt to actual response format)
     server_status: status,
-    grpc_connected: checks.grpc?.status || false,
+    grpc_connected: grpcConnected,
     worker_count: backendStatus.worker_count || 0,
     active_workers: backendStatus.active_workers || 0,
     total_jobs: backendStatus.total_jobs || 0,
@@ -56,9 +56,9 @@ export function transformSystemStatus(backendStatus: any): SystemStatus {
     // Computed fields for UI compatibility
     service: backendStatus.service || 'Webhook Bridge',
     status: status,
-    version: backendStatus.version || '2.0.0-hybrid',
-    goVersion: 'Go 1.21+',
-    pythonVersion: checks.grpc?.status ? 'Python 3.8+' : undefined,
+    version: backendStatus.version || '4.0.0-alpha',
+    runtimeVersion: backendStatus.runtime || 'Rust 1.80+',
+    pythonVersion: grpcConnected ? 'Python executor connected' : undefined,
   }
 }
 
@@ -74,7 +74,7 @@ export function transformPluginInfo(backendPlugin: any): PluginInfo {
     name: backendPlugin.name || 'Unknown',
     path: backendPlugin.path || '',
     description: backendPlugin.description || 'No description available',
-    supported_methods: backendPlugin.supported_methods || [],
+    supported_methods: backendPlugin.supported_methods || backendPlugin.methods || [],
     is_available: status === 'active',
     last_modified: backendPlugin.last_modified || backendPlugin.lastExecuted || '',
 
@@ -83,7 +83,7 @@ export function transformPluginInfo(backendPlugin: any): PluginInfo {
     version: backendPlugin.version || '1.0.0',
     status: status as 'active' | 'inactive' | 'error' | 'loading',
     enabled: status === 'active',
-    type: detectPluginType(backendPlugin.path || ''),
+    type: backendPlugin.type || detectPluginType(backendPlugin.path || ''),
     executionCount: backendPlugin.executionCount || 0,
     successRate: 100, // Default success rate
     avgExecutionTime: backendPlugin.avgExecutionTime || '0ms',
@@ -148,11 +148,11 @@ function generatePluginId(path: string): string {
   return path.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'unknown'
 }
 
-function detectPluginType(path: string): 'python' | 'go' | 'javascript' | 'yaml' {
+function detectPluginType(path: string): 'python' | 'forward' | 'powershell' | 'pwsh' | 'script-group' | 'javascript' | 'yaml' {
   const ext = path.split('.').pop()?.toLowerCase()
   switch (ext) {
     case 'py': return 'python'
-    case 'go': return 'go'
+    case 'ps1': return 'powershell'
     case 'js': case 'ts': return 'javascript'
     case 'yaml': case 'yml': return 'yaml'
     default: return 'python' // Default to python

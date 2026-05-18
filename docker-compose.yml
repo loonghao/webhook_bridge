@@ -5,129 +5,35 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        VERSION: ${VERSION:-2.0.0-hybrid}
-        GIT_COMMIT: ${GIT_COMMIT:-unknown}
-        BUILD_DATE: ${BUILD_DATE:-unknown}
     ports:
-      - "8080:8080"   # Unified HTTP server
-      - "50051:50051" # Python gRPC server
-    environment:
-      # Core configuration
-      - WEBHOOK_BRIDGE_CONFIG_PATH=/app/config
-      - WEBHOOK_BRIDGE_PLUGINS_PATH=/app/plugins:/app/example_plugins
-      - WEBHOOK_BRIDGE_LOG_PATH=/app/logs
-      - WEBHOOK_BRIDGE_DATA_PATH=/app/data
-      - WEBHOOK_BRIDGE_WEB_PATH=/app/web-nextjs/dist
-      - WEBHOOK_BRIDGE_PYTHON_PATH=/app/python_executor
-      # Server configuration
-      - WEBHOOK_BRIDGE_HOST=0.0.0.0
-      - WEBHOOK_BRIDGE_PORT=8080
-      - WEBHOOK_BRIDGE_MODE=release
-      # Python configuration
-      - PYTHONPATH=/app
+      - "8080:8080"
+      - "50051:50051"
+      - "50052:50052"
     volumes:
-      # Configuration directory
-      - ./config:/app/config
-      # Custom plugins directory
+      - ./config.4.0.yaml:/app/config.4.0.yaml:ro
+      - ./example_plugins:/app/example_plugins:ro
       - ./plugins:/app/plugins
-      # Logs directory
-      - ./logs:/app/logs
-      # Data directory for persistent storage
       - ./data:/app/data
-      # Main configuration file
-      - ./config.yaml:/app/config.yaml:ro
     restart: unless-stopped
+    command: ["webhook-bridge", "run", "--config", "config.4.0.yaml"]
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 30s
 
-  # Development services
-  webhook-bridge-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-      - "50051:50051"
-    environment:
-      - WEBHOOK_BRIDGE_HOST=0.0.0.0
-      - WEBHOOK_BRIDGE_PORT=8080
-      - WEBHOOK_BRIDGE_MODE=debug
-    volumes:
-      - .:/app
-      - ./config.yaml:/app/config.yaml
+  dashboard:
+    image: node:22-bookworm-slim
+    working_dir: /app
     profiles:
       - dev
-    command: ["webhook-bridge", "start", "--mode", "debug", "--verbose"]
-
-  # Separate services for development
-  python-executor:
-    build:
-      context: .
-      dockerfile: Dockerfile
     ports:
-      - "50051:50051"
+      - "3002:3000"
     environment:
-      - LOG_LEVEL=DEBUG
+      - NEXT_PUBLIC_API_BASE_URL=http://webhook-bridge:8080
     volumes:
-      - .:/app
-    profiles:
-      - dev-separate
-    command: python python_executor/main.py --host 0.0.0.0 --log-level DEBUG
-
-  go-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - WEBHOOK_BRIDGE_HOST=0.0.0.0
-      - WEBHOOK_BRIDGE_PORT=8080
-      - WEBHOOK_BRIDGE_MODE=debug
-    volumes:
-      - ./config.yaml:/app/config.yaml
-    profiles:
-      - dev-separate
+      - ./web-nextjs:/app
+    command: sh -c "npm install && npm run dev"
     depends_on:
-      - python-executor
-    command: ["webhook-bridge", "serve", "--mode", "debug"]
-
-  # Optional: Redis for caching (if needed)
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    profiles:
-      - optional
-
-  # Optional: PostgreSQL for persistent storage (if needed)
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: webhook_bridge
-      POSTGRES_USER: webhook
-      POSTGRES_PASSWORD: webhook_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    profiles:
-      - optional
-
-volumes:
-  redis_data:
-  postgres_data:
-
-networks:
-  default:
-    name: webhook-bridge-network
+      - webhook-bridge

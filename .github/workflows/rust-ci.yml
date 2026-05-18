@@ -1,0 +1,45 @@
+name: Rust 4.0 CI
+
+on:
+  push:
+    branches: [main, develop, "feat/**", "feature/**"]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: Rust tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install uv -r python_executor/requirements.txt
+      - run: cargo fmt --check
+      - run: cargo test
+      - run: cargo build --release -p webhook-bridge-server --bin webhook-bridge
+
+  dashboard:
+    name: Dashboard checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - working-directory: web-nextjs
+        run: npm install
+      - working-directory: web-nextjs
+        run: npm run type-check
+      - working-directory: web-nextjs
+        run: npm run lint

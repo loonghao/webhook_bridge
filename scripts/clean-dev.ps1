@@ -31,12 +31,12 @@ function Remove-FilesByPattern {
 
 Write-Host "📦 Cleaning build artifacts..." -ForegroundColor Yellow
 
-# Remove Go build artifacts
-Remove-FilesByPattern "*.exe" "Go executable"
+# Remove native build artifacts
+Remove-FilesByPattern "*.exe" "Native executable"
 Remove-FilesByPattern "*.dll" "Dynamic library"
 Remove-FilesByPattern "*.so" "Shared object"
 Remove-FilesByPattern "*.dylib" "Dynamic library (macOS)"
-Remove-FilesByPattern "*.test" "Go test binary"
+Remove-FilesByPattern "*.test" "Native test binary"
 
 # Remove build directories
 Remove-SafelyIfExists "build" "Build directory"
@@ -108,16 +108,6 @@ Remove-FilesByPattern ".DS_Store" "macOS metadata file"
 Remove-FilesByPattern "Thumbs.db" "Windows thumbnail cache"
 Remove-FilesByPattern "desktop.ini" "Windows desktop configuration"
 
-Write-Host "🧽 Running Go clean..." -ForegroundColor Yellow
-
-# Clean Go cache
-try {
-    go clean -cache -testcache -modcache 2>$null
-    Write-Host "✅ Go cache cleaned" -ForegroundColor Green
-} catch {
-    Write-Host "⚠️  Warning: Could not clean Go cache - $($_.Exception.Message)" -ForegroundColor Yellow
-}
-
 Write-Host "🎉 Development environment cleaned successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "📋 Summary:" -ForegroundColor Cyan
@@ -126,7 +116,7 @@ Write-Host "   - Python cache cleared" -ForegroundColor White
 Write-Host "   - Frontend build outputs removed" -ForegroundColor White
 Write-Host "   - Logs and data directories cleaned" -ForegroundColor White
 Write-Host "   - Temporary files removed" -ForegroundColor White
-Write-Host "   - Go cache cleaned" -ForegroundColor White
+Write-Host "   - Native build artifacts cleaned" -ForegroundColor White
 Write-Host ""
 Write-Host "💡 To start fresh development:" -ForegroundColor Cyan
 Write-Host "   uvx nox -s quick    # Quick start" -ForegroundColor White

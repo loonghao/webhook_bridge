@@ -17,7 +17,7 @@ export interface BridgeStatus {
     error?: string
   }
   backend: {
-    goServer: boolean
+    rustServer: boolean
     pythonExecutor: boolean
     lastCheck: Date | null
   }
@@ -36,7 +36,7 @@ class BridgeStatusChecker {
       lastCheck: null,
     },
     backend: {
-      goServer: false,
+      rustServer: false,
       pythonExecutor: false,
       lastCheck: null,
     }
@@ -82,12 +82,12 @@ class BridgeStatusChecker {
         // Handle both direct response and wrapped response
         const statusData = data.data || data
         
-        this.status.backend.goServer = statusData.server_status === 'running'
+        this.status.backend.rustServer = statusData.server_status === 'running'
         this.status.backend.pythonExecutor = statusData.grpc_connected === true
         this.status.backend.lastCheck = new Date()
       }
     } catch (error) {
-      this.status.backend.goServer = false
+      this.status.backend.rustServer = false
       this.status.backend.pythonExecutor = false
       this.status.backend.lastCheck = new Date()
     }
@@ -140,8 +140,8 @@ class BridgeStatusChecker {
   }
 
   isFullyConnected(): boolean {
-    return this.status.api.connected && 
-           this.status.backend.goServer && 
+    return this.status.api.connected &&
+           this.status.backend.rustServer &&
            this.status.backend.pythonExecutor
   }
 
@@ -152,8 +152,8 @@ class BridgeStatusChecker {
       return 'API connection failed'
     }
     
-    if (!backend.goServer) {
-      return 'Go server not running'
+    if (!backend.rustServer) {
+      return 'Rust server not running'
     }
     
     if (!backend.pythonExecutor) {
@@ -171,9 +171,9 @@ class BridgeStatusChecker {
     total += 40
     if (this.status.api.connected) score += 40
     
-    // Go server (30% weight)
+    // Rust server (30% weight)
     total += 30
-    if (this.status.backend.goServer) score += 30
+    if (this.status.backend.rustServer) score += 30
     
     // Python executor (30% weight)
     total += 30
