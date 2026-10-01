@@ -9,7 +9,7 @@ COPY webhook_bridge ./webhook_bridge
 
 RUN cargo build --release -p webhook-bridge-server --bin webhook-bridge
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 COPY python_executor/requirements.txt /tmp/requirements.txt
